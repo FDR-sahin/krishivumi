@@ -34,6 +34,11 @@ import {
   UserX,
   Briefcase,
   Award,
+  Truck,
+  Calculator,
+  HelpCircle,
+  LayoutGrid,
+  ListFilter,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -330,6 +335,9 @@ export default function CentralAccountingAndInventoryView({
   const [showStkModal, setShowStkModal] = useState(false);
   const [stkType, setStkType] = useState<'employee' | 'supplier' | 'customer'>('employee');
   const [stkFilter, setStkFilter] = useState<'all' | 'employee' | 'supplier' | 'customer'>('all');
+  const [stkBizFilter, setStkBizFilter] = useState<string>('ALL');
+  const [stkViewMode, setStkViewMode] = useState<'table' | 'grouped'>('table');
+  const [showSalaryGuide, setShowSalaryGuide] = useState<boolean>(false);
   const [stkName, setStkName] = useState('');
   const [stkPhone, setStkPhone] = useState('+880 1711-000000');
   const [stkEmail, setStkEmail] = useState('');
@@ -346,6 +354,13 @@ export default function CentralAccountingAndInventoryView({
   const [stkPayDate, setStkPayDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [stkPayNote, setStkPayNote] = useState<string>('');
   const [isSettlingStk, setIsSettlingStk] = useState(false);
+
+  // Transparent Salary Calculation Breakdown State
+  const [salaryBase, setSalaryBase] = useState<number>(20000);
+  const [salaryDaysTotal, setSalaryDaysTotal] = useState<number>(30);
+  const [salaryDaysWorked, setSalaryDaysWorked] = useState<number>(30);
+  const [salaryBonus, setSalaryBonus] = useState<number>(0);
+  const [salaryDeduction, setSalaryDeduction] = useState<number>(0);
 
   // Executive Report Modal State (Super Manager & Super Admin)
   const [showExecutiveReportModal, setShowExecutiveReportModal] = useState(false);
@@ -1062,20 +1077,116 @@ export default function CentralAccountingAndInventoryView({
     }
   };
 
+  const openHireStaffModal = (targetBizId?: string) => {
+    const bId = targetBizId || (stkBizFilter !== 'ALL' ? stkBizFilter : businesses[0]?.id || 'ALL');
+    const biz = fullBusinessList.find((b) => b.id === bId) || businesses.find((b) => b.id === bId);
+    setEditingStakeholder(null);
+    setStkType('employee');
+    setStkName('');
+    setStkPhone('+880 1711-000000');
+    setStkAddress('গাজীপুর কমপ্লেক্স, বাংলাদেশ');
+    setStkBizId(bId);
+
+    if (biz?.templateType === 'transport' || biz?.name?.toLowerCase().includes('transport') || biz?.nameBn?.includes('ট্রাক')) {
+      setStkRoleCat('হেভি ট্রাক ড্রাইভার (Heavy Vehicle Driver)');
+      setStkSalaryOrLimit(28000);
+    } else if (biz?.templateType === 'fish' || biz?.nameBn?.includes('মৎস্য')) {
+      setStkRoleCat('পুকুর ও মাছের খাদ্য ইনচার্জ');
+      setStkSalaryOrLimit(22000);
+    } else if (biz?.templateType === 'cattle' || biz?.nameBn?.includes('পশু')) {
+      setStkRoleCat('দুগ্ধ দোহন ও পশু পরিচর্যা কর্মী');
+      setStkSalaryOrLimit(20000);
+    } else if (biz?.templateType === 'goat' || biz?.nameBn?.includes('ছাগল')) {
+      setStkRoleCat('ছাগল প্রজনন ও যত্নকর্মী');
+      setStkSalaryOrLimit(18000);
+    } else {
+      setStkRoleCat('শেড ইনচার্জ / ফার্ম কর্মী');
+      setStkSalaryOrLimit(20000);
+    }
+    setShowStkModal(true);
+  };
+
+  const handleSeedTransportStaff = async () => {
+    const transportBiz = fullBusinessList.find(
+      (b) => b.templateType === 'transport' || b.name?.toLowerCase().includes('transport') || b.nameBn?.includes('ট্রাক')
+    );
+    if (!transportBiz) {
+      showNotice('ট্রাক ও পরিবহন ব্যবসা পাওয়া যায়নি।');
+      return;
+    }
+    try {
+      await createStakeholderRecord(
+        {
+          stakeholderType: 'employee',
+          code: `DRV-${Date.now().toString().slice(-4)}`,
+          name: 'মোঃ রফিকুল ইসলাম (হেভি ট্রাক ড্রাইভার)',
+          phone: '+880 1718-552233',
+          email: 'rafiq.driver@krishivumi.bd',
+          address: 'গাজীপুর সেন্ট্রাল ট্রাক ডিপো',
+          businessId: transportBiz.id,
+          businessName: transportBiz.nameBn || transportBiz.name,
+          designationOrCategory: 'হেভি ট্রাক ড্রাইভার (লাইসেন্স নং: DH-84920)',
+          monthlySalaryOrCreditLimit: 28000,
+          outstandingBalance: 0,
+          status: 'active',
+          appointedBy: actorEmail,
+          appointedByRole: userRole,
+          appointedAt: new Date().toISOString(),
+        },
+        ownerId,
+        actorEmail
+      );
+      await createStakeholderRecord(
+        {
+          stakeholderType: 'employee',
+          code: `HLP-${(Date.now() + 1).toString().slice(-4)}`,
+          name: 'মোঃ কামাল হোসেন (ট্রাক হেলপার)',
+          phone: '+880 1812-774411',
+          email: 'kamal.helper@krishivumi.bd',
+          address: 'শ্রীপুর ফিড লোডিং ইয়ার্ড',
+          businessId: transportBiz.id,
+          businessName: transportBiz.nameBn || transportBiz.name,
+          designationOrCategory: 'ট্রাক হেলপার ও লোডিং খালাসি',
+          monthlySalaryOrCreditLimit: 15000,
+          outstandingBalance: 0,
+          status: 'active',
+          appointedBy: actorEmail,
+          appointedByRole: userRole,
+          appointedAt: new Date().toISOString(),
+        },
+        ownerId,
+        actorEmail
+      );
+      showNotice('ট্রাক ও পরিবহন ব্যবসার জন্য ১ জন হেভি ড্রাইভার ও ১ জন হেলপার সফলভাবে যুক্ত হয়েছে!');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'ট্রাক স্টাফ যুক্ত করতে ব্যর্থ হয়েছে।');
+    }
+  };
+
   const openStkPayModal = (target: ErpStakeholder, defaultAmt?: number) => {
     setStkPayTarget(target);
-    setStkPayAmount(
+    const base = target.monthlySalaryOrCreditLimit || 20000;
+    setSalaryBase(base);
+    setSalaryDaysTotal(30);
+    setSalaryDaysWorked(30);
+    setSalaryBonus(0);
+    setSalaryDeduction(0);
+    const initialAmt =
       defaultAmt !== undefined
         ? defaultAmt
         : target.stakeholderType === 'employee'
-        ? target.monthlySalaryOrCreditLimit
+        ? base
         : target.outstandingBalance > 0
         ? target.outstandingBalance
-        : 10000
-    );
+        : 10000;
+    setStkPayAmount(initialAmt);
     setStkPayWalletId(treasuryWallets[0]?.id || accounts[0]?.id || '');
     setStkPayDate(new Date().toISOString().split('T')[0]);
-    setStkPayNote('');
+    setStkPayNote(
+      target.stakeholderType === 'employee'
+        ? `${formatMonthFilterLabel(activeMonthFilter, true)} বেতন`
+        : ''
+    );
   };
 
   const handleStakeholderPaymentSubmit = async (e: React.FormEvent) => {
@@ -1084,12 +1195,30 @@ export default function CentralAccountingAndInventoryView({
     setIsSettlingStk(true);
     setErrorMsg(null);
     try {
+      let finalNote = stkPayNote.trim();
+      if (stkPayTarget.stakeholderType === 'employee') {
+        const formulaParts: string[] = [];
+        if (salaryDaysWorked !== 30) {
+          formulaParts.push(`হাজিরা: ${salaryDaysWorked}/30 দিন`);
+        }
+        if (salaryBonus > 0) {
+          formulaParts.push(`বোনাস/খোরাকি: +৳${salaryBonus}`);
+        }
+        if (salaryDeduction > 0) {
+          formulaParts.push(`কর্তন: -৳${salaryDeduction}`);
+        }
+        const formulaText = formulaParts.length > 0 ? ` [${formulaParts.join(', ')}]` : '';
+        finalNote = finalNote
+          ? `${finalNote}${formulaText}`
+          : `${formatMonthFilterLabel(activeMonthFilter, true)} বেতন${formulaText}`;
+      }
+
       const refNo = await settleStakeholderPayment({
         stakeholderId: stkPayTarget.id,
         walletAccountId: stkPayWalletId,
         amount: Number(stkPayAmount),
         date: stkPayDate,
-        note: stkPayNote.trim(),
+        note: finalNote,
       });
       const actionText =
         stkPayTarget.stakeholderType === 'employee'
@@ -1107,9 +1236,11 @@ export default function CentralAccountingAndInventoryView({
         businessName: stkPayTarget.businessName,
         recipientName: stkPayTarget.name,
         designation: stkPayTarget.designationOrCategory,
+        recipientPhone: stkPayTarget.phone,
+        appointedBy: stkPayTarget.appointedBy || 'মালিক কর্তৃক সরাসরি',
         amount: Number(stkPayAmount),
         paymentMethod: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
-        note: stkPayNote.trim() || `${formatMonthFilterLabel(activeMonthFilter, true)} ${actionText}`,
+        note: finalNote || `${formatMonthFilterLabel(activeMonthFilter, true)} ${actionText}`,
         totalAmount: Number(stkPayAmount),
         enteredBy: actorEmail,
       });
@@ -2210,6 +2341,7 @@ export default function CentralAccountingAndInventoryView({
       {/* 3. EMPLOYEES, PAYROLL, SUPPLIERS & CUSTOMERS */}
       {activeSection === 'stakeholders' && (
         <div className="space-y-6">
+          {/* Header & Main Control Toolbar */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs">
             <div>
               <div className="flex items-center gap-2">
@@ -2219,22 +2351,66 @@ export default function CentralAccountingAndInventoryView({
                 </h1>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                <strong>কর্মচারী</strong> = মাসিক বেতন দিচ্ছেন · <strong>ক্রেতা/পাইকার</strong> = তাদের কাছ থেকে বাকি টাকা পাবেন · <strong>সাপ্লায়ার</strong> = দোকান/মিলকে বাকি টাকা দেবেন।
+                <strong>কর্মচারী</strong> = মাসিক বেতন পাচ্ছেন · <strong>ক্রেতা/পাইকার</strong> = তাদের কাছ থেকে বাকি টাকা পাবেন · <strong>সাপ্লায়ার</strong> = দোকান/মিলকে বাকি টাকা দেবেন।
               </p>
             </div>
+
             <div className="flex flex-wrap items-center gap-2">
+              {/* Salary Calculation Guide Accordion Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowSalaryGuide(!showSalaryGuide)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-colors cursor-pointer ${
+                  showSalaryGuide
+                    ? 'border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                <Calculator className="h-4 w-4 text-blue-600" />
+                <span>💡 বেতন হিসাব নির্দেশিকা</span>
+              </button>
+
+              {/* View Mode Switcher (Table vs Grouped Directory) */}
+              <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setStkViewMode('table')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                    stkViewMode === 'table'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ListFilter className="h-3.5 w-3.5" />
+                  <span>তালিকা ভিউ</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStkViewMode('grouped')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                    stkViewMode === 'grouped'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>৫টি ব্যবসার কর্মী বোর্ড</span>
+                </button>
+              </div>
+
+              {/* Stakeholder Category Filter Tabs */}
               <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
                 {[
                   { id: 'all' as const, label: 'সবাই' },
                   { id: 'employee' as const, label: 'কর্মচারী (বেতন)' },
-                  { id: 'customer' as const, label: 'ক্রেতা (টাকা পাব)' },
-                  { id: 'supplier' as const, label: 'সাপ্লায়ার (টাকা দেব)' },
+                  { id: 'customer' as const, label: 'ক্রেতা (পাব)' },
+                  { id: 'supplier' as const, label: 'সাপ্লায়ার (দেব)' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setStkFilter(tab.id)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                    className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                       stkFilter === tab.id
                         ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -2244,30 +2420,14 @@ export default function CentralAccountingAndInventoryView({
                   </button>
                 ))}
               </div>
+
               <button
                 type="button"
-                onClick={() => {
-                  setEditingStakeholder(null);
-                  setStkType('employee');
-                  setStkName('');
-                  setStkPhone('+880 1711-000000');
-                  setStkRoleCat(
-                    userRole === 'business_manager'
-                      ? 'খামার সহকারী / কর্মী'
-                      : 'খামার সুপারভাইজার'
-                  );
-                  setStkSalaryOrLimit(20000);
-                  if (userRole === 'business_manager' && assignedBusinessFilter !== 'ALL') {
-                    setStkBizId(assignedBusinessFilter);
-                  } else {
-                    setStkBizId(businesses[0]?.id || 'ALL');
-                  }
-                  setShowStkModal(true);
-                }}
+                onClick={() => openHireStaffModal()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 whitespace-nowrap shadow-sm shadow-blue-600/20 cursor-pointer"
               >
                 <UserPlus className="h-4 w-4" />
-                <span>+ নতুন কর্মী নিয়োগ দিন (Hire Staff)</span>
+                <span>+ নতুন কর্মী নিয়োগ দিন</span>
               </button>
 
               <button
@@ -2280,385 +2440,904 @@ export default function CentralAccountingAndInventoryView({
                   setStkRoleCat('পাইকারি ক্রেতা');
                   setStkSalaryOrLimit(50000);
                   setStkBalance(0);
+                  setStkBizId(stkBizFilter !== 'ALL' ? stkBizFilter : businesses[0]?.id || 'ALL');
                   setShowStkModal(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
-                <span>+ নতুন পাইকার / সাপ্লায়ার</span>
+                <span>+ পাইকার/সাপ্লায়ার</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <div className="text-xs text-slate-500">
-                বেতন পরিশোধ ({formatMonthFilterLabel(activeMonthFilter, true)})
+          {/* Salary Calculation Guide Accordion Banner */}
+          {showSalaryGuide && (
+            <div className="rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/40 dark:to-indigo-950/40 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-blue-600 text-white shadow-xs">
+                    <Calculator className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      💡 খামার কর্মী ও পরিবহন ড্রাইভারদের বেতন হিসাবের ফর্মুলা নির্দেশিকা
+                    </h3>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                      সিস্টেমে কীভাবে সঠিক উপায়ে দিন গণনা, বোনাস/ট্রিপ খোরাকি এবং কর্তন সমন্বয় করে বেতন হিসাব করবেন:
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSalaryGuide(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div className="mt-1 text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
-                {formatBDT(
-                  monthlyPostedJournals
-                    .filter((j) => j.transactionType === 'payroll')
-                    .reduce((s, j) => s + j.amount, 0)
-                )}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">
-                মোট সক্রিয় কর্মচারী: {stakeholders.filter((s) => s.stakeholderType === 'employee' && s.status !== 'terminated').length} জন
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs pt-1">
+                <div className="rounded-xl bg-white dark:bg-slate-900 p-4 border border-blue-100 dark:border-blue-900/60 space-y-1.5 shadow-2xs">
+                  <div className="font-bold text-blue-700 dark:text-blue-400">
+                    ১. মাসিক মূল বেতন ও হাজিরা (Attendance)
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                    প্রতিটি কর্মীর চুক্তিকৃত মাসিক বেতন থাকে (যেমন: খামার কর্মী ৳২০,০০০, ট্রাক ড্রাইভার ৳২৮,০০০)। কর্মী মাসে যত দিন কাজ করবে, আনুপাতিক বেতন স্বয়ংক্রিয়ভাবে হিসাব হবে:
+                    <br />
+                    <span className="font-mono font-bold text-blue-600 mt-1 inline-block">
+                      আনুপাতিক বেতন = (মূল বেতন ÷ ৩০) × হাজিরা দিন
+                    </span>
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white dark:bg-slate-900 p-4 border border-blue-100 dark:border-blue-900/60 space-y-1.5 shadow-2xs">
+                  <div className="font-bold text-emerald-700 dark:text-emerald-400">
+                    ২. ট্রিপ খোরাকি ও বোনাস (ট্রাক ব্যবসা ও খামার)
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                    বাণিজ্যিক ট্রাক ব্যবসার ক্ষেত্রে ড্রাইভার ও হেলপাররা প্রতি দূরপাল্লার ট্রিপে খোরাকি বা ট্রিপ কমিশন পান। এছাড়া কর্মীদের ঈদ/উৎসব বোনাস থাকতে পারে। &ldquo;বেতন দিন&rdquo; মডালে বোনাস/খোরাকি বক্সে মানটি দিলেই মূল বেতনের সাথে যোগ হবে।
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white dark:bg-slate-900 p-4 border border-blue-100 dark:border-blue-900/60 space-y-1.5 shadow-2xs">
+                  <div className="font-bold text-rose-700 dark:text-rose-400">
+                    ৩. অগ্রিম কর্তন ও স্বাক্ষরিত পে-স্লিপ
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                    কর্মী মাসের মাঝে ক্যাশ থেকে অগ্রিম ধার নিয়ে থাকলে কর্তন বক্সে তা লিখে দিলে স্বয়ংক্রিয়ভাবে মোট বেতন থেকে বাদ যাবে। এরপর &ldquo;পেমেন্ট নিশ্চিত&rdquo; করলেই কোম্পানির সিল ও কর্মীর শারীরিক স্বাক্ষর নেওয়ার অফিসিয়াল পে-স্লিপ প্রিন্ট হবে।
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <div className="text-xs text-slate-500">মোট মাসিক বেতন বাজেট</div>
-              <div className="mt-1 text-xl font-extrabold font-mono text-slate-900 dark:text-white">
-                {formatBDT(
-                  stakeholders
-                    .filter((s) => s.stakeholderType === 'employee' && s.status !== 'terminated')
-                    .reduce((sum, s) => sum + s.monthlySalaryOrCreditLimit, 0)
-                )}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">সকল সক্রিয় স্টাফ ও কর্মী</div>
+          )}
+
+          {/* 5 Business Units Filter Tabs */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                ব্যবসা অনুযায়ী কর্মী ফিল্টার (Filter by Business Unit):
+              </span>
+              {stkBizFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setStkBizFilter('ALL')}
+                  className="text-xs font-bold text-blue-600 hover:underline"
+                >
+                  ← সকল ব্যবসার কর্মী দেখুন
+                </button>
+              )}
             </div>
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <div className="text-xs text-slate-500">পাইকার/ক্রেতার কাছে পাওনা (পাবেন)</div>
-              <div className="mt-1 text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
-                {formatBDT(
-                  stakeholders
-                    .filter((s) => s.stakeholderType === 'customer')
-                    .reduce((sum, s) => sum + s.outstandingBalance, 0)
-                )}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">গ্রাহকের কাছে বকেয়া</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <div className="text-xs text-slate-500">সাপ্লায়ারদের কাছে দেনা (দেবেন)</div>
-              <div className="mt-1 text-xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
-                {formatBDT(
-                  stakeholders
-                    .filter((s) => s.stakeholderType === 'supplier')
-                    .reduce((sum, s) => sum + s.outstandingBalance, 0)
-                )}
-              </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">দোকান/মিলের বকেয়া</div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setStkBizFilter('ALL')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  stkBizFilter === 'ALL'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-400'
+                }`}
+              >
+                <span>🌐 সকল ব্যবসা ও খামার</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono">
+                  {stakeholders.filter((s) => s.stakeholderType === 'employee').length} জন কর্মী
+                </span>
+              </button>
+
+              {businesses.map((biz) => {
+                const staffCount = stakeholders.filter(
+                  (s) => s.businessId === biz.id && s.stakeholderType === 'employee' && s.status !== 'terminated'
+                ).length;
+                const icon =
+                  biz.templateType === 'poultry'
+                    ? '🐔'
+                    : biz.templateType === 'cattle'
+                    ? '🐄'
+                    : biz.templateType === 'goat'
+                    ? '🐐'
+                    : biz.templateType === 'fish'
+                    ? '🐟'
+                    : '🚚';
+                return (
+                  <button
+                    key={biz.id}
+                    type="button"
+                    onClick={() => setStkBizFilter(biz.id)}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                      stkBizFilter === biz.id
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-emerald-500'
+                    }`}
+                  >
+                    <span>{icon} {biz.nameBn || biz.name}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                        stkBizFilter === biz.id
+                          ? 'bg-white/20 text-white'
+                          : staffCount > 0
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {staffCount} জন
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
-                    <th className="py-3 px-4">কোড ও ধরন</th>
-                    <th className="py-3 px-4">নাম ও মোবাইল</th>
-                    <th className="py-3 px-4">ব্যবসা ইউনিট</th>
-                    <th className="py-3 px-4">পদবি / পরিচয়</th>
-                    <th className="py-3 px-4">নিয়োগকারী ম্যানেজার (Appointed By)</th>
-                    <th className="py-3 px-4 text-right">মাসিক বেতন / লিমিট</th>
-                    <th className="py-3 px-4 text-right">হিসাবের অবস্থা</th>
-                    <th className="py-3 px-4 text-right">অ্যাকশন ও ম্যানেজমেন্ট</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {stakeholders
-                    .filter((s) => stkFilter === 'all' || s.stakeholderType === stkFilter)
-                    .map((s) => {
-                      const paidThisPeriod =
-                        s.stakeholderType === 'employee'
-                          ? monthlyPostedJournals
-                              .filter(
-                                (j) =>
-                                  j.transactionType === 'payroll' &&
-                                  j.counterpartyName === s.name
-                              )
-                              .reduce((sum, j) => sum + j.amount, 0)
-                          : 0;
+          {/* Active Business Unit Highlight Banner */}
+          {(() => {
+            const activeBizObj = fullBusinessList.find((b) => b.id === stkBizFilter);
+            const activeBizStaff = stakeholders.filter(
+              (s) => s.businessId === stkBizFilter && s.stakeholderType === 'employee' && s.status !== 'terminated'
+            );
+            const activeBizTotalSalary = activeBizStaff.reduce((sum, s) => sum + s.monthlySalaryOrCreditLimit, 0);
+            const isTransportBiz =
+              activeBizObj?.templateType === 'transport' ||
+              activeBizObj?.name?.toLowerCase().includes('transport') ||
+              activeBizObj?.nameBn?.includes('ট্রাক');
 
-                      const canManageThisStaff =
-                        userRole === 'super_admin' ||
-                        userRole === 'super_manager' ||
-                        (userRole === 'business_manager' &&
-                          (assignedBusinessFilter === 'ALL' || assignedBusinessFilter === s.businessId));
+            if (stkBizFilter !== 'ALL' && activeBizObj) {
+              return (
+                <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm">
+                      {isTransportBiz ? '🚚' : '🏢'}
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>{activeBizObj.nameBn || activeBizObj.name} — কর্মী ও পে-রোল রেজিস্টার</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-200/80 dark:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200 text-[10px] font-bold">
+                          সক্রিয় ফিল্টার
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                        মোট কর্মী: <strong>{activeBizStaff.length} জন</strong> · মাসিক বেতন বাজেট: <strong>{formatBDT(activeBizTotalSalary)}</strong>
+                      </div>
+                    </div>
+                  </div>
 
-                      return (
-                        <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                          <td className="py-3.5 px-4">
-                            <div className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                              {s.code}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {isTransportBiz && activeBizStaff.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSeedTransportStaff}
+                        className="px-3 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 shadow-sm cursor-pointer whitespace-nowrap"
+                        title="ট্রাক ব্যবসার জন্য ১ জন ড্রাইভার ও ১ জন হেলপার যুক্ত করুন"
+                      >
+                        🚚 + ১-ক্লিকে ড্রাইভার ও হেলপার যোগ করুন
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openHireStaffModal(activeBizObj.id)}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-600/30 cursor-pointer whitespace-nowrap"
+                    >
+                      + এই ব্যবসায় কর্মী নিয়োগ দিন
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* 4 Financial KPI Summary Cards (Filtered by Active Business) */}
+          {(() => {
+            const bizStakeholders = stakeholders.filter(
+              (s) => stkBizFilter === 'ALL' || s.businessId === stkBizFilter
+            );
+            const activeEmployees = bizStakeholders.filter(
+              (s) => s.stakeholderType === 'employee' && s.status !== 'terminated'
+            );
+            const activeStaffNames = new Set(activeEmployees.map((e) => e.name));
+            const paidThisMonthBDT = monthlyPostedJournals
+              .filter(
+                (j) =>
+                  j.transactionType === 'payroll' &&
+                  (stkBizFilter === 'ALL' || j.businessId === stkBizFilter || activeStaffNames.has(j.counterpartyName))
+              )
+              .reduce((s, j) => s + j.amount, 0);
+
+            const totalMonthlySalaryBudget = activeEmployees.reduce(
+              (sum, s) => sum + s.monthlySalaryOrCreditLimit,
+              0
+            );
+            const totalCustomerReceivable = bizStakeholders
+              .filter((s) => s.stakeholderType === 'customer')
+              .reduce((sum, s) => sum + s.outstandingBalance, 0);
+            const totalSupplierPayable = bizStakeholders
+              .filter((s) => s.stakeholderType === 'supplier')
+              .reduce((sum, s) => sum + s.outstandingBalance, 0);
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                  <div className="text-xs text-slate-500">
+                    বেতন পরিশোধ ({formatMonthFilterLabel(activeMonthFilter, true)})
+                  </div>
+                  <div className="mt-1 text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
+                    {formatBDT(paidThisMonthBDT)}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    সক্রিয় কর্মী: {activeEmployees.length} জন
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                  <div className="text-xs text-slate-500">মোট মাসিক বেতন বাজেট</div>
+                  <div className="mt-1 text-xl font-extrabold font-mono text-slate-900 dark:text-white">
+                    {formatBDT(totalMonthlySalaryBudget)}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    {stkBizFilter === 'ALL' ? 'সকল সক্রিয় ইউনিট' : 'নির্বাচিত বিজনেস ইউনিট'}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                  <div className="text-xs text-slate-500">পাইকার/ক্রেতার কাছে পাওনা (পাবেন)</div>
+                  <div className="mt-1 text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
+                    {formatBDT(totalCustomerReceivable)}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">বকেয়া কাস্টমার হিসাব</div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                  <div className="text-xs text-slate-500">সাপ্লায়ারদের কাছে দেনা (দেবেন)</div>
+                  <div className="mt-1 text-xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
+                    {formatBDT(totalSupplierPayable)}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">দোকান/মিলের বিল বাকি</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* VIEW MODE 1: 5 BUSINESS UNITS GROUPED DIRECTORY BOARD */}
+          {stkViewMode === 'grouped' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4 text-emerald-600" />
+                    <span>৫টি ব্যবসায়ের আলাদা কর্মী বোর্ড (Business Unit HR Directory)</span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    কোন ব্যবসায় কোন কোন কর্মী বা ড্রাইভার নিয়োজিত আছেন তার আলাদা কার্ড ও বেতন বিবরণী
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {fullBusinessList.map((biz) => {
+                  const bStaff = stakeholders.filter(
+                    (s) => s.businessId === biz.id && s.stakeholderType === 'employee'
+                  );
+                  const activeStaff = bStaff.filter((s) => s.status !== 'terminated');
+                  const bSalaryBudget = activeStaff.reduce((sum, s) => sum + s.monthlySalaryOrCreditLimit, 0);
+                  const mgrUser = erpUsers.find(
+                    (u) =>
+                      u.role === 'business_manager' &&
+                      (u.assignedBusinesses === 'ALL' || u.assignedBusinesses?.includes(biz.id))
+                  );
+                  const isTrk =
+                    biz.templateType === 'transport' ||
+                    biz.name?.toLowerCase().includes('transport') ||
+                    biz.nameBn?.includes('ট্রাক');
+                  const icon =
+                    biz.templateType === 'poultry'
+                      ? '🐔'
+                      : biz.templateType === 'cattle'
+                      ? '🐄'
+                      : biz.templateType === 'goat'
+                      ? '🐐'
+                      : biz.templateType === 'fish'
+                      ? '🐟'
+                      : '🚚';
+
+                  return (
+                    <div
+                      key={biz.id}
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        {/* Card Header */}
+                        <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-2xl">{icon}</span>
+                            <div>
+                              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                {biz.nameBn || biz.name}
+                              </h3>
+                              <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Briefcase className="h-3 w-3 text-blue-500" />
+                                <span>ম্যানেজার: <strong>{mgrUser ? mgrUser.displayName : 'নিয়োগ প্রক্রিয়াধীন'}</strong></span>
+                              </div>
                             </div>
-                            <span
-                              className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                s.stakeholderType === 'employee'
-                                  ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
-                                  : s.stakeholderType === 'customer'
-                                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
-                              }`}
-                            >
-                              {s.stakeholderType === 'employee'
-                                ? 'কর্মচারী (বেতন)'
-                                : s.stakeholderType === 'customer'
-                                ? 'ক্রেতা (টাকা পাবেন)'
-                                : 'সাপ্লায়ার (টাকা দেবেন)'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="font-semibold text-slate-900 dark:text-slate-100">
-                              {s.name}
+                          </div>
+
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                            {activeStaff.length} জন কর্মী
+                          </span>
+                        </div>
+
+                        {/* Salary Summary Pill */}
+                        <div className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
+                          <span className="text-slate-500">মাসিক বেতন বাজেট:</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-white">
+                            {formatBDT(bSalaryBudget)}
+                          </span>
+                        </div>
+
+                        {/* Staff Members List */}
+                        <div className="space-y-2">
+                          <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            কর্মীদের তালিকা ({activeStaff.length} জন):
+                          </div>
+
+                          {activeStaff.length === 0 ? (
+                            <div className="py-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl space-y-2 bg-slate-50/50 dark:bg-slate-900/40">
+                              <div className="text-2xl">{isTrk ? '🚚' : '👷'}</div>
+                              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                {isTrk
+                                  ? 'এই পরিবহন ব্যবসায় এখনো কোনো ড্রাইভার বা হেলপার নেই।'
+                                  : 'এই ইউনিটে এখনো কোনো কর্মী নিয়োগ দেওয়া হয়নি।'}
+                              </div>
+                              {isTrk && (
+                                <button
+                                  type="button"
+                                  onClick={handleSeedTransportStaff}
+                                  className="mt-1 px-3 py-1 text-[11px] font-bold rounded-lg bg-purple-600 text-white hover:bg-purple-700 cursor-pointer shadow-xs"
+                                >
+                                  🚚 ১-ক্লিকে ড্রাইভার ও হেলপার যোগ করুন
+                                </button>
+                              )}
                             </div>
-                            <div className="text-slate-500">
-                              {s.phone} · {s.address}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 font-medium">{s.businessName}</td>
-                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
-                            {s.designationOrCategory}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            {s.stakeholderType === 'employee' ? (
-                              <div className="space-y-1">
-                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                                  <Briefcase className="h-3 w-3 text-blue-600" />
-                                  <span>{s.appointedBy || 'মালিক কর্তৃক সরাসরি'}</span>
-                                </div>
-                                {s.status === 'terminated' && (
-                                  <div>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[10px] font-bold">
-                                      <UserX className="h-3 w-3" />
-                                      <span>বরখাস্ত / বাদ দেওয়া</span>
-                                    </span>
-                                    {s.notes && (
-                                      <div className="text-[10px] text-red-500 italic truncate max-w-xs">{s.notes}</div>
-                                    )}
+                          ) : (
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                              {activeStaff.map((stk) => {
+                                const paidThisPeriod = monthlyPostedJournals
+                                  .filter(
+                                    (j) =>
+                                      j.transactionType === 'payroll' &&
+                                      j.counterpartyName === stk.name
+                                  )
+                                  .reduce((sum, j) => sum + j.amount, 0);
+
+                                return (
+                                  <div
+                                    key={stk.id}
+                                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 hover:border-slate-300 dark:hover:border-slate-700 space-y-2 text-xs"
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div>
+                                        <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                          <span>{stk.name}</span>
+                                          <span className="font-mono text-[10px] text-slate-400">({stk.code})</span>
+                                        </div>
+                                        <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+                                          {stk.designationOrCategory}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400">
+                                          {stk.phone} · নিয়োগকারী: {stk.appointedBy || 'মালিক'}
+                                        </div>
+                                      </div>
+
+                                      <div className="text-right">
+                                        <div className="font-mono font-bold text-slate-900 dark:text-white">
+                                          {formatBDT(stk.monthlySalaryOrCreditLimit)}
+                                        </div>
+                                        <div className="mt-0.5">
+                                          {paidThisPeriod >= stk.monthlySalaryOrCreditLimit ? (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                              ✓ পরিশোধিত
+                                            </span>
+                                          ) : paidThisPeriod > 0 ? (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                              আংশিক
+                                            </span>
+                                          ) : (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                              বাকি
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Action Buttons for Card */}
+                                    <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+                                      {paidThisPeriod >= stk.monthlySalaryOrCreditLimit ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => openStkPayModal(stk, 5000)}
+                                          className="px-2 py-1 text-[11px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 cursor-pointer"
+                                        >
+                                          বোনাস দিন
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openStkPayModal(
+                                              stk,
+                                              Math.max(1, stk.monthlySalaryOrCreditLimit - paidThisPeriod)
+                                            )
+                                          }
+                                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-2xs"
+                                        >
+                                          {paidThisPeriod > 0 ? 'বাকি বেতন দিন' : 'বেতন দিন'}
+                                        </button>
+                                      )}
+
+                                      {paidThisPeriod > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const latestPayroll = monthlyPostedJournals.find(
+                                              (j) => j.transactionType === 'payroll' && j.counterpartyName === stk.name
+                                            );
+                                            setActiveSlip({
+                                              type: 'salary_payslip',
+                                              slipNo: latestPayroll?.referenceNo || `PAY-${stk.code}-${Date.now().toString().slice(-4)}`,
+                                              date: latestPayroll?.date || new Date().toISOString().split('T')[0],
+                                              businessName: stk.businessName,
+                                              recipientName: stk.name,
+                                              designation: stk.designationOrCategory,
+                                              amount: paidThisPeriod,
+                                              paymentMethod: latestPayroll?.creditAccountName || 'ক্যাশ / ব্যাংক একাউন্ট',
+                                              note: `বেতন প্রদান (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                                              recipientPhone: stk.phone,
+                                              appointedBy: stk.appointedBy || 'মালিক কর্তৃক সরাসরি',
+                                              enteredBy: actorEmail,
+                                            });
+                                          }}
+                                          className="px-2 py-1 text-[11px] font-semibold rounded-lg border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 cursor-pointer inline-flex items-center gap-1"
+                                          title="পে-স্লিপ দেখুন"
+                                        >
+                                          <FileText className="h-3 w-3 text-sky-600" />
+                                          <span>স্লিপ</span>
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card Footer Button */}
+                      <button
+                        type="button"
+                        onClick={() => openHireStaffModal(biz.id)}
+                        className="mt-3 w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <UserPlus className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>+ এই {isTrk ? 'ট্রাক ব্যবসায় ড্রাইভার/কর্মী' : 'ব্যবসায় কর্মী'} নিয়োগ দিন</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* VIEW MODE 2: TABLE VIEW */}
+          {stkViewMode === 'table' && (
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+              <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-3.5 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {stkBizFilter === 'ALL'
+                      ? 'সকল কর্মী ও স্টেকহোল্ডারের তালিকা'
+                      : `${fullBusinessList.find((b) => b.id === stkBizFilter)?.nameBn || 'নির্বাচিত ব্যবসা'}-এর কর্মী তালিকা`}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    বেতন হিসাব, বকেয়া স্থিতি এবং নিয়োগকারী কর্তৃপক্ষের বিবরণ
+                  </p>
+                </div>
+                <span className="text-xs font-mono text-slate-500">
+                  {stakeholders.filter((s) => (stkFilter === 'all' || s.stakeholderType === stkFilter) && (stkBizFilter === 'ALL' || s.businessId === stkBizFilter)).length} জন রেকর্ড
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
+                      <th className="py-3 px-4">কোড ও ধরন</th>
+                      <th className="py-3 px-4">নাম ও মোবাইল</th>
+                      <th className="py-3 px-4">ব্যবসা ইউনিট</th>
+                      <th className="py-3 px-4">পদবি / পরিচয়</th>
+                      <th className="py-3 px-4">নিয়োগকারী কর্তৃপক্ষ (Appointed By)</th>
+                      <th className="py-3 px-4 text-right">মাসিক বেতন / লিমিট</th>
+                      <th className="py-3 px-4 text-right">হিসাবের অবস্থা</th>
+                      <th className="py-3 px-4 text-right">অ্যাকশন ও ম্যানেজমেন্ট</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {(() => {
+                      const displayList = stakeholders.filter(
+                        (s) =>
+                          (stkFilter === 'all' || s.stakeholderType === stkFilter) &&
+                          (stkBizFilter === 'ALL' || s.businessId === stkBizFilter)
+                      );
+
+                      if (displayList.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={8} className="py-12 text-center text-slate-400 space-y-3">
+                              <div className="text-3xl">👥</div>
+                              <div className="font-semibold text-slate-600 dark:text-slate-400">
+                                নির্বাচিত ফিল্টারে কোনো কর্মী বা রেকর্ড পাওয়া যায়নি।
+                              </div>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openHireStaffModal(stkBizFilter !== 'ALL' ? stkBizFilter : undefined)}
+                                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 cursor-pointer shadow-xs"
+                                >
+                                  + নতুন কর্মী নিয়োগ দিন
+                                </button>
+                                {stkBizFilter !== 'ALL' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setStkBizFilter('ALL')}
+                                    className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 cursor-pointer"
+                                  >
+                                    সকল কর্মী দেখুন
+                                  </button>
                                 )}
                               </div>
-                            ) : (
-                              <span className="text-slate-400 text-[11px]">—</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono tabular-nums font-semibold">
-                            <div className="text-[10px] text-slate-400">
-                              {s.stakeholderType === 'employee' ? 'মাসিক বেতন' : 'ক্রেডিট লিমিট'}
-                            </div>
-                            <div>{formatBDT(s.monthlySalaryOrCreditLimit)}</div>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                            {s.stakeholderType === 'employee' ? (
-                              s.status === 'terminated' ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold">
-                                  চাকরি শেষ
-                                </span>
-                              ) : paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
-                                <div className="space-y-0.5">
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
-                                    ✓ পরিশোধিত: {formatBDT(paidThisPeriod)}
-                                  </span>
-                                  <div className="text-[10px] text-slate-400">
-                                    বকেয়া: ৳0 ({formatMonthFilterLabel(activeMonthFilter, true)})
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return displayList.map((s) => {
+                        const paidThisPeriod =
+                          s.stakeholderType === 'employee'
+                            ? monthlyPostedJournals
+                                .filter(
+                                  (j) =>
+                                    j.transactionType === 'payroll' &&
+                                    j.counterpartyName === s.name
+                                )
+                                .reduce((sum, j) => sum + j.amount, 0)
+                            : 0;
+
+                        const canManageThisStaff =
+                          userRole === 'super_admin' ||
+                          userRole === 'super_manager' ||
+                          (userRole === 'business_manager' &&
+                            (assignedBusinessFilter === 'ALL' || assignedBusinessFilter === s.businessId));
+
+                        return (
+                          <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-3.5 px-4">
+                              <div className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                                {s.code}
+                              </div>
+                              <span
+                                className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  s.stakeholderType === 'employee'
+                                    ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                                    : s.stakeholderType === 'customer'
+                                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                                }`}
+                              >
+                                {s.stakeholderType === 'employee'
+                                  ? 'কর্মচারী (বেতন)'
+                                  : s.stakeholderType === 'customer'
+                                  ? 'ক্রেতা (পাবেন)'
+                                  : 'সাপ্লায়ার (দেবেন)'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100">
+                                {s.name}
+                              </div>
+                              <div className="text-slate-500">
+                                {s.phone} · {s.address}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 font-medium">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold">
+                                {s.businessName.includes('ট্রাক') || s.businessName.toLowerCase().includes('transport')
+                                  ? '🚚 '
+                                  : s.businessName.includes('পোল্ট্রি')
+                                  ? '🐔 '
+                                  : s.businessName.includes('গরু') || s.businessName.includes('পশু')
+                                  ? '🐄 '
+                                  : s.businessName.includes('ছাগল')
+                                  ? '🐐 '
+                                  : s.businessName.includes('মৎস্য')
+                                  ? '🐟 '
+                                  : '🏢 '}
+                                {s.businessName}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                              <div className="font-semibold text-slate-800 dark:text-slate-200">
+                                {s.designationOrCategory}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              {s.stakeholderType === 'employee' ? (
+                                <div className="space-y-1">
+                                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                    <Briefcase className="h-3 w-3 text-blue-600" />
+                                    <span>{s.appointedBy || 'মালিক কর্তৃক সরাসরি'}</span>
                                   </div>
-                                </div>
-                              ) : paidThisPeriod > 0 ? (
-                                <div className="space-y-0.5">
-                                  <div className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                    প্রদত্ত: {formatBDT(paidThisPeriod)}
-                                  </div>
-                                  <div className="text-amber-600 dark:text-amber-400 font-bold">
-                                    বাকি: {formatBDT(Math.max(0, s.monthlySalaryOrCreditLimit - paidThisPeriod))}
-                                  </div>
+                                  {s.status === 'terminated' && (
+                                    <div>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[10px] font-bold">
+                                        <UserX className="h-3 w-3" />
+                                        <span>বরখাস্ত / বাদ দেওয়া</span>
+                                      </span>
+                                      {s.notes && (
+                                        <div className="text-[10px] text-red-500 italic truncate max-w-xs">{s.notes}</div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px]">
-                                  বেতন বাকি: {formatBDT(s.monthlySalaryOrCreditLimit)}
-                                </span>
-                              )
-                            ) : s.stakeholderType === 'customer' ? (
-                              s.outstandingBalance > 0 ? (
-                                <span className="text-amber-600 dark:text-amber-400 font-bold">
-                                  পাবেন: {formatBDT(s.outstandingBalance)}
+                                <span className="text-slate-400 text-[11px]">—</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono tabular-nums font-semibold">
+                              <div className="text-[10px] text-slate-400">
+                                {s.stakeholderType === 'employee' ? 'মাসিক বেতন' : 'ক্রেডিট লিমিট'}
+                              </div>
+                              <div className="text-sm font-bold">{formatBDT(s.monthlySalaryOrCreditLimit)}</div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono tabular-nums">
+                              {s.stakeholderType === 'employee' ? (
+                                s.status === 'terminated' ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold">
+                                    চাকরি শেষ
+                                  </span>
+                                ) : paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
+                                  <div className="space-y-0.5">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
+                                      ✓ পরিশোধিত: {formatBDT(paidThisPeriod)}
+                                    </span>
+                                    <div className="text-[10px] text-slate-400">
+                                      বকেয়া: ৳0 ({formatMonthFilterLabel(activeMonthFilter, true)})
+                                    </div>
+                                  </div>
+                                ) : paidThisPeriod > 0 ? (
+                                  <div className="space-y-0.5">
+                                    <div className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                      প্রদত্ত: {formatBDT(paidThisPeriod)}
+                                    </div>
+                                    <div className="text-amber-600 dark:text-amber-400 font-bold">
+                                      বাকি: {formatBDT(Math.max(0, s.monthlySalaryOrCreditLimit - paidThisPeriod))}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px]">
+                                    বেতন বাকি: {formatBDT(s.monthlySalaryOrCreditLimit)}
+                                  </span>
+                                )
+                              ) : s.stakeholderType === 'customer' ? (
+                                s.outstandingBalance > 0 ? (
+                                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                                    পাবেন: {formatBDT(s.outstandingBalance)}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                    ✓ সব আদায় হয়েছে
+                                  </span>
+                                )
+                              ) : s.outstandingBalance > 0 ? (
+                                <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                  দেবেন: {formatBDT(s.outstandingBalance)}
                                 </span>
                               ) : (
                                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                                  ✓ সব আদায় হয়েছে
+                                  ✓ সব পরিশোধিত
                                 </span>
-                              )
-                            ) : s.outstandingBalance > 0 ? (
-                              <span className="text-rose-600 dark:text-rose-400 font-bold">
-                                দেবেন: {formatBDT(s.outstandingBalance)}
-                              </span>
-                            ) : (
-                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                                ✓ সব পরিশোধিত
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
-                              {s.stakeholderType === 'employee' ? (
-                                <>
-                                  {s.status !== 'terminated' && (
-                                    paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => openStkPayModal(s, 5000)}
-                                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap cursor-pointer"
-                                      >
-                                        বোনাস দিন
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          openStkPayModal(
-                                            s,
-                                            Math.max(1, s.monthlySalaryOrCreditLimit - paidThisPeriod)
-                                          )
-                                        }
-                                        className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap shadow-xs cursor-pointer"
-                                      >
-                                        {paidThisPeriod > 0 ? 'বাকি বেতন দিন' : 'বেতন দিন'}
-                                      </button>
-                                    )
-                                  )}
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                                {s.stakeholderType === 'employee' ? (
+                                  <>
+                                    {s.status !== 'terminated' && (
+                                      paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => openStkPayModal(s, 5000)}
+                                          className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap cursor-pointer"
+                                        >
+                                          বোনাস দিন
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openStkPayModal(
+                                              s,
+                                              Math.max(1, s.monthlySalaryOrCreditLimit - paidThisPeriod)
+                                            )
+                                          }
+                                          className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap shadow-xs cursor-pointer"
+                                        >
+                                          {paidThisPeriod > 0 ? 'বাকি বেতন দিন' : 'বেতন দিন'}
+                                        </button>
+                                      )
+                                    )}
 
-                                  {paidThisPeriod > 0 && (
+                                    {paidThisPeriod > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const latestPayroll = monthlyPostedJournals.find(
+                                            (j) => j.transactionType === 'payroll' && j.counterpartyName === s.name
+                                          );
+                                          setActiveSlip({
+                                            type: 'salary_payslip',
+                                            slipNo: latestPayroll?.referenceNo || `PAY-${s.code}-${Date.now().toString().slice(-4)}`,
+                                            date: latestPayroll?.date || new Date().toISOString().split('T')[0],
+                                            businessName: s.businessName,
+                                            recipientName: s.name,
+                                            designation: s.designationOrCategory,
+                                            amount: paidThisPeriod,
+                                            paymentMethod: latestPayroll?.creditAccountName || 'ক্যাশ / ব্যাংক একাউন্ট',
+                                            note: `বেতন প্রদান (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                                            recipientPhone: s.phone,
+                                            appointedBy: s.appointedBy || 'মালিক কর্তৃক সরাসরি',
+                                            enteredBy: actorEmail,
+                                          });
+                                        }}
+                                        className="px-2 py-1.5 rounded-lg border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/60 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap text-xs font-semibold"
+                                        title="বেতন পরিশোধ পে-স্লিপ প্রিন্ট করুন"
+                                      >
+                                        <FileText className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                                        <span>পে-স্লিপ</span>
+                                      </button>
+                                    )}
+
+                                    {canManageThisStaff && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingStakeholder(s);
+                                          setStkType(s.stakeholderType);
+                                          setStkName(s.name);
+                                          setStkPhone(s.phone);
+                                          setStkAddress(s.address);
+                                          setStkBizId(s.businessId);
+                                          setStkRoleCat(s.designationOrCategory);
+                                          setStkSalaryOrLimit(s.monthlySalaryOrCreditLimit);
+                                          setStkBalance(s.outstandingBalance);
+                                          setShowStkModal(true);
+                                        }}
+                                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+                                        title="তথ্য সংশোধন"
+                                      >
+                                        <Edit3 className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+
+                                    {canManageThisStaff && s.status !== 'terminated' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setTerminatingStakeholder(s);
+                                          setTerminationReason('কাজে অবহেলা / খামারের প্রয়োজন সমাপ্তি');
+                                        }}
+                                        className="px-2 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 hover:bg-red-100 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                        title="কর্মীকে খামার থেকে বাদ / বরখাস্ত করুন"
+                                      >
+                                        <UserX className="h-3.5 w-3.5" />
+                                        <span>বাদ দিন</span>
+                                      </button>
+                                    )}
+                                  </>
+                                ) : s.stakeholderType === 'customer' ? (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => openStkPayModal(s)}
+                                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-white hover:bg-amber-600 whitespace-nowrap shadow-xs cursor-pointer"
+                                    >
+                                      বাকি আদায়
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const latestPayroll = monthlyPostedJournals.find(
-                                          (j) => j.transactionType === 'payroll' && j.counterpartyName === s.name
-                                        );
                                         setActiveSlip({
-                                          type: 'salary_payslip',
-                                          slipNo: latestPayroll?.referenceNo || `PAY-${s.code}-${Date.now().toString().slice(-4)}`,
-                                          date: latestPayroll?.date || new Date().toISOString().split('T')[0],
+                                          type: 'money_receipt',
+                                          slipNo: `REC-${s.code}-${Date.now().toString().slice(-4)}`,
+                                          date: new Date().toISOString().split('T')[0],
                                           businessName: s.businessName,
                                           recipientName: s.name,
-                                          designation: s.designationOrCategory,
-                                          amount: paidThisPeriod,
-                                          paymentMethod: latestPayroll?.creditAccountName || 'ক্যাশ / ব্যাংক একাউন্ট',
-                                          note: `বেতন প্রদান (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                                          designation: 'পাইকারি ক্রেতা',
+                                          amount: s.outstandingBalance,
+                                          paymentMethod: 'বকেয়া হিসাব রসিদ',
+                                          note: `গ্রাহকের বর্তমান বকেয়া স্থিতি: ${formatBDT(s.outstandingBalance)}`,
                                           recipientPhone: s.phone,
-                                          appointedBy: s.appointedBy || 'মালিক কর্তৃক সরাসরি',
                                           enteredBy: actorEmail,
                                         });
                                       }}
-                                      className="px-2 py-1.5 rounded-lg border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/60 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap text-xs font-semibold"
-                                      title="বেতন পরিশোধ পে-স্লিপ প্রিন্ট করুন"
+                                      className="p-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                      title="গ্রাহক মানি রিসিট স্লিপ প্রিন্ট করুন"
                                     >
-                                      <FileText className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-                                      <span>পে-স্লিপ</span>
+                                      <FileText className="h-3.5 w-3.5 text-amber-600" />
                                     </button>
-                                  )}
-
-                                  {canManageThisStaff && (
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => openStkPayModal(s)}
+                                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 whitespace-nowrap shadow-xs cursor-pointer"
+                                    >
+                                      বাকি পরিশোধ
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setEditingStakeholder(s);
-                                        setStkType(s.stakeholderType);
-                                        setStkName(s.name);
-                                        setStkPhone(s.phone);
-                                        setStkAddress(s.address);
-                                        setStkBizId(s.businessId);
-                                        setStkRoleCat(s.designationOrCategory);
-                                        setStkSalaryOrLimit(s.monthlySalaryOrCreditLimit);
-                                        setStkBalance(s.outstandingBalance);
-                                        setShowStkModal(true);
+                                        setActiveSlip({
+                                          type: 'money_receipt',
+                                          slipNo: `SUP-${s.code}-${Date.now().toString().slice(-4)}`,
+                                          date: new Date().toISOString().split('T')[0],
+                                          businessName: s.businessName,
+                                          recipientName: s.name,
+                                          designation: 'সাপ্লায়ার / মিল',
+                                          amount: s.outstandingBalance,
+                                          paymentMethod: 'সাপ্লায়ার দেনা ভাউচার',
+                                          note: `সাপ্লায়ারের বর্তমান বকেয়া দেনা: ${formatBDT(s.outstandingBalance)}`,
+                                          recipientPhone: s.phone,
+                                          enteredBy: actorEmail,
+                                        });
                                       }}
-                                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
-                                      title="তথ্য সংশোধন"
+                                      className="p-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                      title="সাপ্লায়ার ভাউচার স্লিপ প্রিন্ট করুন"
                                     >
-                                      <Edit3 className="h-3.5 w-3.5" />
+                                      <FileText className="h-3.5 w-3.5 text-rose-600" />
                                     </button>
-                                  )}
-
-                                  {canManageThisStaff && s.status !== 'terminated' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setTerminatingStakeholder(s);
-                                        setTerminationReason('কাজে অবহেলা / খামারের প্রয়োজন সমাপ্তি');
-                                      }}
-                                      className="px-2 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 hover:bg-red-100 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                                      title="কর্মীকে খামার থেকে বাদ / বরখাস্ত করুন"
-                                    >
-                                      <UserX className="h-3.5 w-3.5" />
-                                      <span>বাদ দিন</span>
-                                    </button>
-                                  )}
-                                </>
-                              ) : s.stakeholderType === 'customer' ? (
-                                <div className="inline-flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => openStkPayModal(s)}
-                                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-white hover:bg-amber-600 whitespace-nowrap shadow-xs cursor-pointer"
-                                  >
-                                    বাকি আদায়
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveSlip({
-                                        type: 'money_receipt',
-                                        slipNo: `REC-${s.code}-${Date.now().toString().slice(-4)}`,
-                                        date: new Date().toISOString().split('T')[0],
-                                        businessName: s.businessName,
-                                        recipientName: s.name,
-                                        designation: 'পাইকারি ক্রেতা',
-                                        amount: s.outstandingBalance,
-                                        paymentMethod: 'বকেয়া হিসাব রসিদ',
-                                        note: `গ্রাহকের বর্তমান বকেয়া স্থিতি: ${formatBDT(s.outstandingBalance)}`,
-                                        recipientPhone: s.phone,
-                                        enteredBy: actorEmail,
-                                      });
-                                    }}
-                                    className="p-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                                    title="গ্রাহক মানি রিসিট স্লিপ প্রিন্ট করুন"
-                                  >
-                                    <FileText className="h-3.5 w-3.5 text-amber-600" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="inline-flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => openStkPayModal(s)}
-                                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 whitespace-nowrap shadow-xs cursor-pointer"
-                                  >
-                                    বাকি পরিশোধ
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveSlip({
-                                        type: 'money_receipt',
-                                        slipNo: `SUP-${s.code}-${Date.now().toString().slice(-4)}`,
-                                        date: new Date().toISOString().split('T')[0],
-                                        businessName: s.businessName,
-                                        recipientName: s.name,
-                                        designation: 'সাপ্লায়ার / মিল',
-                                        amount: s.outstandingBalance,
-                                        paymentMethod: 'সাপ্লায়ার দেনা ভাউচার',
-                                        note: `সাপ্লায়ারের বর্তমান বকেয়া দেনা: ${formatBDT(s.outstandingBalance)}`,
-                                        recipientPhone: s.phone,
-                                        enteredBy: actorEmail,
-                                      });
-                                    }}
-                                    className="p-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                                    title="সাপ্লায়ার ভাউচার স্লিপ প্রিন্ট করুন"
-                                  >
-                                    <FileText className="h-3.5 w-3.5 text-rose-600" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -4830,19 +5509,24 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Stakeholder Settlement Modal (Pay Salary / Collect Due / Pay Supplier) */}
       {stkPayTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  {stkPayTarget.stakeholderType === 'employee'
-                    ? 'কর্মচারীর বেতন প্রদান করুন'
-                    : stkPayTarget.stakeholderType === 'customer'
-                    ? 'ক্রেতার কাছ থেকে বাকি আদায় করুন'
-                    : 'সাপ্লায়ারের বাকি পরিশোধ করুন'}
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  {stkPayTarget.stakeholderType === 'employee' ? (
+                    <>
+                      <Calculator className="h-4 w-4 text-emerald-600" />
+                      <span>কর্মচারী বেতন হিসাব ও অনুমোদন (Salary Disbursement)</span>
+                    </>
+                  ) : stkPayTarget.stakeholderType === 'customer' ? (
+                    'ক্রেতার কাছ থেকে বাকি আদায় করুন'
+                  ) : (
+                    'সাপ্লায়ারের বাকি পরিশোধ করুন'
+                  )}
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  {stkPayTarget.name} · {stkPayTarget.businessName}
+                  {stkPayTarget.name} · {stkPayTarget.businessName} {stkPayTarget.designationOrCategory ? `(${stkPayTarget.designationOrCategory})` : ''}
                 </p>
               </div>
               <button
@@ -4855,28 +5539,177 @@ export default function CentralAccountingAndInventoryView({
             </div>
 
             <form onSubmit={handleStakeholderPaymentSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block mb-1.5 font-semibold">টাকার পরিমাণ (BDT) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    value={stkPayAmount}
-                    onChange={(e) => setStkPayAmount(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
-                  />
+              {stkPayTarget.stakeholderType === 'employee' ? (
+                <div className="space-y-3.5">
+                  {/* Employee Contract & Role Highlight */}
+                  <div className="p-3 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-sky-950 dark:text-sky-100 flex items-center gap-1.5">
+                        <Briefcase className="h-4 w-4 text-sky-600" />
+                        <span>{stkPayTarget.name}</span>
+                        <span className="font-mono text-[10px] text-slate-500">[{stkPayTarget.code}]</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                        ইউনিট: <strong>{stkPayTarget.businessName}</strong> · পদবি: <strong>{stkPayTarget.designationOrCategory}</strong>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-500">নির্ধারিত মাসিক মূল বেতন</div>
+                      <div className="font-mono font-bold text-sky-700 dark:text-sky-300 text-sm">
+                        {formatBDT(stkPayTarget.monthlySalaryOrCreditLimit)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Salary Calculation Box */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-3.5 space-y-3">
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                      <span>🧮 রিয়েল-টাইম বেতন ক্যালকুলেটর (Salary Formula Breakdown)</span>
+                      <span className="text-[10px] text-slate-500 font-normal">হাজিরা, বোনাস ও কর্তন</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block mb-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                          মাসিক মূল বেতন (BDT) *
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={salaryBase}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setSalaryBase(val);
+                            const proRated = Math.round((val / (salaryDaysTotal || 30)) * (salaryDaysWorked || 30));
+                            setStkPayAmount(Math.max(0, proRated + salaryBonus - salaryDeduction));
+                          }}
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 font-mono font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                          হাজিরা / কাজের দিন (উপস্থিতি) *
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={1}
+                            max={31}
+                            value={salaryDaysWorked}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setSalaryDaysWorked(val);
+                              const proRated = Math.round((salaryBase / (salaryDaysTotal || 30)) * val);
+                              setStkPayAmount(Math.max(0, proRated + salaryBonus - salaryDeduction));
+                            }}
+                            className="w-20 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-2 font-mono font-bold text-center"
+                          />
+                          <span className="text-slate-400 font-bold">/</span>
+                          <span className="text-xs font-semibold text-slate-500">৩০ দিন</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block mb-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                          + বোনাস / ট্রিপ খোরাকি (BDT)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={salaryBonus}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setSalaryBonus(val);
+                            const proRated = Math.round((salaryBase / (salaryDaysTotal || 30)) * (salaryDaysWorked || 30));
+                            setStkPayAmount(Math.max(0, proRated + val - salaryDeduction));
+                          }}
+                          placeholder="যেমন: ৩০০০ (ট্রিপ বা ঈদ)"
+                          className="w-full rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 px-3 py-2 font-mono font-bold text-emerald-600"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-0.5">ট্রাক চালকের ট্রিপ ভাতা বা ঈদ বোনাস</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-1 text-[11px] font-semibold text-rose-700 dark:text-rose-400">
+                          - অগ্রিম কর্তন / জরিমানা (BDT)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={salaryDeduction}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setSalaryDeduction(val);
+                            const proRated = Math.round((salaryBase / (salaryDaysTotal || 30)) * (salaryDaysWorked || 30));
+                            setStkPayAmount(Math.max(0, proRated + salaryBonus - val));
+                          }}
+                          placeholder="যেমন: ১০০০ (অগ্রিম নেওয়া)"
+                          className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-900 px-3 py-2 font-mono font-bold text-rose-600"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-0.5">মাসের মাঝে অগ্রিম ক্যাশ নিয়ে থাকলে</p>
+                      </div>
+                    </div>
+
+                    {/* Final Math Formula Result Pill */}
+                    <div className="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="text-xs text-slate-700 dark:text-slate-300 space-y-0.5">
+                        <div className="font-semibold">
+                          আনুপাতিক মূল: {formatBDT(Math.round((salaryBase / 30) * salaryDaysWorked))}
+                          {salaryBonus > 0 && <span className="text-emerald-700 font-bold"> + বোনাস: {formatBDT(salaryBonus)}</span>}
+                          {salaryDeduction > 0 && <span className="text-rose-700 font-bold"> - কর্তন: {formatBDT(salaryDeduction)}</span>}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          ফর্মুলা: (মূল বেতন ÷ ৩০ × হাজিরা) + বোনাস/খোরাকি - কর্তন
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase font-bold text-slate-500">চূড়ান্ত প্রদেয় নিট বেতন</div>
+                        <div className="text-lg font-black font-mono text-emerald-700 dark:text-emerald-300">
+                          {formatBDT(stkPayAmount)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block mb-1.5 font-semibold">টাকার পরিমাণ (BDT) *</label>
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      value={stkPayAmount}
+                      onChange={(e) => setStkPayAmount(Number(e.target.value))}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1.5 font-semibold">তারিখ (Date)</label>
+                    <input
+                      type="date"
+                      value={stkPayDate}
+                      onChange={(e) => setStkPayDate(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {stkPayTarget.stakeholderType === 'employee' && (
                 <div>
-                  <label className="block mb-1.5 font-semibold">তারিখ (Date)</label>
+                  <label className="block mb-1.5 font-semibold">পেমেন্ট তারিখ (Payment Date)</label>
                   <input
                     type="date"
                     value={stkPayDate}
                     onChange={(e) => setStkPayDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono"
                   />
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block mb-1.5 font-semibold">
@@ -4905,7 +5738,7 @@ export default function CentralAccountingAndInventoryView({
                   onChange={(e) => setStkPayNote(e.target.value)}
                   placeholder={
                     stkPayTarget.stakeholderType === 'employee'
-                      ? 'যেমন: নভেম্বর মাসের বেতন / বোনাস'
+                      ? 'যেমন: নভেম্বর মাসের বেতন ও ট্রিপ খোরাকি'
                       : 'যেমন: নগদ / ব্যাংক চেকের মাধ্যমে পরিশোধ'
                   }
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
@@ -4916,20 +5749,20 @@ export default function CentralAccountingAndInventoryView({
                 <button
                   type="button"
                   onClick={() => setStkPayTarget(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  disabled={isSettlingStk}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                  disabled={isSettlingStk || stkPayAmount <= 0}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-600/30"
                 >
                   {isSettlingStk
                     ? 'সংরক্ষণ হচ্ছে...'
                     : stkPayTarget.stakeholderType === 'customer'
                     ? 'টাকা জমা নিশ্চিত করুন'
-                    : 'পেমেন্ট নিশ্চিত করুন'}
+                    : `${formatBDT(stkPayAmount)} পেমেন্ট নিশ্চিত করুন`}
                 </button>
               </div>
             </form>
@@ -5060,6 +5893,66 @@ export default function CentralAccountingAndInventoryView({
                   />
                 </div>
               </div>
+
+              {stkType === 'employee' && (
+                <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-1.5">
+                  <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                    💡 নির্বাচিত ব্যবসার জন্য দ্রুত পদবি ও বেতন সেট করুন (Quick Templates):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(() => {
+                      const curBiz = fullBusinessList.find((b) => b.id === stkBizId) || businesses.find((b) => b.id === stkBizId);
+                      const isTrk = curBiz?.templateType === 'transport' || curBiz?.name?.toLowerCase().includes('transport') || curBiz?.nameBn?.includes('ট্রাক');
+                      const isFsh = curBiz?.templateType === 'fish' || curBiz?.nameBn?.includes('মৎস্য');
+                      const isCtl = curBiz?.templateType === 'cattle' || curBiz?.nameBn?.includes('পশু');
+                      const isGot = curBiz?.templateType === 'goat' || curBiz?.nameBn?.includes('ছাগল');
+
+                      const templates = isTrk
+                        ? [
+                            { title: 'হেভি ট্রাক ড্রাইভার', role: 'হেভি ট্রাক ড্রাইভার (Heavy Vehicle Driver)', salary: 28000 },
+                            { title: 'ট্রাক হেলপার / খালাসি', role: 'ট্রাক হেলপার ও লোডিং খালাসি', salary: 15000 },
+                            { title: 'লজিস্টিক ও ট্রিপ ইনচার্জ', role: 'ফ্লিট ও ট্রিপ সুপারভাইজার', salary: 25000 },
+                          ]
+                        : isFsh
+                        ? [
+                            { title: 'পুকুর ও মাছের খাদ্য ইনচার্জ', role: 'পুকুর ও মাছের খাদ্য ইনচার্জ', salary: 22000 },
+                            { title: 'জাল টানা ও ডেলিভারি সহকারী', role: 'জাল টানা ও ডেলিভারি সহকারী', salary: 16000 },
+                            { title: 'হ্যাচারি টেকনিশিয়ান', role: 'হ্যাচারি টেকনিশিয়ান', salary: 25000 },
+                          ]
+                        : isCtl
+                        ? [
+                            { title: 'দুগ্ধ দোহন ও যত্নকর্মী', role: 'দুগ্ধ দোহন ও পশু পরিচর্যা কর্মী', salary: 20000 },
+                            { title: 'পশু চিকিৎসা সহকারী', role: 'পশু চিকিৎসা ও টিকাদান সহকারী', salary: 24000 },
+                            { title: 'ঘাস ও ফিড সহকারী', role: 'ফিড ও চারণ সহকারী', salary: 16000 },
+                          ]
+                        : isGot
+                        ? [
+                            { title: 'ছাগল প্রজনন ও যত্নকর্মী', role: 'ছাগল প্রজনন ও যত্নকর্মী', salary: 19000 },
+                            { title: 'শেড সহকারী', role: 'ছাগল শেড ও ফিড সহকারী', salary: 15000 },
+                          ]
+                        : [
+                            { title: 'শেড ইনচার্জ', role: 'পোল্ট্রি শেড ইনচার্জ', salary: 24000 },
+                            { title: 'খাদ্য ও টিকাদান কর্মী', role: 'খাদ্য ও টিকাদান কর্মী', salary: 18000 },
+                            { title: 'প্যাকিং ও ডেলিভারি সহকারী', role: 'প্যাকিং ও ডেলিভারি সহকারী', salary: 16000 },
+                          ];
+
+                      return templates.map((tmpl) => (
+                        <button
+                          key={tmpl.role}
+                          type="button"
+                          onClick={() => {
+                            setStkRoleCat(tmpl.role);
+                            setStkSalaryOrLimit(tmpl.salary);
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-emerald-500 hover:text-emerald-600 transition-colors cursor-pointer"
+                        >
+                          + {tmpl.title} ({formatBDT(tmpl.salary)})
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block mb-1 font-semibold">ঠিকানা / কর্মস্থল</label>
