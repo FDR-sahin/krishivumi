@@ -1,0 +1,6 @@
+{
+  "name": "KrishiVumi Enterprise — Dynamic Multi-Business Agro ERP",
+  "description": "Production-grade multi-business agro ERP platform for Poultry, Cattle, Goat, Aquaculture, Transport, Double-Entry Accounting, and Inventory operations in Bangladesh and beyond.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

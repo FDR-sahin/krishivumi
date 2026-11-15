@@ -1,0 +1,620 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'sahinmiah1204@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Entity Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'assignedBusinesses', 'permissionsJson', 'status', 'mfaEnabled', 'lastLoginAt', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'assignedBusinesses', 'permissionsJson', 'status', 'mfaEnabled', 'lastLoginAt', 'ownerId', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role is string && data.role in ['super_admin', 'business_manager', 'employee']
+        && data.assignedBusinesses is string && data.assignedBusinesses.size() <= 1000
+        && data.permissionsJson is string && data.permissionsJson.size() <= 4000
+        && data.status is string && data.status in ['active', 'suspended', 'invited']
+        && data.mfaEnabled is bool
+        && data.lastLoginAt is string && data.lastLoginAt.size() <= 64
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.createdAt is timestamp;
+    }
+
+    function isValidBusiness(data) {
+      return data.keys().hasAll(['code', 'name', 'nameBn', 'category', 'templateType', 'description', 'iconName', 'location', 'contactPhone', 'managerName', 'status', 'enabledModules', 'customFieldsSpec', 'currency', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['code', 'name', 'nameBn', 'category', 'templateType', 'description', 'iconName', 'location', 'contactPhone', 'managerName', 'status', 'enabledModules', 'customFieldsSpec', 'currency', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 32
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.nameBn is string && data.nameBn.size() <= 120
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 64
+        && data.templateType is string && data.templateType in ['poultry', 'cattle', 'goat', 'fish', 'transport', 'custom']
+        && data.description is string && data.description.size() <= 500
+        && data.iconName is string && data.iconName.size() >= 1 && data.iconName.size() <= 40
+        && data.location is string && data.location.size() <= 160
+        && data.contactPhone is string && data.contactPhone.size() <= 40
+        && data.managerName is string && data.managerName.size() <= 100
+        && data.status is string && data.status in ['active', 'inactive', 'archived']
+        && data.enabledModules is string && data.enabledModules.size() <= 600
+        && data.customFieldsSpec is string && data.customFieldsSpec.size() <= 1500
+        && data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 10
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAccount(data) {
+      return data.keys().hasAll(['code', 'name', 'accountType', 'subType', 'businessId', 'balance', 'currency', 'isActive', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['code', 'name', 'accountType', 'subType', 'businessId', 'balance', 'currency', 'isActive', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 32
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.accountType is string && data.accountType in ['asset', 'liability', 'equity', 'revenue', 'expense']
+        && data.subType is string && data.subType in ['cash', 'bank', 'receivable', 'payable', 'inventory', 'loan', 'operating_revenue', 'operating_expense', 'payroll', 'capital']
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.balance is number
+        && data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 10
+        && data.isActive is bool
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidJournalEntry(data) {
+      return data.keys().hasAll(['referenceNo', 'date', 'businessId', 'businessName', 'transactionType', 'category', 'description', 'debitAccountId', 'debitAccountName', 'creditAccountId', 'creditAccountName', 'amount', 'paymentStatus', 'dueAmount', 'counterpartyName', 'status', 'reversedByEntryId', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['referenceNo', 'date', 'businessId', 'businessName', 'transactionType', 'category', 'description', 'debitAccountId', 'debitAccountName', 'creditAccountId', 'creditAccountName', 'amount', 'paymentStatus', 'dueAmount', 'counterpartyName', 'status', 'reversedByEntryId', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.referenceNo is string && data.referenceNo.size() >= 1 && data.referenceNo.size() <= 64
+        && data.date is string && data.date.size() >= 1 && data.date.size() <= 32
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120
+        && data.transactionType is string && data.transactionType in ['income', 'expense', 'purchase', 'sale', 'cash_to_bank', 'bank_to_cash', 'payroll', 'reversal', 'adjustment']
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+        && data.description is string && data.description.size() <= 400
+        && data.debitAccountId is string && data.debitAccountId.size() >= 1 && data.debitAccountId.size() <= 128
+        && data.debitAccountName is string && data.debitAccountName.size() >= 1 && data.debitAccountName.size() <= 120
+        && data.creditAccountId is string && data.creditAccountId.size() >= 1 && data.creditAccountId.size() <= 128
+        && data.creditAccountName is string && data.creditAccountName.size() >= 1 && data.creditAccountName.size() <= 120
+        && data.amount is number && data.amount >= 0
+        && data.paymentStatus is string && data.paymentStatus in ['paid', 'partial', 'due']
+        && data.dueAmount is number && data.dueAmount >= 0
+        && data.counterpartyName is string && data.counterpartyName.size() <= 120
+        && data.status is string && data.status in ['posted', 'reversed']
+        && data.reversedByEntryId is string && data.reversedByEntryId.size() <= 128
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['sku', 'barcode', 'name', 'category', 'businessId', 'businessName', 'warehouse', 'unit', 'quantity', 'reorderLevel', 'unitCost', 'sellingPrice', 'expiryDate', 'supplierName', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['sku', 'barcode', 'name', 'category', 'businessId', 'businessName', 'warehouse', 'unit', 'quantity', 'reorderLevel', 'unitCost', 'sellingPrice', 'expiryDate', 'supplierName', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 64
+        && data.barcode is string && data.barcode.size() <= 64
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 140
+        && data.category is string && data.category in ['feed', 'medicine', 'vaccine', 'seed_fingerling', 'equipment', 'fertilizer', 'fuel_parts', 'finished_goods', 'other']
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120
+        && data.warehouse is string && data.warehouse.size() <= 100
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24
+        && data.quantity is number && data.quantity >= 0
+        && data.reorderLevel is number && data.reorderLevel >= 0
+        && data.unitCost is number && data.unitCost >= 0
+        && data.sellingPrice is number && data.sellingPrice >= 0
+        && data.expiryDate is string && data.expiryDate.size() <= 32
+        && data.supplierName is string && data.supplierName.size() <= 120
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStockMovement(data) {
+      return data.keys().hasAll(['itemId', 'itemName', 'businessId', 'movementType', 'quantity', 'unitCost', 'sourceLocation', 'destinationLocation', 'notes', 'date', 'ownerId', 'createdAt'])
+        && data.keys().hasOnly(['itemId', 'itemName', 'businessId', 'movementType', 'quantity', 'unitCost', 'sourceLocation', 'destinationLocation', 'notes', 'date', 'ownerId', 'createdAt'])
+        && data.itemId is string && data.itemId.size() >= 1 && data.itemId.size() <= 128
+        && data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 140
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.movementType is string && data.movementType in ['purchase', 'consumption', 'sale', 'transfer', 'adjustment']
+        && data.quantity is number
+        && data.unitCost is number && data.unitCost >= 0
+        && data.sourceLocation is string && data.sourceLocation.size() <= 100
+        && data.destinationLocation is string && data.destinationLocation.size() <= 100
+        && data.notes is string && data.notes.size() <= 300
+        && data.date is string && data.date.size() <= 32
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidStakeholder(data) {
+      return data.keys().hasAll(['stakeholderType', 'code', 'name', 'phone', 'email', 'address', 'businessId', 'businessName', 'designationOrCategory', 'monthlySalaryOrCreditLimit', 'outstandingBalance', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['stakeholderType', 'code', 'name', 'phone', 'email', 'address', 'businessId', 'businessName', 'designationOrCategory', 'monthlySalaryOrCreditLimit', 'outstandingBalance', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.stakeholderType is string && data.stakeholderType in ['employee', 'supplier', 'customer']
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 40
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.phone is string && data.phone.size() <= 40
+        && data.email is string && data.email.size() <= 120
+        && data.address is string && data.address.size() <= 240
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120
+        && data.designationOrCategory is string && data.designationOrCategory.size() <= 100
+        && data.monthlySalaryOrCreditLimit is number && data.monthlySalaryOrCreditLimit >= 0
+        && data.outstandingBalance is number
+        && data.status is string && data.status in ['active', 'inactive']
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPoultryBatch(data) {
+      return data.keys().hasAll(['batchCode', 'businessId', 'chickPurchaseDate', 'chickenType', 'shedNumber', 'supplierName', 'initialQuantity', 'mortalityCount', 'sickBirdsCount', 'soldBirdsCount', 'purchaseCost', 'starterFeedKg', 'growerFeedKg', 'finisherFeedKg', 'feedCost', 'medicineCost', 'labourAndUtilityCost', 'otherExpense', 'totalSoldKg', 'gradeBreakdown', 'pricePerKg', 'totalSalesRevenue', 'outstandingDue', 'vaccineScheduleNotes', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['batchCode', 'businessId', 'chickPurchaseDate', 'chickenType', 'shedNumber', 'supplierName', 'initialQuantity', 'mortalityCount', 'sickBirdsCount', 'soldBirdsCount', 'purchaseCost', 'starterFeedKg', 'growerFeedKg', 'finisherFeedKg', 'feedCost', 'medicineCost', 'labourAndUtilityCost', 'otherExpense', 'totalSoldKg', 'gradeBreakdown', 'pricePerKg', 'totalSalesRevenue', 'outstandingDue', 'vaccineScheduleNotes', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.batchCode is string && data.batchCode.size() >= 1 && data.batchCode.size() <= 40
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.chickPurchaseDate is string && data.chickPurchaseDate.size() <= 32
+        && data.chickenType is string && data.chickenType in ['Broiler', 'Layer', 'Sonali', 'Deshi', 'Breeder']
+        && data.shedNumber is string && data.shedNumber.size() <= 40
+        && data.supplierName is string && data.supplierName.size() <= 120
+        && data.initialQuantity is number && data.initialQuantity >= 0
+        && data.mortalityCount is number && data.mortalityCount >= 0
+        && data.sickBirdsCount is number && data.sickBirdsCount >= 0
+        && data.soldBirdsCount is number && data.soldBirdsCount >= 0
+        && data.purchaseCost is number && data.purchaseCost >= 0
+        && data.starterFeedKg is number && data.starterFeedKg >= 0
+        && data.growerFeedKg is number && data.growerFeedKg >= 0
+        && data.finisherFeedKg is number && data.finisherFeedKg >= 0
+        && data.feedCost is number && data.feedCost >= 0
+        && data.medicineCost is number && data.medicineCost >= 0
+        && data.labourAndUtilityCost is number && data.labourAndUtilityCost >= 0
+        && data.otherExpense is number && data.otherExpense >= 0
+        && data.totalSoldKg is number && data.totalSoldKg >= 0
+        && data.gradeBreakdown is string && data.gradeBreakdown.size() <= 200
+        && data.pricePerKg is number && data.pricePerKg >= 0
+        && data.totalSalesRevenue is number && data.totalSalesRevenue >= 0
+        && data.outstandingDue is number && data.outstandingDue >= 0
+        && data.vaccineScheduleNotes is string && data.vaccineScheduleNotes.size() <= 300
+        && data.status is string && data.status in ['active', 'harvested', 'closed']
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLivestockRecord(data) {
+      return data.keys().hasAll(['animalTag', 'species', 'businessId', 'name', 'breed', 'gender', 'ageMonths', 'purchaseDate', 'purchasePrice', 'currentWeightKg', 'healthStatus', 'feedCost', 'medicineAndVetCost', 'vaccinationHistory', 'breedingAndOffspringNotes', 'parentTag', 'totalMilkLiters', 'milkSalesRevenue', 'animalSalePrice', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['animalTag', 'species', 'businessId', 'name', 'breed', 'gender', 'ageMonths', 'purchaseDate', 'purchasePrice', 'currentWeightKg', 'healthStatus', 'feedCost', 'medicineAndVetCost', 'vaccinationHistory', 'breedingAndOffspringNotes', 'parentTag', 'totalMilkLiters', 'milkSalesRevenue', 'animalSalePrice', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.animalTag is string && data.animalTag.size() >= 1 && data.animalTag.size() <= 40
+        && data.species is string && data.species in ['cattle', 'goat']
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.name is string && data.name.size() <= 80
+        && data.breed is string && data.breed.size() <= 80
+        && data.gender is string && data.gender in ['Male', 'Female']
+        && data.ageMonths is number && data.ageMonths >= 0
+        && data.purchaseDate is string && data.purchaseDate.size() <= 32
+        && data.purchasePrice is number && data.purchasePrice >= 0
+        && data.currentWeightKg is number && data.currentWeightKg >= 0
+        && data.healthStatus is string && data.healthStatus in ['Healthy', 'Under Observation', 'Treatment', 'Pregnant', 'Lactating', 'Sold']
+        && data.feedCost is number && data.feedCost >= 0
+        && data.medicineAndVetCost is number && data.medicineAndVetCost >= 0
+        && data.vaccinationHistory is string && data.vaccinationHistory.size() <= 300
+        && data.breedingAndOffspringNotes is string && data.breedingAndOffspringNotes.size() <= 300
+        && data.parentTag is string && data.parentTag.size() <= 40
+        && data.totalMilkLiters is number && data.totalMilkLiters >= 0
+        && data.milkSalesRevenue is number && data.milkSalesRevenue >= 0
+        && data.animalSalePrice is number && data.animalSalePrice >= 0
+        && data.status is string && data.status in ['active', 'sold', 'deceased']
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFishCycle(data) {
+      return data.keys().hasAll(['cycleCode', 'pondId', 'pondName', 'businessId', 'areaDecimals', 'depthFeet', 'location', 'waterQualityNotes', 'fishSpecies', 'stockingDate', 'initialQuantity', 'mortalityCount', 'fingerlingCost', 'feedCost', 'medicineAndLimeCost', 'labourCost', 'harvestDate', 'harvestWeightKg', 'totalSalesRevenue', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['cycleCode', 'pondId', 'pondName', 'businessId', 'areaDecimals', 'depthFeet', 'location', 'waterQualityNotes', 'fishSpecies', 'stockingDate', 'initialQuantity', 'mortalityCount', 'fingerlingCost', 'feedCost', 'medicineAndLimeCost', 'labourCost', 'harvestDate', 'harvestWeightKg', 'totalSalesRevenue', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.cycleCode is string && data.cycleCode.size() >= 1 && data.cycleCode.size() <= 40
+        && data.pondId is string && data.pondId.size() >= 1 && data.pondId.size() <= 40
+        && data.pondName is string && data.pondName.size() >= 1 && data.pondName.size() <= 80
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.areaDecimals is number && data.areaDecimals >= 0
+        && data.depthFeet is number && data.depthFeet >= 0
+        && data.location is string && data.location.size() <= 120
+        && data.waterQualityNotes is string && data.waterQualityNotes.size() <= 200
+        && data.fishSpecies is string && data.fishSpecies.size() >= 1 && data.fishSpecies.size() <= 160
+        && data.stockingDate is string && data.stockingDate.size() <= 32
+        && data.initialQuantity is number && data.initialQuantity >= 0
+        && data.mortalityCount is number && data.mortalityCount >= 0
+        && data.fingerlingCost is number && data.fingerlingCost >= 0
+        && data.feedCost is number && data.feedCost >= 0
+        && data.medicineAndLimeCost is number && data.medicineAndLimeCost >= 0
+        && data.labourCost is number && data.labourCost >= 0
+        && data.harvestDate is string && data.harvestDate.size() <= 32
+        && data.harvestWeightKg is number && data.harvestWeightKg >= 0
+        && data.totalSalesRevenue is number && data.totalSalesRevenue >= 0
+        && data.status is string && data.status in ['active', 'harvested', 'fallow']
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTransportOp(data) {
+      return data.keys().hasAll(['tripOrVehicleCode', 'recordType', 'businessId', 'registrationNumber', 'vehicleType', 'driverName', 'origin', 'destination', 'cargoDetails', 'customerName', 'distanceKm', 'fuelCost', 'tollCost', 'driverAllowance', 'maintenanceCost', 'maintenanceDetails', 'tripRevenue', 'outstandingDue', 'insuranceExpiry', 'fitnessExpiry', 'taxTokenExpiry', 'nextServiceDate', 'date', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['tripOrVehicleCode', 'recordType', 'businessId', 'registrationNumber', 'vehicleType', 'driverName', 'origin', 'destination', 'cargoDetails', 'customerName', 'distanceKm', 'fuelCost', 'tollCost', 'driverAllowance', 'maintenanceCost', 'maintenanceDetails', 'tripRevenue', 'outstandingDue', 'insuranceExpiry', 'fitnessExpiry', 'taxTokenExpiry', 'nextServiceDate', 'date', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.tripOrVehicleCode is string && data.tripOrVehicleCode.size() >= 1 && data.tripOrVehicleCode.size() <= 40
+        && data.recordType is string && data.recordType in ['trip', 'vehicle_maintenance']
+        && data.businessId is string && data.businessId.size() >= 1 && data.businessId.size() <= 128
+        && data.registrationNumber is string && data.registrationNumber.size() >= 1 && data.registrationNumber.size() <= 60
+        && data.vehicleType is string && data.vehicleType.size() <= 60
+        && data.driverName is string && data.driverName.size() <= 100
+        && data.origin is string && data.origin.size() <= 100
+        && data.destination is string && data.destination.size() <= 100
+        && data.cargoDetails is string && data.cargoDetails.size() <= 200
+        && data.customerName is string && data.customerName.size() <= 120
+        && data.distanceKm is number && data.distanceKm >= 0
+        && data.fuelCost is number && data.fuelCost >= 0
+        && data.tollCost is number && data.tollCost >= 0
+        && data.driverAllowance is number && data.driverAllowance >= 0
+        && data.maintenanceCost is number && data.maintenanceCost >= 0
+        && data.maintenanceDetails is string && data.maintenanceDetails.size() <= 240
+        && data.tripRevenue is number && data.tripRevenue >= 0
+        && data.outstandingDue is number && data.outstandingDue >= 0
+        && data.insuranceExpiry is string && data.insuranceExpiry.size() <= 32
+        && data.fitnessExpiry is string && data.fitnessExpiry.size() <= 32
+        && data.taxTokenExpiry is string && data.taxTokenExpiry.size() <= 32
+        && data.nextServiceDate is string && data.nextServiceDate.size() <= 32
+        && data.date is string && data.date.size() <= 32
+        && data.status is string && data.status in ['active', 'completed', 'maintenance']
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['action', 'module', 'businessId', 'details', 'severity', 'actorEmail', 'ownerId', 'createdAt'])
+        && data.keys().hasOnly(['action', 'module', 'businessId', 'details', 'severity', 'actorEmail', 'ownerId', 'createdAt'])
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 100
+        && data.module is string && data.module.size() >= 1 && data.module.size() <= 64
+        && data.businessId is string && data.businessId.size() <= 128
+        && data.details is string && data.details.size() <= 500
+        && data.severity is string && data.severity in ['info', 'warning', 'critical']
+        && data.actorEmail is string && data.actorEmail.size() <= 160
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['title', 'message', 'category', 'priority', 'businessId', 'isRead', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'message', 'category', 'priority', 'businessId', 'isRead', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 400
+        && data.category is string && data.category in ['low_inventory', 'medicine_expiry', 'vaccination', 'animal_health', 'payroll', 'receivable', 'vehicle_doc', 'maintenance', 'security']
+        && data.priority is string && data.priority in ['low', 'medium', 'high', 'critical']
+        && data.businessId is string && data.businessId.size() <= 128
+        && data.isRead is bool
+        && isValidId(data.ownerId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 1. Users Collection (PII Isolated to Owner or Admin)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId) && incoming().uid == request.auth.uid && incoming().ownerId == request.auth.uid && (incoming().role == 'employee' || isBootstrappedAdmin()))
+          || isAdmin()
+        );
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'mfaEnabled', 'lastLoginAt', 'updatedAt']))
+          || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'assignedBusinesses', 'permissionsJson', 'status', 'mfaEnabled', 'lastLoginAt', 'updatedAt']))
+        );
+      allow delete: if isVerified() && isValidId(userId) && isAdmin();
+    }
+
+    // 2. Admins Registry
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isVerified()
+        && isValidId(adminId)
+        && isValidAdmin(incoming())
+        && incoming().createdAt == request.time
+        && isBootstrappedAdmin();
+      allow update: if false;
+      allow delete: if isVerified() && isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    // 3. Dynamic Businesses Registry
+    match /businesses/{businessId} {
+      allow get: if isSignedIn() && isValidId(businessId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(businessId)
+        && isValidBusiness(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(businessId)
+        && isValidBusiness(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'nameBn', 'category', 'description', 'iconName', 'location', 'contactPhone', 'managerName', 'status', 'enabledModules', 'customFieldsSpec', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(businessId) && isAdmin();
+    }
+
+    // 4. Chart of Accounts
+    match /accounts/{accountId} {
+      allow get: if isSignedIn() && isValidId(accountId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(accountId)
+        && isValidAccount(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(accountId)
+        && isValidAccount(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'balance', 'isActive', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 5. Double-Entry Journal Entries (Immutable Financial History, No Deletions)
+    match /journal_entries/{entryId} {
+      allow get: if isSignedIn() && isValidId(entryId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(entryId)
+        && isValidJournalEntry(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(entryId)
+        && isValidJournalEntry(incoming())
+        && existing().status != 'reversed'
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().amount == existing().amount
+        && incoming().debitAccountId == existing().debitAccountId
+        && incoming().creditAccountId == existing().creditAccountId
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reversedByEntryId', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['paymentStatus', 'dueAmount', 'updatedAt'])
+        );
+      allow delete: if false;
+    }
+
+    // 6. Inventory Items
+    match /inventory/{itemId} {
+      allow get: if isSignedIn() && isValidId(itemId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(itemId)
+        && isValidInventoryItem(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(itemId)
+        && isValidInventoryItem(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'warehouse', 'quantity', 'reorderLevel', 'unitCost', 'sellingPrice', 'expiryDate', 'supplierName', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(itemId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    // 7. Stock Movements (Append-Only Traceability)
+    match /stock_movements/{movementId} {
+      allow get: if isSignedIn() && isValidId(movementId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(movementId)
+        && isValidStockMovement(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 8. Stakeholders (Employees, Suppliers, Customers)
+    match /stakeholders/{stakeholderId} {
+      allow get: if isSignedIn() && isValidId(stakeholderId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(stakeholderId)
+        && isValidStakeholder(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(stakeholderId)
+        && isValidStakeholder(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'email', 'address', 'designationOrCategory', 'monthlySalaryOrCreditLimit', 'outstandingBalance', 'status', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(stakeholderId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    // 9. Poultry Batches
+    match /poultry_batches/{batchId} {
+      allow get: if isSignedIn() && isValidId(batchId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(batchId)
+        && isValidPoultryBatch(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(batchId)
+        && isValidPoultryBatch(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['mortalityCount', 'sickBirdsCount', 'soldBirdsCount', 'starterFeedKg', 'growerFeedKg', 'finisherFeedKg', 'feedCost', 'medicineCost', 'labourAndUtilityCost', 'otherExpense', 'totalSoldKg', 'gradeBreakdown', 'pricePerKg', 'totalSalesRevenue', 'outstandingDue', 'vaccineScheduleNotes', 'status', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(batchId) && isAdmin();
+    }
+
+    // 10. Livestock Records (Cattle & Goat)
+    match /livestock_records/{animalId} {
+      allow get: if isSignedIn() && isValidId(animalId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(animalId)
+        && isValidLivestockRecord(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(animalId)
+        && isValidLivestockRecord(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['ageMonths', 'currentWeightKg', 'healthStatus', 'feedCost', 'medicineAndVetCost', 'vaccinationHistory', 'breedingAndOffspringNotes', 'totalMilkLiters', 'milkSalesRevenue', 'animalSalePrice', 'status', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(animalId) && isAdmin();
+    }
+
+    // 11. Fish Farming Cycles
+    match /fish_cycles/{cycleId} {
+      allow get: if isSignedIn() && isValidId(cycleId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(cycleId)
+        && isValidFishCycle(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(cycleId)
+        && isValidFishCycle(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['waterQualityNotes', 'mortalityCount', 'feedCost', 'medicineAndLimeCost', 'labourCost', 'harvestDate', 'harvestWeightKg', 'totalSalesRevenue', 'status', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(cycleId) && isAdmin();
+    }
+
+    // 12. Transport & Fleet Operations
+    match /transport_ops/{opId} {
+      allow get: if isSignedIn() && isValidId(opId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(opId)
+        && isValidTransportOp(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(opId)
+        && isValidTransportOp(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['driverName', 'fuelCost', 'tollCost', 'driverAllowance', 'maintenanceCost', 'maintenanceDetails', 'tripRevenue', 'outstandingDue', 'insuranceExpiry', 'fitnessExpiry', 'taxTokenExpiry', 'nextServiceDate', 'status', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(opId) && isAdmin();
+    }
+
+    // 13. Audit Logs (Append-Only, Protected from Modification/Deletion)
+    match /audit_logs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(logId)
+        && isValidAuditLog(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 14. Notifications & Reminders
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['isRead', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(notificationId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+  }
+}

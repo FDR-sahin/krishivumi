@@ -1,0 +1,5633 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  Landmark,
+  Package,
+  Users,
+  ShieldAlert,
+  FileBarChart,
+  Plus,
+  RotateCcw,
+  Download,
+  Printer,
+  ArrowRightLeft,
+  CheckCircle2,
+  AlertTriangle,
+  Lock,
+  UserPlus,
+  Edit3,
+  Trash2,
+  Eye,
+  ShieldCheck,
+  X,
+  Wallet,
+  Banknote,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Coins,
+  PieChart,
+  FileText,
+  Send,
+  UserX,
+  Briefcase,
+  Award,
+} from 'lucide-react';
+import {
+  ErpBusiness,
+  ErpAccount,
+  ErpJournalEntry,
+  ErpInventoryItem,
+  ErpStockMovement,
+  ErpStakeholder,
+  ErpAuditLog,
+  ErpUser,
+  ErpPoultryBatch,
+  ErpLivestockRecord,
+  ErpFishCycle,
+  ErpTransportOp,
+  UserRole,
+  formatBDT,
+} from '@/lib/erp-types';
+import {
+  postDoubleEntryTransaction,
+  reversePostedJournalEntry,
+  createInventoryItemWithMovement,
+  recordStockMovement,
+  createStakeholderRecord,
+  updateStakeholderRecord,
+  deleteStakeholderRecord,
+  createErpUserAccount,
+  updateErpUserPermissions,
+  deleteErpUserAccount,
+  createTreasuryAccount,
+  depositToTreasuryAccount,
+  resetDemoLedgerToZero,
+  settleStakeholderPayment,
+  createNotificationRecord,
+} from '@/lib/erp-service';
+import MonthFilterBar, {
+  MonthFilterValue,
+  matchesMonthFilter,
+  MONTHS_12,
+  formatMonthFilterLabel,
+} from './MonthFilterBar';
+
+interface GranularPermissionsState {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDeleteRecords: boolean;
+  canApprove: boolean;
+  canExportPrint: boolean;
+  canCreateBusiness: boolean;
+  canManageUsers: boolean;
+  canViewConsolidatedProfit: boolean;
+  canPostAccounting: boolean;
+  canReverseTransactions: boolean;
+  canManageInventory: boolean;
+  allowedModules: string[];
+}
+
+const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, GranularPermissionsState> = {
+  super_admin: {
+    canView: true,
+    canCreate: true,
+    canEdit: true,
+    canDeleteRecords: true,
+    canApprove: true,
+    canExportPrint: true,
+    canCreateBusiness: true,
+    canManageUsers: true,
+    canViewConsolidatedProfit: true,
+    canPostAccounting: true,
+    canReverseTransactions: true,
+    canManageInventory: true,
+    allowedModules: [
+      'dashboard',
+      'poultry',
+      'cattle',
+      'goat',
+      'fish',
+      'transport',
+      'accounting',
+      'inventory',
+      'stakeholders',
+      'reports',
+      'rbac',
+    ],
+  },
+  super_manager: {
+    canView: true,
+    canCreate: true,
+    canEdit: true,
+    canDeleteRecords: false,
+    canApprove: true,
+    canExportPrint: true,
+    canCreateBusiness: false,
+    canManageUsers: true,
+    canViewConsolidatedProfit: true,
+    canPostAccounting: true,
+    canReverseTransactions: false,
+    canManageInventory: true,
+    allowedModules: [
+      'dashboard',
+      'poultry',
+      'cattle',
+      'goat',
+      'fish',
+      'transport',
+      'accounting',
+      'inventory',
+      'stakeholders',
+      'reports',
+      'rbac',
+    ],
+  },
+  business_manager: {
+    canView: true,
+    canCreate: true,
+    canEdit: true,
+    canDeleteRecords: false,
+    canApprove: true,
+    canExportPrint: true,
+    canCreateBusiness: false,
+    canManageUsers: false,
+    canViewConsolidatedProfit: true,
+    canPostAccounting: true,
+    canReverseTransactions: false,
+    canManageInventory: true,
+    allowedModules: [
+      'dashboard',
+      'poultry',
+      'cattle',
+      'goat',
+      'fish',
+      'transport',
+      'accounting',
+      'inventory',
+      'stakeholders',
+      'reports',
+    ],
+  },
+  employee: {
+    canView: true,
+    canCreate: true,
+    canEdit: false,
+    canDeleteRecords: false,
+    canApprove: false,
+    canExportPrint: false,
+    canCreateBusiness: false,
+    canManageUsers: false,
+    canViewConsolidatedProfit: false,
+    canPostAccounting: false,
+    canReverseTransactions: false,
+    canManageInventory: true,
+    allowedModules: ['dashboard', 'poultry', 'cattle', 'goat', 'fish', 'transport', 'inventory'],
+  },
+};
+
+const ALL_ERP_MODULE_OPTIONS: { id: string; label: string }[] = [
+  { id: 'dashboard', label: 'মূল ড্যাশবোর্ড (Main Dashboard)' },
+  { id: 'poultry', label: 'পোল্ট্রি ফার্মিং (Poultry Module)' },
+  { id: 'cattle', label: 'গরুর খামার (Cattle Module)' },
+  { id: 'goat', label: 'ছাগলের খামার (Goat Module)' },
+  { id: 'fish', label: 'মাছ চাষ (Fisheries Module)' },
+  { id: 'transport', label: 'ট্রাক ও পরিবহন (Transport Module)' },
+  { id: 'accounting', label: 'টাকা-পয়সা ও ভাউচার (Central Accounting)' },
+  { id: 'inventory', label: 'গোডাউন ও স্টক (Inventory)' },
+  { id: 'stakeholders', label: 'কর্মচারী, বেতন ও বাকি (HR & Due)' },
+  { id: 'reports', label: 'লাভ-ক্ষতির রিপোর্ট (Financial Reports)' },
+  { id: 'rbac', label: 'ইউজার ও পারমিশন কন্ট্রোল (User & RBAC)' },
+];
+
+interface CentralAccountingAndInventoryViewProps {
+  activeSection: 'accounting' | 'inventory' | 'stakeholders' | 'reports' | 'security';
+  businesses: ErpBusiness[];
+  allBusinesses?: ErpBusiness[];
+  accounts: ErpAccount[];
+  journalEntries: ErpJournalEntry[];
+  inventoryItems: ErpInventoryItem[];
+  stockMovements: ErpStockMovement[];
+  stakeholders: ErpStakeholder[];
+  auditLogs: ErpAuditLog[];
+  erpUsers?: ErpUser[];
+  poultryBatches: ErpPoultryBatch[];
+  livestockRecords: ErpLivestockRecord[];
+  fishCycles: ErpFishCycle[];
+  transportOps: ErpTransportOp[];
+  ownerId: string;
+  actorEmail: string;
+  userRole: UserRole;
+  assignedBusinessFilter: string;
+  onChangeRoleSimulation: (role: UserRole, assignedBiz: string) => void;
+  monthFilter?: MonthFilterValue;
+  onChangeMonthFilter?: (next: MonthFilterValue) => void;
+}
+
+export default function CentralAccountingAndInventoryView({
+  activeSection,
+  businesses,
+  allBusinesses,
+  accounts,
+  journalEntries,
+  inventoryItems,
+  stockMovements,
+  stakeholders,
+  auditLogs,
+  erpUsers = [],
+  poultryBatches,
+  livestockRecords,
+  fishCycles,
+  transportOps,
+  ownerId,
+  actorEmail,
+  userRole,
+  assignedBusinessFilter,
+  onChangeRoleSimulation,
+  monthFilter: controlledMonthFilter,
+  onChangeMonthFilter,
+}: CentralAccountingAndInventoryViewProps) {
+  const fullBusinessList = allBusinesses && allBusinesses.length > 0 ? allBusinesses : businesses;
+  const [selectedBizId, setSelectedBizId] = useState<string>('ALL');
+  const [localMonthFilter, setLocalMonthFilter] = useState<MonthFilterValue>({
+    year: 'ALL',
+    month: 'ALL',
+  });
+  const activeMonthFilter = controlledMonthFilter ?? localMonthFilter;
+  const setMonthFilter = onChangeMonthFilter ?? setLocalMonthFilter;
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Simple Treasury Modals State (Deposit / Easy Transfer / Add Wallet / Reset)
+  const [showFullAccounts, setShowFullAccounts] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depAccountId, setDepAccountId] = useState<string>('');
+  const [depAmount, setDepAmount] = useState<number>(50000);
+  const [depSource, setDepSource] = useState<'capital' | 'income'>('capital');
+  const [depNote, setDepNote] = useState<string>('');
+  const [isDepositing, setIsDepositing] = useState(false);
+
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [trFromId, setTrFromId] = useState<string>('');
+  const [trToId, setTrToId] = useState<string>('');
+  const [trAmount, setTrAmount] = useState<number>(25000);
+  const [trNote, setTrNote] = useState<string>('');
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const [showNewAccountModal, setShowNewAccountModal] = useState(false);
+  const [newAccName, setNewAccName] = useState('');
+  const [newAccType, setNewAccType] = useState<'bank' | 'cash'>('bank');
+  const [newAccOpening, setNewAccOpening] = useState<number>(0);
+  const [isCreatingAcc, setIsCreatingAcc] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResettingLedger, setIsResettingLedger] = useState(false);
+  const [showAdvancedDrCr, setShowAdvancedDrCr] = useState(false);
+
+  // Custom Stock In / Out Modal State
+  const [stockMoveItem, setStockMoveItem] = useState<ErpInventoryItem | null>(null);
+  const [smType, setSmType] = useState<'purchase' | 'consumption' | 'sale' | 'transfer' | 'adjustment'>('purchase');
+  const [smQty, setSmQty] = useState<number>(10);
+  const [smDest, setSmDest] = useState<string>('');
+  const [smNotes, setSmNotes] = useState<string>('');
+  const [smPostExpense, setSmPostExpense] = useState<boolean>(false);
+  const [smPayAccId, setSmPayAccId] = useState<string>('');
+  const [isMovingStock, setIsMovingStock] = useState(false);
+
+  // Double-Entry Voucher Form State
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [vType, setVType] = useState<
+    'sale' | 'expense' | 'purchase' | 'income' | 'cash_to_bank' | 'bank_to_cash' | 'payroll' | 'adjustment'
+  >('sale');
+  const [vBizId, setVBizId] = useState<string>(businesses[0]?.id || 'ALL');
+  const [vCategory, setVCategory] = useState('Commercial Wholesale Sale');
+  const [vDesc, setVDesc] = useState('');
+  const [vDebitId, setVDebitId] = useState<string>(accounts[1]?.id || '');
+  const [vCreditId, setVCreditId] = useState<string>(accounts[7]?.id || '');
+  const [vAmount, setVAmount] = useState<number>(85000);
+  const [vPaymentStatus, setVPaymentStatus] = useState<'paid' | 'partial' | 'due'>('paid');
+  const [vDueAmount, setVDueAmount] = useState<number>(0);
+  const [vCounterparty, setVCounterparty] = useState('Agro Wholesale Partner');
+
+  // Inventory Modal State
+  const [showInvModal, setShowInvModal] = useState(false);
+  const [invSku, setInvSku] = useState('SKU-AGRO-106');
+  const [invName, setInvName] = useState('');
+  const [invCat, setInvCat] = useState<ErpInventoryItem['category']>('feed');
+  const [invBizId, setInvBizId] = useState(businesses[0]?.id || 'ALL');
+  const [invWarehouse, setInvWarehouse] = useState('Central Agro Warehouse');
+  const [invUnit, setInvUnit] = useState('Bag');
+  const [invQty, setInvQty] = useState(100);
+  const [invReorder, setInvReorder] = useState(25);
+  const [invCost, setInvCost] = useState(2450);
+  const [invPrice, setInvPrice] = useState(2650);
+  const [invExpiry, setInvExpiry] = useState('2027-06-30');
+  const [invSupplier, setInvSupplier] = useState('Kazi Agro Feed Mill Ltd.');
+
+  // Stakeholder Modal State
+  const [showStkModal, setShowStkModal] = useState(false);
+  const [stkType, setStkType] = useState<'employee' | 'supplier' | 'customer'>('employee');
+  const [stkFilter, setStkFilter] = useState<'all' | 'employee' | 'supplier' | 'customer'>('all');
+  const [stkName, setStkName] = useState('');
+  const [stkPhone, setStkPhone] = useState('+880 1711-000000');
+  const [stkEmail, setStkEmail] = useState('');
+  const [stkAddress, setStkAddress] = useState('Gazipur, Bangladesh');
+  const [stkBizId, setStkBizId] = useState(businesses[0]?.id || 'ALL');
+  const [stkRoleCat, setStkRoleCat] = useState('Farm Supervisor');
+  const [stkSalaryOrLimit, setStkSalaryOrLimit] = useState(38000);
+  const [stkBalance, setStkBalance] = useState(0);
+
+  // Interactive Stakeholder Settlement Modal (Pay Salary / Collect Customer Due / Pay Supplier Due)
+  const [stkPayTarget, setStkPayTarget] = useState<ErpStakeholder | null>(null);
+  const [stkPayAmount, setStkPayAmount] = useState<number>(0);
+  const [stkPayWalletId, setStkPayWalletId] = useState<string>('');
+  const [stkPayDate, setStkPayDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [stkPayNote, setStkPayNote] = useState<string>('');
+  const [isSettlingStk, setIsSettlingStk] = useState(false);
+
+  // Executive Report Modal State (Super Manager & Super Admin)
+  const [showExecutiveReportModal, setShowExecutiveReportModal] = useState(false);
+  const [executiveReportRemarks, setExecutiveReportRemarks] = useState(
+    'মাননীয় মালিক মহোদয়, বিগত মাসে আমাদের ৫টি ব্যবসায়িক ইউনিট (পোল্ট্রি, ডেইরি ও গরু মোটাতাজাকরণ, ছাগল খামার, মৎস্য প্রকল্প ও বাণিজ্যিক ট্রাক) সুশৃঙ্খলভাবে পরিচালিত হয়েছে। লাভ, ব্যয় ও খামার পরিচালন সমন্বিত হিসাব আপনার সদয় পর্যালোচনার জন্য পেশ করা হলো।'
+  );
+  const [isSendingReport, setIsSendingReport] = useState(false);
+
+  // Security Users Role Filter Tab
+  const [secRoleFilter, setSecRoleFilter] = useState<'all' | 'super_manager' | 'business_manager' | 'employee'>('all');
+
+  // Terminate Stakeholder Modal State
+  const [terminatingStakeholder, setTerminatingStakeholder] = useState<ErpStakeholder | null>(null);
+  const [terminationReason, setTerminationReason] = useState('কাজে অবহেলা / খামারের প্রয়োজন সমাপ্তি');
+  const [isTerminatingStakeholder, setIsTerminatingStakeholder] = useState(false);
+
+  // Edit Stakeholder Modal State
+  const [editingStakeholder, setEditingStakeholder] = useState<ErpStakeholder | null>(null);
+  const [isSavingStakeholder, setIsSavingStakeholder] = useState(false);
+
+  // Universal Printable Slip / Voucher State
+  const [activeSlip, setActiveSlip] = useState<{
+    type: 'salary_payslip' | 'goods_purchase_slip' | 'money_receipt';
+    slipNo: string;
+    date: string;
+    businessName: string;
+    recipientName: string;
+    designation?: string;
+    recipientPhone?: string;
+    appointedBy?: string;
+    recipientDesignation?: string;
+    amount: number;
+    paymentMethod: string;
+    note: string;
+    supplierName?: string;
+    supplierMemoNo?: string;
+    itemName?: string;
+    quantity?: number;
+    unit?: string;
+    unitPrice?: number;
+    totalAmount?: number;
+    enteredBy?: string;
+  } | null>(null);
+
+  // Supplier Paper Memo No for Stock Inward
+  const [smSupplierMemoNo, setSmSupplierMemoNo] = useState('');
+
+  // Physical Godown Stock Audit / Anti-Theft State
+  const [auditSelectedItemId, setAuditSelectedItemId] = useState<string>('');
+  const [auditPhysicalCount, setAuditPhysicalCount] = useState<number | ''>('');
+  const [isSendingDiscrepancyNotice, setIsSendingDiscrepancyNotice] = useState(false);
+  const [isReconcilingStock, setIsReconcilingStock] = useState(false);
+
+  // User & Granular Permission Modal State
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<ErpUser | null>(null);
+  const [usrName, setUsrName] = useState('');
+  const [usrEmail, setUsrEmail] = useState('');
+  const [usrPassword, setUsrPassword] = useState('');
+  const [usrRole, setUsrRole] = useState<UserRole>('business_manager');
+  const [usrAssignAllBiz, setUsrAssignAllBiz] = useState<boolean>(false);
+  const [usrSelectedBizIds, setUsrSelectedBizIds] = useState<string[]>([]);
+  const [usrStatus, setUsrStatus] = useState<'active' | 'suspended' | 'invited'>('active');
+  const [usrMfa, setUsrMfa] = useState<boolean>(true);
+  const [usrPerms, setUsrPerms] = useState<GranularPermissionsState>(
+    DEFAULT_ROLE_PERMISSIONS.business_manager
+  );
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
+  const showNotice = (msg: string) => {
+    setToastMsg(msg);
+    setErrorMsg(null);
+    setTimeout(() => setToastMsg(null), 4500);
+  };
+
+  const parseUserPermissions = (u: ErpUser): GranularPermissionsState => {
+    try {
+      const parsed = JSON.parse(u.permissionsJson || '{}');
+      const fallback = DEFAULT_ROLE_PERMISSIONS[u.role] || DEFAULT_ROLE_PERMISSIONS.employee;
+      return {
+        canView: parsed.canView ?? fallback.canView,
+        canCreate: parsed.canCreate ?? fallback.canCreate,
+        canEdit: parsed.canEdit ?? fallback.canEdit,
+        canDeleteRecords: parsed.canDeleteRecords ?? fallback.canDeleteRecords,
+        canApprove: parsed.canApprove ?? fallback.canApprove,
+        canExportPrint: parsed.canExportPrint ?? fallback.canExportPrint,
+        canCreateBusiness: parsed.canCreateBusiness ?? fallback.canCreateBusiness,
+        canManageUsers: parsed.canManageUsers ?? fallback.canManageUsers,
+        canViewConsolidatedProfit:
+          parsed.canViewConsolidatedProfit ?? fallback.canViewConsolidatedProfit,
+        canPostAccounting: parsed.canPostAccounting ?? fallback.canPostAccounting,
+        canReverseTransactions: parsed.canReverseTransactions ?? fallback.canReverseTransactions,
+        canManageInventory: parsed.canManageInventory ?? fallback.canManageInventory,
+        allowedModules: Array.isArray(parsed.allowedModules)
+          ? parsed.allowedModules
+          : fallback.allowedModules,
+      };
+    } catch {
+      return DEFAULT_ROLE_PERMISSIONS[u.role] || DEFAULT_ROLE_PERMISSIONS.employee;
+    }
+  };
+
+  const openCreateUserModal = () => {
+    setEditingUser(null);
+    setUsrName('');
+    setUsrEmail('');
+    setUsrPassword('');
+    const defaultRole: UserRole =
+      userRole === 'super_admin'
+        ? 'super_manager'
+        : userRole === 'super_manager'
+        ? 'business_manager'
+        : 'employee';
+    setUsrRole(defaultRole);
+    setUsrAssignAllBiz(defaultRole === 'super_manager');
+    setUsrSelectedBizIds(fullBusinessList[0] ? [fullBusinessList[0].id] : []);
+    setUsrStatus('active');
+    setUsrMfa(true);
+    setUsrPerms(DEFAULT_ROLE_PERMISSIONS[defaultRole]);
+    setShowUserModal(true);
+  };
+
+  const openEditUserModal = (target: ErpUser) => {
+    setEditingUser(target);
+    setUsrName(target.displayName);
+    setUsrEmail(target.email);
+    setUsrPassword('');
+    setUsrRole(target.role);
+    const isAll = !target.assignedBusinesses || target.assignedBusinesses === 'ALL';
+    setUsrAssignAllBiz(isAll);
+    setUsrSelectedBizIds(
+      isAll
+        ? fullBusinessList.map((b) => b.id)
+        : target.assignedBusinesses
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+    );
+    setUsrStatus(target.status);
+    setUsrMfa(target.mfaEnabled);
+    setUsrPerms(parseUserPermissions(target));
+    setShowUserModal(true);
+  };
+
+  const handleRolePresetChange = (newRole: UserRole) => {
+    setUsrRole(newRole);
+    setUsrPerms(DEFAULT_ROLE_PERMISSIONS[newRole]);
+    if (newRole === 'super_admin' || newRole === 'super_manager') {
+      setUsrAssignAllBiz(true);
+    } else if (usrSelectedBizIds.length === 0 && fullBusinessList[0]) {
+      setUsrSelectedBizIds([fullBusinessList[0].id]);
+    }
+  };
+
+  const toggleBizSelection = (bizId: string) => {
+    setUsrSelectedBizIds((prev) =>
+      prev.includes(bizId) ? prev.filter((id) => id !== bizId) : [...prev, bizId]
+    );
+  };
+
+  const toggleModulePermission = (modId: string) => {
+    setUsrPerms((prev) => ({
+      ...prev,
+      allowedModules: prev.allowedModules.includes(modId)
+        ? prev.allowedModules.filter((m) => m !== modId)
+        : [...prev.allowedModules, modId],
+    }));
+  };
+
+  const handleSaveUserAndPermissions = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!usrName.trim() || !usrEmail.trim()) {
+      setErrorMsg('অনুগ্রহ করে ইউজারের নাম এবং ইমেইল ঠিকানা লিখুন।');
+      return;
+    }
+    if (!editingUser && usrPassword.trim().length < 6) {
+      setErrorMsg('নতুন কর্মচারী/ম্যানেজারের লগইনের জন্য কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন।');
+      return;
+    }
+    if (editingUser && usrPassword.trim().length > 0 && usrPassword.trim().length < 6) {
+      setErrorMsg('নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');
+      return;
+    }
+    setIsSavingUser(true);
+    try {
+      const assignedBusinessesStr =
+        usrAssignAllBiz || usrRole === 'super_admin' || usrRole === 'super_manager'
+          ? 'ALL'
+          : usrSelectedBizIds.length > 0
+          ? usrSelectedBizIds.join(',')
+          : fullBusinessList[0]?.id || 'ALL';
+
+      const permissionsJsonStr = JSON.stringify(usrPerms);
+
+      if (editingUser) {
+        await updateErpUserPermissions(
+          editingUser,
+          {
+            displayName: usrName.trim(),
+            role: editingUser.role === 'super_admin' ? 'super_admin' : usrRole,
+            assignedBusinesses: assignedBusinessesStr,
+            permissionsJson: permissionsJsonStr,
+            status: usrStatus,
+            mfaEnabled: usrMfa,
+            password: usrPassword.trim() || undefined,
+          },
+          actorEmail
+        );
+        showNotice(`"${usrName}"-এর রোল ও পারমিশন সফলভাবে আপডেট করা হয়েছে!`);
+      } else {
+        await createErpUserAccount(
+          {
+            displayName: usrName.trim(),
+            email: usrEmail.trim().toLowerCase(),
+            password: usrPassword.trim(),
+            role: usrRole,
+            assignedBusinesses: assignedBusinessesStr,
+            permissionsJson: permissionsJsonStr,
+            status: usrStatus,
+            mfaEnabled: usrMfa,
+          },
+          ownerId,
+          actorEmail
+        );
+        showNotice(`নতুন ইউজার "${usrName}" (${usrEmail}) সফলভাবে তৈরি ও পারমিশন সেট করা হয়েছে!`);
+      }
+      setShowUserModal(false);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'ইউজার সেভ করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleSeedSampleManagers = async () => {
+    setIsSavingUser(true);
+    try {
+      const poultryBiz =
+        fullBusinessList.find((b) => b.templateType === 'poultry') || fullBusinessList[0];
+      const cattleBiz =
+        fullBusinessList.find((b) => b.templateType === 'cattle') || fullBusinessList[1] || fullBusinessList[0];
+      const transportBiz =
+        fullBusinessList.find((b) => b.templateType === 'transport') || fullBusinessList[0];
+
+      // 1. Super Manager (COO - oversees all 5 businesses and reports to owner)
+      await createErpUserAccount(
+        {
+          displayName: 'জনাব তারেক মাহমুদ (প্রধান জেনারেল ম্যানেজার - COO)',
+          email: 'coo.tarek@krishivumi.bd',
+          role: 'super_manager',
+          assignedBusinesses: 'ALL',
+          permissionsJson: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.super_manager),
+          status: 'active',
+          mfaEnabled: true,
+        },
+        ownerId,
+        actorEmail
+      );
+
+      // 2. Business Manager for Poultry
+      await createErpUserAccount(
+        {
+          displayName: 'মোঃ রফিকুল ইসলাম (পোল্ট্রি খামার ম্যানেজার)',
+          email: 'rafiq.poultry@krishivumi.bd',
+          role: 'business_manager',
+          assignedBusinesses: poultryBiz ? poultryBiz.id : 'ALL',
+          permissionsJson: JSON.stringify({
+            ...DEFAULT_ROLE_PERMISSIONS.business_manager,
+            allowedModules: ['dashboard', 'poultry', 'inventory', 'stakeholders', 'reports'],
+          }),
+          status: 'active',
+          mfaEnabled: true,
+        },
+        ownerId,
+        actorEmail
+      );
+
+      // 3. Business Manager for Livestock
+      await createErpUserAccount(
+        {
+          displayName: 'ডাঃ কামরুল হাসান (গরু ও ছাগল খামার ইনচার্জ)',
+          email: 'kamrul.livestock@krishivumi.bd',
+          role: 'business_manager',
+          assignedBusinesses: cattleBiz ? cattleBiz.id : 'ALL',
+          permissionsJson: JSON.stringify({
+            ...DEFAULT_ROLE_PERMISSIONS.business_manager,
+            allowedModules: ['dashboard', 'cattle', 'goat', 'inventory', 'stakeholders', 'reports'],
+          }),
+          status: 'active',
+          mfaEnabled: true,
+        },
+        ownerId,
+        actorEmail
+      );
+
+      // 4. Employee under Poultry
+      await createErpUserAccount(
+        {
+          displayName: 'তানভীর আহমেদ (খামার হিসাব সহকারী / Data Entry)',
+          email: 'tanvir.staff@krishivumi.bd',
+          role: 'employee',
+          assignedBusinesses: poultryBiz ? poultryBiz.id : 'ALL',
+          permissionsJson: JSON.stringify(DEFAULT_ROLE_PERMISSIONS.employee),
+          status: 'active',
+          mfaEnabled: false,
+        },
+        ownerId,
+        actorEmail
+      );
+
+      // Also seed 2 sample employee stakeholders with appointedBy metadata
+      if (stakeholders.filter((s) => s.stakeholderType === 'employee').length <= 2) {
+        if (poultryBiz) {
+          await createStakeholderRecord(
+            {
+              stakeholderType: 'employee',
+              code: 'EMP-701',
+              name: 'আব্দুল আলিম (পোল্ট্রি শেড সহকারী)',
+              phone: '+880 1712-445566',
+              email: 'alim.poultry@krishivumi.bd',
+              address: 'শেড নং ১, গাজীপুর খামার',
+              businessId: poultryBiz.id,
+              businessName: poultryBiz.nameBn || poultryBiz.name,
+              designationOrCategory: 'পোল্ট্রি শেড সহকারী',
+              monthlySalaryOrCreditLimit: 22000,
+              outstandingBalance: 0,
+              status: 'active',
+              appointedBy: 'মোঃ রফিকুল ইসলাম (পোল্ট্রি ম্যানেজার)',
+              appointedByRole: 'business_manager',
+              appointedAt: new Date().toISOString(),
+            },
+            ownerId,
+            actorEmail
+          );
+        }
+        if (cattleBiz) {
+          await createStakeholderRecord(
+            {
+              stakeholderType: 'employee',
+              code: 'EMP-702',
+              name: 'সফিকুল ইসলাম (ডেইরি কেয়ারটেকার)',
+              phone: '+880 1819-334455',
+              email: 'safiq.cattle@krishivumi.bd',
+              address: 'শেড নং ২, ডেইরি ইউনিট',
+              businessId: cattleBiz.id,
+              businessName: cattleBiz.nameBn || cattleBiz.name,
+              designationOrCategory: 'ডেইরি ও মিল্কিং ইনচার্জ',
+              monthlySalaryOrCreditLimit: 24000,
+              outstandingBalance: 0,
+              status: 'active',
+              appointedBy: 'ডাঃ কামরুল হাসান (গরু খামার ইনচার্জ)',
+              appointedByRole: 'business_manager',
+              appointedAt: new Date().toISOString(),
+            },
+            ownerId,
+            actorEmail
+          );
+        }
+      }
+
+      showNotice('৪ স্তরের পূর্ণাঙ্গ টিম (প্রধান ম্যানেজার, বিজনেস ম্যানেজারগণ ও কর্মী) তৈরি হয়েছে! লগইন পাসওয়ার্ড: Krishi@1234');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'ডেমো ইউজার তৈরি করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleSendExecutiveReport = async () => {
+    setIsSendingReport(true);
+    try {
+      await createNotificationRecord({
+        title: '📊 প্রধান ম্যানেজারের পক্ষ থেকে নতুন কার্যবিবরণী ও লাভ-ক্ষতি রিপোর্ট',
+        message: `মাননীয় মালিক মহোদয়, প্রধান জেনারেল ম্যানেজার কর্তৃক ৫টি ব্যবসার সমন্বিত লাভ-ক্ষতি ও কার্যবিবরণী রিপোর্ট পেশ করা হয়েছে। প্রধান ম্যানেজারের মন্তব্য: "${executiveReportRemarks.slice(0, 160)}..."`,
+        category: 'executive_report',
+        priority: 'high',
+        businessId: 'ALL',
+      });
+      showNotice('মালিকের ইনবক্সে অফিসিয়াল কার্যবিবরণী ও লাভ-ক্ষতি রিপোর্ট সফলভাবে পেশ করা হয়েছে!');
+      setShowExecutiveReportModal(false);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'রিপোর্ট পাঠাতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSendingReport(false);
+    }
+  };
+
+  // Preset debit/credit accounts when transaction type changes
+  const handleSelectVoucherType = (
+    t: 'sale' | 'expense' | 'purchase' | 'income' | 'cash_to_bank' | 'bank_to_cash' | 'payroll' | 'adjustment'
+  ) => {
+    setVType(t);
+    const cashAcc = accounts.find((a) => a.subType === 'cash');
+    const bankAcc = accounts.find((a) => a.subType === 'bank');
+    const revAcc = accounts.find((a) => a.accountType === 'revenue');
+    const expAcc = accounts.find((a) => a.subType === 'operating_expense');
+    const invAcc = accounts.find((a) => a.subType === 'inventory');
+    const payAcc = accounts.find((a) => a.subType === 'payroll');
+
+    if (t === 'cash_to_bank' && bankAcc && cashAcc) {
+      setVDebitId(bankAcc.id);
+      setVCreditId(cashAcc.id);
+      setVCategory('Cash-to-Bank Contra Transfer');
+      setVDesc('Deposit cash from HQ Vault to Corporate Bank Account (Non-Revenue)');
+    } else if (t === 'bank_to_cash' && cashAcc && bankAcc) {
+      setVDebitId(cashAcc.id);
+      setVCreditId(bankAcc.id);
+      setVCategory('Bank-to-Cash Withdrawal');
+      setVDesc('Withdraw cash from Corporate Bank to HQ Vault (Non-Expense)');
+    } else if ((t === 'sale' || t === 'income') && bankAcc && revAcc) {
+      setVDebitId(bankAcc.id);
+      setVCreditId(revAcc.id);
+      setVCategory('Commercial Agro Sales');
+    } else if (t === 'expense' && expAcc && cashAcc) {
+      setVDebitId(expAcc.id);
+      setVCreditId(cashAcc.id);
+      setVCategory('Direct Farm Operating Expense');
+    } else if (t === 'purchase' && invAcc && bankAcc) {
+      setVDebitId(invAcc.id);
+      setVCreditId(bankAcc.id);
+      setVCategory('Feed & Vet Stock Procurement');
+    } else if (t === 'payroll' && payAcc && bankAcc) {
+      setVDebitId(payAcc.id);
+      setVCreditId(bankAcc.id);
+      setVCategory('Monthly Employee Salary Disbursement');
+    }
+  };
+
+  const handlePostVoucher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    const debitAcc = accounts.find((a) => a.id === vDebitId);
+    const creditAcc = accounts.find((a) => a.id === vCreditId);
+    const biz = businesses.find((b) => b.id === vBizId);
+
+    if (!debitAcc || !creditAcc) {
+      setErrorMsg('Please select valid Debit and Credit accounts.');
+      return;
+    }
+
+    const payload = {
+      referenceNo: `JV-2026-${Math.floor(100 + Math.random() * 899)}`,
+      date: new Date().toISOString().split('T')[0],
+      businessId: vBizId,
+      businessName: biz ? biz.name : 'Consolidated HQ',
+      transactionType: vType,
+      category: vCategory,
+      description: vDesc || `${vCategory} (${vType.toUpperCase()})`,
+      debitAccountId: debitAcc.id,
+      debitAccountName: debitAcc.name,
+      creditAccountId: creditAcc.id,
+      creditAccountName: creditAcc.name,
+      amount: Number(vAmount),
+      paymentStatus: vPaymentStatus,
+      dueAmount: vPaymentStatus === 'paid' ? 0 : Number(vDueAmount),
+      counterpartyName: vCounterparty,
+    };
+
+    const res = await fetch('/api/erp/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityType: 'journal_entry',
+        payload,
+        userRole,
+      }),
+    });
+    const check = await res.json();
+    if (!res.ok || !check.ok) {
+      setErrorMsg(check.error || 'Failed validation');
+      return;
+    }
+
+    await postDoubleEntryTransaction(payload, accounts, ownerId, actorEmail);
+    setShowVoucherModal(false);
+    showNotice(
+      `সফলভাবে ভাউচার ${payload.referenceNo} (${formatBDT(payload.amount)}) সংরক্ষণ করা হয়েছে!`
+    );
+  };
+
+  const treasuryWallets = accounts.filter(
+    (a) => a.subType === 'cash' || a.subType === 'bank'
+  );
+
+  const openDepositModal = (preselectId?: string) => {
+    setDepAccountId(preselectId || treasuryWallets[0]?.id || '');
+    setDepAmount(50000);
+    setDepSource('capital');
+    setDepNote('');
+    setShowDepositModal(true);
+  };
+
+  const openTransferModal = (fromId?: string) => {
+    const first = fromId || treasuryWallets[0]?.id || '';
+    const second =
+      treasuryWallets.find((w) => w.id !== first)?.id || treasuryWallets[1]?.id || first;
+    setTrFromId(first);
+    setTrToId(second);
+    setTrAmount(25000);
+    setTrNote('');
+    setShowTransferModal(true);
+  };
+
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    if (!depAccountId || depAmount <= 0) return;
+    setIsDepositing(true);
+    try {
+      await depositToTreasuryAccount({
+        targetAccountId: depAccountId,
+        amount: Number(depAmount),
+        sourceType: depSource,
+        businessId: 'ALL',
+        businessName: 'Consolidated HQ',
+        note: depNote.trim(),
+      });
+      const accName = treasuryWallets.find((w) => w.id === depAccountId)?.name || 'Account';
+      setShowDepositModal(false);
+      showNotice(`${accName}-এ ${formatBDT(Number(depAmount))} সফলভাবে জমা করা হয়েছে!`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'টাকা জমা করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsDepositing(false);
+    }
+  };
+
+  const handleEasyTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    if (!trFromId || !trToId || trFromId === trToId) {
+      setErrorMsg('অনুগ্রহ করে দুটি ভিন্ন অ্যাকাউন্ট (কোথা থেকে এবং কোথায়) নির্বাচন করুন।');
+      return;
+    }
+    const fromAcc = accounts.find((a) => a.id === trFromId);
+    const toAcc = accounts.find((a) => a.id === trToId);
+    if (!fromAcc || !toAcc) return;
+
+    setIsTransferring(true);
+    try {
+      const isCashToBank = fromAcc.subType === 'cash' && toAcc.subType === 'bank';
+      await postDoubleEntryTransaction(
+        {
+          referenceNo: `TRF-${Date.now().toString().slice(-5)}`,
+          date: new Date().toISOString().split('T')[0],
+          businessId: 'ALL',
+          businessName: 'Consolidated HQ',
+          transactionType: isCashToBank ? 'cash_to_bank' : 'bank_to_cash',
+          category: `${fromAcc.name} → ${toAcc.name}`,
+          description:
+            trNote.trim() || `${fromAcc.name} থেকে ${toAcc.name}-এ ফান্ড ট্রান্সফার`,
+          // Debit = Destination (adds money to To Account), Credit = Source (subtracts from From Account)
+          debitAccountId: toAcc.id,
+          debitAccountName: toAcc.name,
+          creditAccountId: fromAcc.id,
+          creditAccountName: fromAcc.name,
+          amount: Number(trAmount),
+          paymentStatus: 'paid',
+          dueAmount: 0,
+          counterpartyName: 'Internal Transfer',
+        },
+        accounts,
+        ownerId,
+        actorEmail
+      );
+      setShowTransferModal(false);
+      showNotice(
+        `${fromAcc.name} থেকে ${formatBDT(Number(trAmount))} সরিয়ে ${toAcc.name}-এ জমা করা হয়েছে!`
+      );
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'ট্রান্সফার করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleCreateTreasuryAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    if (!newAccName.trim()) return;
+    setIsCreatingAcc(true);
+    try {
+      await createTreasuryAccount({
+        name: newAccName.trim(),
+        subType: newAccType,
+        openingBalance: Number(newAccOpening) || 0,
+      });
+      setShowNewAccountModal(false);
+      setNewAccName('');
+      setNewAccOpening(0);
+      showNotice(`নতুন ${newAccType === 'cash' ? 'ক্যাশ' : 'ব্যাংক'} অ্যাকাউন্ট "${newAccName}" তৈরি হয়েছে!`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsCreatingAcc(false);
+    }
+  };
+
+  const handleResetDemoBalances = async () => {
+    setIsResettingLedger(true);
+    setErrorMsg(null);
+    try {
+      await resetDemoLedgerToZero();
+      setShowResetConfirm(false);
+      showNotice('সব ডেমো ব্যালেন্স ও স্যাম্পল লেনদেন ৳০ করা হয়েছে। এখন আপনি নিজের আসল হিসাব যোগ করতে পারবেন!');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'রিসেট করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsResettingLedger(false);
+    }
+  };
+
+  const handleCreateInventory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const biz = businesses.find((b) => b.id === invBizId);
+    await createInventoryItemWithMovement(
+      {
+        sku: invSku,
+        barcode: `894${Date.now().toString().slice(-10)}`,
+        name: invName,
+        category: invCat,
+        businessId: invBizId,
+        businessName: biz ? biz.name : 'Central Warehouse',
+        warehouse: invWarehouse,
+        unit: invUnit,
+        quantity: Number(invQty),
+        reorderLevel: Number(invReorder),
+        unitCost: Number(invCost),
+        sellingPrice: Number(invPrice),
+        expiryDate: invExpiry,
+        supplierName: invSupplier,
+      },
+      ownerId,
+      actorEmail
+    );
+    setShowInvModal(false);
+    showNotice(`Created SKU ${invSku} (${invName}) with opening stock movement.`);
+  };
+
+  const handleCreateOrUpdateStakeholder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const biz = fullBusinessList.find((b) => b.id === stkBizId) || businesses.find((b) => b.id === stkBizId);
+    setIsSavingStakeholder(true);
+    try {
+      if (editingStakeholder) {
+        await updateStakeholderRecord(editingStakeholder.id, {
+          name: stkName.trim(),
+          phone: stkPhone.trim(),
+          address: stkAddress.trim(),
+          businessId: stkBizId,
+          businessName: biz ? (biz.nameBn || biz.name) : editingStakeholder.businessName,
+          designationOrCategory: stkRoleCat.trim(),
+          monthlySalaryOrCreditLimit: Number(stkSalaryOrLimit),
+        });
+        showNotice(`"${stkName}"-এর তথ্য সফলভাবে সংশোধন করা হয়েছে!`);
+      } else {
+        await createStakeholderRecord(
+          {
+            stakeholderType: stkType,
+            code: `${stkType.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 899)}`,
+            name: stkName.trim(),
+            phone: stkPhone.trim(),
+            email: stkEmail.trim() || 'contact@krishivumi.bd',
+            address: stkAddress.trim(),
+            businessId: stkBizId,
+            businessName: biz ? (biz.nameBn || biz.name) : 'All Businesses',
+            designationOrCategory: stkRoleCat.trim(),
+            monthlySalaryOrCreditLimit: Number(stkSalaryOrLimit),
+            outstandingBalance: Number(stkBalance),
+            status: 'active',
+            appointedBy: actorEmail,
+            appointedByRole: userRole,
+            appointedAt: new Date().toISOString(),
+          },
+          ownerId,
+          actorEmail
+        );
+        showNotice(
+          `নতুন ${
+            stkType === 'employee'
+              ? 'কর্মচারী'
+              : stkType === 'customer'
+              ? 'ক্রেতা/পাইকার'
+              : 'সাপ্লায়ার'
+          } "${stkName}" সফলভাবে নিয়োগ/যুক্ত করা হয়েছে!`
+        );
+      }
+      setShowStkModal(false);
+      setEditingStakeholder(null);
+      setStkName('');
+      setStkBalance(0);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'স্টেকহোল্ডার সংরক্ষণ করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSavingStakeholder(false);
+    }
+  };
+
+  const handleTerminateStakeholder = async () => {
+    if (!terminatingStakeholder) return;
+    setIsTerminatingStakeholder(true);
+    try {
+      await updateStakeholderRecord(terminatingStakeholder.id, {
+        status: 'terminated',
+        notes: terminationReason.trim() || 'খামারের প্রয়োজনীয়তা সমাপ্ত',
+      });
+      showNotice(`কর্মী "${terminatingStakeholder.name}"-কে বরখাস্ত/বাদ দেওয়া হয়েছে।`);
+      setTerminatingStakeholder(null);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'কর্মী বাদ দিতে সমস্যা হয়েছে।');
+    } finally {
+      setIsTerminatingStakeholder(false);
+    }
+  };
+
+  const openStkPayModal = (target: ErpStakeholder, defaultAmt?: number) => {
+    setStkPayTarget(target);
+    setStkPayAmount(
+      defaultAmt !== undefined
+        ? defaultAmt
+        : target.stakeholderType === 'employee'
+        ? target.monthlySalaryOrCreditLimit
+        : target.outstandingBalance > 0
+        ? target.outstandingBalance
+        : 10000
+    );
+    setStkPayWalletId(treasuryWallets[0]?.id || accounts[0]?.id || '');
+    setStkPayDate(new Date().toISOString().split('T')[0]);
+    setStkPayNote('');
+  };
+
+  const handleStakeholderPaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stkPayTarget || !stkPayWalletId || stkPayAmount <= 0) return;
+    setIsSettlingStk(true);
+    setErrorMsg(null);
+    try {
+      const refNo = await settleStakeholderPayment({
+        stakeholderId: stkPayTarget.id,
+        walletAccountId: stkPayWalletId,
+        amount: Number(stkPayAmount),
+        date: stkPayDate,
+        note: stkPayNote.trim(),
+      });
+      const actionText =
+        stkPayTarget.stakeholderType === 'employee'
+          ? 'বেতন প্রদান'
+          : stkPayTarget.stakeholderType === 'customer'
+          ? 'বাকি টাকা আদায়'
+          : 'বাকি টাকা পরিশোধ';
+      const walletAcc = treasuryWallets.find((w) => w.id === stkPayWalletId) || accounts.find((a) => a.id === stkPayWalletId);
+
+      // Immediately generate printable slip
+      setActiveSlip({
+        type: stkPayTarget.stakeholderType === 'employee' ? 'salary_payslip' : 'money_receipt',
+        slipNo: `SLIP-${refNo || Date.now().toString().slice(-6)}`,
+        date: stkPayDate,
+        businessName: stkPayTarget.businessName,
+        recipientName: stkPayTarget.name,
+        designation: stkPayTarget.designationOrCategory,
+        amount: Number(stkPayAmount),
+        paymentMethod: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
+        note: stkPayNote.trim() || `${formatMonthFilterLabel(activeMonthFilter, true)} ${actionText}`,
+        totalAmount: Number(stkPayAmount),
+        enteredBy: actorEmail,
+      });
+
+      setStkPayTarget(null);
+      showNotice(
+        `${stkPayTarget.name}-এর ${formatBDT(Number(stkPayAmount))} ${actionText} সম্পন্ন! স্লিপটি নিচে তৈরি হয়েছে।`
+      );
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'পেমেন্ট সম্পন্ন করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSettlingStk(false);
+    }
+  };
+
+  const handleSendDiscrepancyNotice = async (invItem: ErpInventoryItem, shortage: number, lossBDT: number) => {
+    setIsSendingDiscrepancyNotice(true);
+    try {
+      await createNotificationRecord({
+        title: `🚨 গোডাউন অডিটে ${shortage} ${invItem.unit} ফিড/পণ্য ঘাটতি ধরা পড়েছে!`,
+        message: `সতর্কবার্তা: "${invItem.name}"-এর সিস্টেমে মজুত ছিল ${invItem.quantity} ${invItem.unit}, কিন্তু মালিকের ফিজিক্যাল অডিটে পাওয়া গেছে মাত্র ${Number(invItem.quantity) - shortage} ${invItem.unit}! ${shortage} ${invItem.unit} ঘাটতি (আর্থিক ক্ষতি: ${formatBDT(lossBDT)}) শনাক্ত হয়েছে। সংশ্লিষ্ট ম্যানেজার ও কর্মীকে অবিলম্বে দোকান/মিলের মূল ক্যাশ মেমো ও চালান স্লিপসহ হাজির হতে নির্দেশ দেওয়া হলো।`,
+        category: 'audit_fraud_alert',
+        priority: 'critical',
+        businessId: invItem.businessId,
+      });
+      showNotice(`ম্যানেজার ও কর্মীদের কাছে ${shortage} ${invItem.unit} ঘাটতির কৈফিয়ত চেয়ে নোটিশ পাঠানো হয়েছে!`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'নোটিশ পাঠাতে ব্যর্থ হয়েছে।');
+    } finally {
+      setIsSendingDiscrepancyNotice(false);
+    }
+  };
+
+  const handleReconcilePhysicalStock = async (invItem: ErpInventoryItem, actualCount: number) => {
+    const diff = actualCount - invItem.quantity;
+    if (diff === 0) return;
+    setIsReconcilingStock(true);
+    try {
+      await recordStockMovement(
+        invItem,
+        'adjustment',
+        diff,
+        invItem.warehouse,
+        'মালিকের ফিজিক্যাল অডিট সমন্বয়',
+        `মালিকের ফিজিক্যাল অডিটে ধরা পড়া গরমিল সমন্বয় (প্রকৃত গোডাউন গণনা: ${actualCount} ${invItem.unit}, পূর্বে সিস্টেমে ছিল: ${invItem.quantity} ${invItem.unit})`,
+        actorEmail
+      );
+      showNotice(`গোডাউনের বাস্তব গণনা অনুযায়ী স্টক সমন্বয় সফল হয়েছে! বর্তমান সঠিক মজুত: ${actualCount} ${invItem.unit}`);
+      setAuditPhysicalCount('');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'স্টক সমন্বয় করতে ব্যর্থ হয়েছে।');
+    } finally {
+      setIsReconcilingStock(false);
+    }
+  };
+
+  const openStockMoveModal = (
+    item: ErpInventoryItem,
+    type: 'purchase' | 'consumption' | 'sale' | 'transfer' | 'adjustment'
+  ) => {
+    setStockMoveItem(item);
+    setSmType(type);
+    setSmQty(type === 'purchase' ? 20 : 5);
+    setSmDest(type === 'purchase' ? item.warehouse : `${item.businessName} খামার ব্যবহার`);
+    setSmNotes('');
+    setSmSupplierMemoNo('');
+    setSmPostExpense(false);
+    setSmPayAccId(treasuryWallets[0]?.id || accounts[0]?.id || '');
+  };
+
+  const handleCustomStockMoveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stockMoveItem || smQty <= 0) return;
+    setIsMovingStock(true);
+    setErrorMsg(null);
+    try {
+      const src = smType === 'purchase' ? stockMoveItem.supplierName : stockMoveItem.warehouse;
+      const dst = smDest.trim() || stockMoveItem.warehouse;
+      const memoTag = smSupplierMemoNo.trim() ? ` [চালান/মেমো: ${smSupplierMemoNo.trim()}]` : '';
+      await recordStockMovement(
+        stockMoveItem,
+        smType,
+        Number(smQty),
+        src,
+        dst,
+        (smNotes.trim() || `${smType} (${smQty} ${stockMoveItem.unit})`) + memoTag,
+        actorEmail
+      );
+
+      if (smType === 'purchase' && smPostExpense && smPayAccId) {
+        const payAcc = accounts.find((a) => a.id === smPayAccId);
+        const expAcc =
+          accounts.find((a) => a.subType === 'operating_expense' || a.accountType === 'expense') ||
+          accounts[0];
+        if (payAcc && expAcc) {
+          const totalCost = Number(smQty) * Number(stockMoveItem.unitCost);
+          await postDoubleEntryTransaction(
+            {
+              referenceNo: `STK-${Date.now().toString().slice(-5)}`,
+              date: new Date().toISOString().split('T')[0],
+              businessId: stockMoveItem.businessId,
+              businessName: stockMoveItem.businessName,
+              transactionType: 'purchase',
+              category: `স্টক ক্রয়: ${stockMoveItem.name}`,
+              description: `${smQty} ${stockMoveItem.unit} @ ${formatBDT(stockMoveItem.unitCost)}${memoTag}`,
+              debitAccountId: expAcc.id,
+              debitAccountName: expAcc.name,
+              creditAccountId: payAcc.id,
+              creditAccountName: payAcc.name,
+              amount: totalCost,
+              paymentStatus: 'paid',
+              dueAmount: 0,
+              counterpartyName: stockMoveItem.supplierName,
+            },
+            accounts,
+            ownerId,
+            actorEmail
+          );
+        }
+      }
+
+      // Immediately generate printable Challan slip for purchase
+      if (smType === 'purchase') {
+        const payAcc = treasuryWallets.find((w) => w.id === smPayAccId) || accounts.find((a) => a.id === smPayAccId);
+        setActiveSlip({
+          type: 'goods_purchase_slip',
+          slipNo: `CHALLAN-${Date.now().toString().slice(-6)}`,
+          date: new Date().toISOString().split('T')[0],
+          businessName: stockMoveItem.businessName,
+          recipientName: dst,
+          amount: Number(smQty) * Number(stockMoveItem.unitCost),
+          paymentMethod: smPostExpense && payAcc ? payAcc.name : 'বাকি / পরে সমন্বয়',
+          note: smNotes.trim() || 'গোডাউনে নতুন পণ্য/ফিড ইনওয়ার্ড',
+          supplierName: stockMoveItem.supplierName,
+          supplierMemoNo: smSupplierMemoNo.trim() || 'মিলের মূল মেমো নং দেওয়া হয়নি',
+          itemName: stockMoveItem.name,
+          quantity: Number(smQty),
+          unit: stockMoveItem.unit,
+          unitPrice: stockMoveItem.unitCost,
+          totalAmount: Number(smQty) * Number(stockMoveItem.unitCost),
+          enteredBy: actorEmail,
+        });
+      }
+
+      setStockMoveItem(null);
+      showNotice(
+        `${stockMoveItem.name}-এর ${smQty} ${stockMoveItem.unit} (${
+          smType === 'purchase' ? 'স্টক ইন' : 'স্টক আউট'
+        }) সফলভাবে আপডেট হয়েছে! চালান স্লিপ নিচে দেখুন।`
+      );
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'স্টক আপডেট করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsMovingStock(false);
+    }
+  };
+
+  const filteredJournals = journalEntries.filter(
+    (j) =>
+      (selectedBizId === 'ALL' || j.businessId === selectedBizId) &&
+      matchesMonthFilter(j.date, activeMonthFilter)
+  );
+
+  const handleExportCsv = () => {
+    if (filteredJournals.length === 0) {
+      showNotice('এক্সপোর্ট করার মতো কোনো লেনদেন পাওয়া যায়নি।');
+      return;
+    }
+    const headers = ['Voucher No', 'Date', 'Business', 'Category', 'Type', 'Description', 'Debit Account', 'Credit Account', 'Amount (BDT)', 'Due (BDT)', 'Status', 'Counterparty'];
+    const rows = filteredJournals.map((j) => [
+      `"${j.referenceNo}"`,
+      `"${j.date}"`,
+      `"${j.businessName}"`,
+      `"${j.category}"`,
+      `"${j.transactionType}"`,
+      `"${(j.description || '').replace(/"/g, '""')}"`,
+      `"${j.debitAccountName}"`,
+      `"${j.creditAccountName}"`,
+      j.amount,
+      j.dueAmount || 0,
+      `"${j.status}"`,
+      `"${(j.counterpartyName || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `KrishiVumi_Ledger_${activeMonthFilter}_${selectedBizId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showNotice('লেজার সিএসভি (CSV) ফাইল ডাউনলোড সম্পন্ন হয়েছে!');
+  };
+  const monthlyPostedJournals = filteredJournals.filter((j) => j.status === 'posted');
+  const filteredInventory = inventoryItems.filter(
+    (i) => selectedBizId === 'ALL' || i.businessId === selectedBizId
+  );
+  const filteredStockMovements = stockMovements.filter(
+    (m) =>
+      (selectedBizId === 'ALL' || m.businessId === selectedBizId) &&
+      matchesMonthFilter(m.date, activeMonthFilter)
+  );
+
+  return (
+    <div className="space-y-6">
+      {activeSection !== 'security' && (
+        <MonthFilterBar value={activeMonthFilter} onChange={setMonthFilter} bn={true} />
+      )}
+      {toastMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 px-4 py-3 text-xs font-medium text-emerald-800 dark:text-emerald-200">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 px-4 py-3 text-xs font-medium text-red-700 dark:text-red-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* 1. SIMPLE & CLEAR TREASURY, CASH, BANK & LEDGER */}
+      {activeSection === 'accounting' && (
+        <div className="space-y-6">
+          {/* Header & Easy Action Buttons */}
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Landmark className="h-5 w-5 text-emerald-600" />
+                <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                  টাকা-পয়সা, ক্যাশ ও ব্যাংক হিসাব (Cash, Bank & Ledger)
+                </h1>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+                আপনার হাতে নগদ কত টাকা আছে, কোন ব্যাংকে কত আছে—তা এখানে দেখুন। নতুন টাকা যোগ করতে <strong>&ldquo;+ টাকা জমা করুন&rdquo;</strong> এবং এক একাউন্ট থেকে আরেক একাউন্টে নিতে <strong>&ldquo;টাকা ট্রান্সফার&rdquo;</strong> ব্যবহার করুন।
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => openDepositModal()}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                <span>+ ক্যাশ / ব্যাংকে টাকা জমা</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openTransferModal()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 whitespace-nowrap"
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5 text-emerald-600" />
+                <span>টাকা ট্রান্সফার (From → To)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowNewAccountModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 whitespace-nowrap"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ নতুন ব্যাংক / বিকাশ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleSelectVoucherType('sale');
+                  setShowVoucherModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 whitespace-nowrap"
+              >
+                <span>+ আয় / খরচ ভাউচার</span>
+              </button>
+
+              {userRole === 'super_admin' && (
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirm(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold rounded-xl border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 whitespace-nowrap"
+                  title="প্রাথমিক ডেমো ব্যালেন্স মুছে ৳০ থেকে শুরু করুন"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>৳০ থেকে শুরু করুন</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* SECTION A: CASH & BANK WALLETS (Only real money accounts!) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-emerald-600" />
+                <span>আপনার নগদ ক্যাশ ও ব্যাংক অ্যাকাউন্টসমূহ ({treasuryWallets.length}টি)</span>
+              </h2>
+              <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                মোট নগদ + ব্যাংক: {formatBDT(treasuryWallets.reduce((s, w) => s + Number(w.balance), 0))}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {treasuryWallets.map((w) => {
+                const isCash = w.subType === 'cash';
+                return (
+                  <div
+                    key={w.id}
+                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs flex flex-col justify-between space-y-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                            isCash
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                          }`}
+                        >
+                          {isCash ? <Banknote className="h-5 w-5" /> : <Landmark className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <span
+                            className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                              isCash
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                            }`}
+                          >
+                            {isCash ? 'নগদ ক্যাশ (Cash)' : 'ব্যাংক / ওয়ালেট (Bank)'}
+                          </span>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                            {w.name}
+                          </h3>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-2xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                      {formatBDT(w.balance)}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => openDepositModal(w.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white text-xs font-bold transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>টাকা জমা দিন</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openTransferModal(w.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors"
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
+                        <span>ট্রান্সফার</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION B: SIMPLE 4-CARD SUMMARY + COLLAPSIBLE FULL CHART OF ACCOUNTS */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                  আয়, খরচ, পাওনা ও দেনার সংক্ষিপ্ত হিসাব
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  এগুলো আপনার ব্যবসার মোট বিক্রি, খরচ, ক্রেতাদের কাছে পাওনা এবং সাপ্লায়ারদের দেনা দেখায় (এগুলোতে আলাদা টাকা যোগ করতে হয় না, এন্ট্রি দিলে অটো আপডেট হয়)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFullAccounts(!showFullAccounts)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shrink-0"
+              >
+                {showFullAccounts ? (
+                  <>
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    <span>সব লেজার লুকান</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    <span>সব {accounts.length}টি লেজার অ্যাকাউন্ট দেখুন</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  title: `বিক্রি ও আয় (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                  val: monthlyPostedJournals
+                    .filter((j) => j.transactionType === 'sale' || j.transactionType === 'income')
+                    .reduce((s, j) => s + Number(j.amount), 0),
+                  color: 'text-emerald-600 dark:text-emerald-400',
+                },
+                {
+                  title: `খরচ ও বেতন (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                  val: monthlyPostedJournals
+                    .filter(
+                      (j) =>
+                        j.transactionType === 'expense' ||
+                        j.transactionType === 'purchase' ||
+                        j.transactionType === 'payroll'
+                    )
+                    .reduce((s, j) => s + Number(j.amount), 0),
+                  color: 'text-rose-600 dark:text-rose-400',
+                },
+                {
+                  title: 'এই সময়ের বাকি / পাওনা (Due)',
+                  val: monthlyPostedJournals.reduce((s, j) => s + Number(j.dueAmount || 0), 0),
+                  color: 'text-amber-600 dark:text-amber-400',
+                },
+                {
+                  title: 'এই সময়ের নিট লাভ (Net Profit)',
+                  val:
+                    monthlyPostedJournals
+                      .filter((j) => j.transactionType === 'sale' || j.transactionType === 'income')
+                      .reduce((s, j) => s + Number(j.amount), 0) -
+                    monthlyPostedJournals
+                      .filter(
+                        (j) =>
+                          j.transactionType === 'expense' ||
+                          j.transactionType === 'purchase' ||
+                          j.transactionType === 'payroll'
+                      )
+                      .reduce((s, j) => s + Number(j.amount), 0),
+                  color: 'text-sky-600 dark:text-sky-400',
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4"
+                >
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {item.title}
+                  </div>
+                  <div className={`mt-1.5 text-xl font-extrabold font-mono tabular-nums ${item.color}`}>
+                    {formatBDT(item.val)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {showFullAccounts && (
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {accounts.map((acc) => (
+                    <div
+                      key={acc.id}
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3.5 space-y-1"
+                    >
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span className="font-mono">{acc.code}</span>
+                        <span className="uppercase font-semibold">{acc.accountType}</span>
+                      </div>
+                      <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                        {acc.name}
+                      </div>
+                      <div className="text-sm font-bold font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
+                        {formatBDT(acc.balance)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION C: TRANSACTION HISTORY TABLE */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                  সকল লেনদেনের তালিকা (Transaction Ledger)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  কোন খাত থেকে টাকা গেছে এবং কোন খাতে টাকা জমা হয়েছে তার সম্পূর্ণ তালিকা
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedBizId}
+                  onChange={(e) => setSelectedBizId(e.target.value)}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold"
+                >
+                  <option value="ALL">সব ব্যবসা (All Businesses)</option>
+                  {businesses.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.nameBn || b.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline whitespace-nowrap"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>CSV ডাউনলোড</span>
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
+                    <th className="py-3 px-4">ভাউচার ও তারিখ</th>
+                    <th className="py-3 px-4">ব্যবসা</th>
+                    <th className="py-3 px-4">বিবরণ</th>
+                    <th className="py-3 px-4">টাকা জমা / খরচ খাত (DR)</th>
+                    <th className="py-3 px-4">টাকার উৎস / প্রদান খাত (CR)</th>
+                    <th className="py-3 px-4 text-right">পরিমাণ (BDT)</th>
+                    <th className="py-3 px-4 text-right">স্ট্যাটাস</th>
+                    <th className="py-3 px-4 text-right">সংশোধন</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+                  {filteredJournals.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-10 text-center text-slate-400">
+                        এখনো কোনো লেনদেন নেই। উপরের &ldquo;+ ক্যাশ / ব্যাংকে টাকা জমা&rdquo; বা &ldquo;+ আয় / খরচ ভাউচার&rdquo; থেকে শুরু করুন।
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredJournals.map((j) => (
+                      <tr
+                        key={j.id}
+                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${
+                          j.status === 'reversed' ? 'opacity-60' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-mono">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            {j.referenceNo}
+                          </div>
+                          <div className="text-slate-500">{j.date}</div>
+                        </td>
+                        <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
+                          {j.businessName}
+                        </td>
+                        <td className="py-3 px-4 max-w-xs">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            {j.category}{' '}
+                            <span className="font-mono text-[11px] text-slate-500 uppercase">
+                              · {j.transactionType.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <div className="text-slate-500 truncate">{j.description}</div>
+                          <div className="text-[11px] text-slate-400">Party: {j.counterpartyName}</div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-emerald-700 dark:text-emerald-400">
+                          + {j.debitAccountName}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">
+                          {j.creditAccountName}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                          {formatBDT(j.amount)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums">
+                          <div
+                            className={
+                              j.status === 'reversed'
+                                ? 'text-red-600'
+                                : 'text-emerald-600 dark:text-emerald-400 font-medium'
+                            }
+                          >
+                            {j.status.toUpperCase()}
+                          </div>
+                          {j.dueAmount > 0 && (
+                            <div className="text-amber-600 dark:text-amber-400">
+                              Due: {formatBDT(j.dueAmount)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveSlip({
+                                  type: j.transactionType === 'payroll' ? 'salary_payslip' : 'money_receipt',
+                                  slipNo: j.referenceNo,
+                                  date: j.date,
+                                  businessName: j.businessName,
+                                  recipientName: j.counterpartyName || j.description,
+                                  amount: j.amount,
+                                  paymentMethod: `${j.creditAccountName} ➔ ${j.debitAccountName}`,
+                                  note: `${j.category}: ${j.description}`,
+                                  enteredBy: actorEmail,
+                                  recipientDesignation: j.transactionType === 'payroll' ? 'কর্মচারী' : undefined,
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/60 whitespace-nowrap cursor-pointer"
+                              title="ভাউচার বা মানি রিসিট স্লিপ প্রিন্ট করুন"
+                            >
+                              <FileText className="h-3 w-3" />
+                              <span>স্লিপ</span>
+                            </button>
+
+                            {j.status === 'posted' && j.transactionType !== 'reversal' ? (
+                              <button
+                                type="button"
+                                disabled={userRole === 'employee'}
+                                onClick={async () => {
+                                  await reversePostedJournalEntry(j, accounts, actorEmail);
+                                  showNotice(
+                                    `${j.referenceNo} রিভার্স করা হয়েছে (REV-${j.referenceNo})।`
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 whitespace-nowrap cursor-pointer"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                রিভার্স করুন
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 font-mono text-[11px]">Locked</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. INVENTORY & WAREHOUSE MANAGEMENT */}
+      {activeSection === 'inventory' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-emerald-600" />
+                <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100">
+                  গোডাউন ও স্টক ব্যবস্থাপনা (Warehouse & Stock Control)
+                </h1>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                সব ব্যবসার ফিড, ভ্যাকসিন, ওষুধ, পোনা ও জ্বালানি স্টক দেখুন এবং যেকোনো কাস্টম পরিমাণে স্টক ইন/আউট করুন।
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <select
+                value={selectedBizId}
+                onChange={(e) => setSelectedBizId(e.target.value)}
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold"
+              >
+                <option value="ALL">সব গোডাউন ও ব্যবসা (All)</option>
+                {businesses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nameBn || b.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowInvModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 whitespace-nowrap shadow-sm shadow-emerald-600/20"
+              >
+                <Plus className="h-4 w-4" />
+                <span>+ নতুন পণ্য যোগ করুন</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Monthly Stock KPI Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">বর্তমান মোট স্টক মূল্য</div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-slate-900 dark:text-white">
+                {formatBDT(filteredInventory.reduce((s, i) => s + i.quantity * i.unitCost, 0))}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">{filteredInventory.length}টি আইটেম সক্রিয়</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">
+                এই সময়ে স্টক ক্রয় ({formatMonthFilterLabel(activeMonthFilter, true)})
+              </div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
+                {formatBDT(
+                  filteredStockMovements
+                    .filter((m) => m.movementType === 'purchase')
+                    .reduce((s, m) => s + m.quantity * m.unitCost, 0)
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                মোট {filteredStockMovements.filter((m) => m.movementType === 'purchase').reduce((s, m) => s + m.quantity, 0)} ইউনিট ঢুকেছে
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">
+                এই সময়ে খামারে ব্যবহার ({formatMonthFilterLabel(activeMonthFilter, true)})
+              </div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-sky-600 dark:text-sky-400">
+                {formatBDT(
+                  filteredStockMovements
+                    .filter((m) => m.movementType === 'consumption' || m.movementType === 'sale')
+                    .reduce((s, m) => s + m.quantity * m.unitCost, 0)
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                মোট{' '}
+                {filteredStockMovements
+                  .filter((m) => m.movementType === 'consumption' || m.movementType === 'sale')
+                  .reduce((s, m) => s + m.quantity, 0)}{' '}
+                ইউনিট বের হয়েছে
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">কম স্টক সতর্কতা (Low Stock)</div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
+                {filteredInventory.filter((i) => i.quantity <= i.reorderLevel).length} টি
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">রি-অর্ডার সীমার নিচে রয়েছে</div>
+            </div>
+          </div>
+
+          {/* PHYSICAL STOCK AUDIT & ANTI-THEFT DISCREPANCY RECONCILIATION */}
+          <div
+            id="godown-audit-panel"
+            className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-5 space-y-4 shadow-sm"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200 dark:border-amber-900/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-amber-500/30">
+                  🔍
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <span>মালিকের সারপ্রাইজ গোডাউন অডিট ও গরমিল যাচাই (Anti-Theft Physical Stock Audit)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
+                      চুরি / টাকা মারা রোধ
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    স্টাফকে ৩০ বস্তা আনতে বললে সে সিস্টেমে ৫০ বস্তা লিখে টাকা চুরি করছে কি না—তা ধরতে এখানে বাস্তব গণনা দিয়ে টেস্ট করুন।
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="block mb-1.5 font-bold text-slate-800 dark:text-slate-200">
+                  ১. কোন আইটেমটি অডিট করবেন? *
+                </label>
+                <select
+                  value={auditSelectedItemId}
+                  onChange={(e) => {
+                    setAuditSelectedItemId(e.target.value);
+                    setAuditPhysicalCount('');
+                  }}
+                  className="w-full rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2.5 font-semibold text-slate-900 dark:text-slate-100"
+                >
+                  <option value="">-- গোডাউনের আইটেম সিলেক্ট করুন --</option>
+                  {filteredInventory.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} (মজুদ: {item.quantity} {item.unit}) - {item.businessName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {auditSelectedItemId && (() => {
+                const invItem = filteredInventory.find((i) => i.id === auditSelectedItemId);
+                if (!invItem) return null;
+
+                const systemQty = invItem.quantity;
+
+                return (
+                  <>
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-1">
+                      <div className="text-[11px] font-semibold text-slate-500">সিস্টেমে বর্তমান এন্ট্রি</div>
+                      <div className="text-xl font-black font-mono text-slate-900 dark:text-white">
+                        {systemQty} {invItem.unit}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        দর: {formatBDT(invItem.unitCost)}/{invItem.unit} · মোট বুক ভ্যালু: {formatBDT(systemQty * invItem.unitCost)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block mb-1.5 font-bold text-slate-800 dark:text-slate-200">
+                        ২. গোডাউনে গুনে পাওয়া গেল (Physical Count) *
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="যেমন: ৩০"
+                          value={auditPhysicalCount}
+                          onChange={(e) => setAuditPhysicalCount(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full rounded-xl border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-900 px-3 py-2.5 font-mono font-black text-base text-slate-900 dark:text-slate-100"
+                        />
+                        <span className="font-bold text-slate-600 dark:text-slate-400 text-xs shrink-0">
+                          {invItem.unit}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Real-time Discrepancy & Fraud Detection Card */}
+            {auditSelectedItemId && auditPhysicalCount !== '' && (() => {
+              const invItem = filteredInventory.find((i) => i.id === auditSelectedItemId);
+              if (!invItem) return null;
+
+              const systemQty = invItem.quantity;
+              const physicalQty = Number(auditPhysicalCount);
+              const diff = physicalQty - systemQty;
+              const shortage = diff < 0 ? Math.abs(diff) : 0;
+              const lossBDT = shortage * invItem.unitCost;
+
+              if (diff < 0) {
+                return (
+                  <div className="rounded-xl border-2 border-red-400 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-red-600 text-white flex items-center justify-center font-bold text-base shrink-0 mt-0.5">
+                        ⚠️
+                      </div>
+                      <div className="space-y-1">
+                        <div className="font-black text-red-900 dark:text-red-200 text-sm">
+                          🚨 মারাত্মক গরমিল ধরা পড়েছে! {shortage} {invItem.unit} কম পাওয়া গেছে!
+                        </div>
+                        <p className="text-xs text-red-800 dark:text-red-300 leading-relaxed">
+                          সিস্টেমে <strong>{systemQty} {invItem.unit}</strong> লেখা রয়েছে, কিন্তু গোডাউনে আপনি গুনে পেলেন মাত্র <strong>{physicalQty} {invItem.unit}</strong>!
+                          এখানে <strong>{shortage} {invItem.unit} ঘাটতি</strong>, যার আর্থিক মূল্য <strong>{formatBDT(lossBDT)}</strong> টাকা।
+                        </p>
+                        <div className="text-[11px] font-semibold text-red-700 dark:text-red-400 bg-red-100/80 dark:bg-red-900/40 p-2.5 rounded-lg mt-1">
+                          💡 <strong>চুরি রোধের পদক্ষেপ:</strong> সংশ্লিষ্ট ম্যানেজার/স্টাফের কাছ থেকে মিলের মূল ক্যাশ মেমো ও সাইন করা চালান স্লিপ তলব করুন। সে যদি মেমো দেখাতে না পারে, তবে বুঝবেন কম মাল এনে বেশি টাকা সফটওয়্যার থেকে কেটে নিয়েছে।
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-red-200 dark:border-red-900/60">
+                      <button
+                        type="button"
+                        disabled={isSendingDiscrepancyNotice}
+                        onClick={() => handleSendDiscrepancyNotice(invItem, shortage, lossBDT)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 shadow-sm cursor-pointer disabled:opacity-50"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>{isSendingDiscrepancyNotice ? 'নোটিশ যাচ্ছে...' : 'ম্যানেজারকে কৈফিয়ত নোটিশ পাঠান'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isReconcilingStock}
+                        onClick={() => handleReconcilePhysicalStock(invItem, physicalQty)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>{isReconcilingStock ? 'সমন্বয় হচ্ছে...' : `বাস্তব ${physicalQty} ${invItem.unit}-এ স্টক সমন্বয় করুন`}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (diff === 0) {
+                return (
+                  <div className="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-3.5 flex items-center gap-2.5 text-xs text-emerald-800 dark:text-emerald-300 font-bold">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <span>✓ গোডাউনে কোনো গরমিল পাওয়া যায়নি! বাস্তব গণনা ({physicalQty} {invItem.unit}) এবং সফটওয়্যারের এন্ট্রি ১০০% নির্ভুল মিলেছে।</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="rounded-xl border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-3.5 text-xs text-blue-800 dark:text-blue-300 font-semibold">
+                  ℹ️ গোডাউনে অতিরিক্ত +{diff} {invItem.unit} মজুত পাওয়া গেছে। চাইলে আপনি তা সমন্বয় করতে পারেন।
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
+                    <th className="py-3 px-4">কোড ও বারকোড</th>
+                    <th className="py-3 px-4">পণ্যের নাম ও ধরন</th>
+                    <th className="py-3 px-4">ব্যবসা ও গোডাউন</th>
+                    <th className="py-3 px-4 text-right">বর্তমান মজুদ</th>
+                    <th className="py-3 px-4 text-right">মোট মূল্য / দর</th>
+                    <th className="py-3 px-4">মেয়াদ ও সাপ্লায়ার</th>
+                    <th className="py-3 px-4 text-right">অ্যাকশন ও অডিট</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+                  {filteredInventory.map((item) => {
+                    const isLow = item.quantity <= item.reorderLevel;
+                    const stockVal = item.quantity * item.unitCost;
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                        <td className="py-3.5 px-4 font-mono">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            {item.sku}
+                          </div>
+                          <div className="text-slate-400">{item.barcode}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            {item.name}
+                          </div>
+                          <div className="text-slate-500 uppercase">{item.category}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-medium text-slate-800 dark:text-slate-200">
+                            {item.businessName}
+                          </div>
+                          <div className="text-slate-500">{item.warehouse}</div>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono tabular-nums">
+                          <div
+                            className={`font-bold ${
+                              isLow
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-slate-900 dark:text-slate-100'
+                            }`}
+                          >
+                            {item.quantity} {item.unit}
+                          </div>
+                          <div className="text-slate-400">
+                            সর্বনিম্ন সীমা: {item.reorderLevel} {isLow ? '(কম স্টক!)' : ''}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono tabular-nums">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            {formatBDT(stockVal)}
+                          </div>
+                          <div className="text-slate-500">@ {formatBDT(item.unitCost)}/{item.unit}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-mono text-slate-700 dark:text-slate-300">
+                            মেয়াদ: {item.expiryDate || 'N/A'}
+                          </div>
+                          <div className="text-slate-500">{item.supplierName}</div>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAuditSelectedItemId(item.id);
+                                setAuditPhysicalCount('');
+                                const panel = document.getElementById('godown-audit-panel');
+                                if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className="px-2 py-1.5 text-xs font-bold rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 whitespace-nowrap cursor-pointer"
+                              title="বাস্তব গোডাউন মজুদের সাথে গরমিল টেস্ট করুন"
+                            >
+                              🔍 অডিট
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openStockMoveModal(item, 'purchase')}
+                              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap cursor-pointer shadow-2xs"
+                            >
+                              + স্টক ইন
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openStockMoveModal(item, 'consumption')}
+                              className="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap cursor-pointer"
+                            >
+                              - স্টক আউট
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Stock Movements Traceability Log */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-3.5 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                স্টক আনা-নেওয়ার ইতিহাস ও চালান রসিদ ({formatMonthFilterLabel(activeMonthFilter, true)})
+              </h3>
+              <span className="text-xs font-mono text-slate-500">
+                {filteredStockMovements.length}টি রেকর্ড
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/50 dark:bg-slate-800/40">
+                    <th className="py-2.5 px-4">তারিখ</th>
+                    <th className="py-2.5 px-4">পণ্যের নাম</th>
+                    <th className="py-2.5 px-4">ধরন</th>
+                    <th className="py-2.5 px-4">কোথা থেকে → কোথায়</th>
+                    <th className="py-2.5 px-4 text-right">পরিমাণ</th>
+                    <th className="py-2.5 px-4">মোট দাম</th>
+                    <th className="py-2.5 px-4">নোট ও মেমো নং</th>
+                    <th className="py-2.5 px-4 text-right">চালান স্লিপ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {filteredStockMovements.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-slate-400">
+                        নির্বাচিত মাসে স্টকের কোনো আনা-নেওয়া হয়নি।
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStockMovements.slice(0, 25).map((m) => (
+                      <tr key={m.id}>
+                        <td className="py-2.5 px-4 font-mono">{m.date}</td>
+                        <td className="py-2.5 px-4 font-medium">{m.itemName}</td>
+                        <td className="py-2.5 px-4 uppercase font-mono">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              m.movementType === 'purchase'
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                            }`}
+                          >
+                            {m.movementType}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-500">
+                          {m.sourceLocation} → {m.destinationLocation}
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono font-semibold">
+                          {m.quantity}
+                        </td>
+                        <td className="py-2.5 px-4 font-mono text-slate-700 dark:text-slate-300">
+                          {formatBDT(m.quantity * m.unitCost)}
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-500">{m.notes}</td>
+                        <td className="py-2.5 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveSlip({
+                                type: 'goods_purchase_slip',
+                                slipNo: `CHALLAN-${m.id.slice(-6).toUpperCase()}`,
+                                date: m.date,
+                                businessName: fullBusinessList.find((b) => b.id === m.businessId)?.nameBn || 'সেন্ট্রাল এগ্রো গোডাউন',
+                                recipientName: m.destinationLocation,
+                                amount: m.quantity * m.unitCost,
+                                paymentMethod: m.movementType === 'purchase' ? 'সাপ্লায়ার ক্যাশ/ব্যাংক বিল' : 'খামার ইন্টারনাল ট্রান্সফার',
+                                note: m.notes,
+                                supplierName: m.sourceLocation,
+                                supplierMemoNo: 'MEMO-' + m.id.slice(-5),
+                                itemName: m.itemName,
+                                quantity: m.quantity,
+                                unit: 'বস্তা/একক',
+                                unitPrice: m.unitCost,
+                                totalAmount: m.quantity * m.unitCost,
+                                enteredBy: actorEmail,
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 whitespace-nowrap cursor-pointer shadow-2xs"
+                            title="চালান স্লিপ প্রিন্ট করুন"
+                          >
+                            <Printer className="h-3 w-3 text-emerald-600" />
+                            <span>চালান স্লিপ</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. EMPLOYEES, PAYROLL, SUPPLIERS & CUSTOMERS */}
+      {activeSection === 'stakeholders' && (
+        <div className="space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-emerald-600" />
+                <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100">
+                  কর্মী, বেতন ও বাকি হিসাব (Staff, Customers & Suppliers)
+                </h1>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <strong>কর্মচারী</strong> = মাসিক বেতন দিচ্ছেন · <strong>ক্রেতা/পাইকার</strong> = তাদের কাছ থেকে বাকি টাকা পাবেন · <strong>সাপ্লায়ার</strong> = দোকান/মিলকে বাকি টাকা দেবেন।
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                {[
+                  { id: 'all' as const, label: 'সবাই' },
+                  { id: 'employee' as const, label: 'কর্মচারী (বেতন)' },
+                  { id: 'customer' as const, label: 'ক্রেতা (টাকা পাব)' },
+                  { id: 'supplier' as const, label: 'সাপ্লায়ার (টাকা দেব)' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setStkFilter(tab.id)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                      stkFilter === tab.id
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingStakeholder(null);
+                  setStkType('employee');
+                  setStkName('');
+                  setStkPhone('+880 1711-000000');
+                  setStkRoleCat(
+                    userRole === 'business_manager'
+                      ? 'খামার সহকারী / কর্মী'
+                      : 'খামার সুপারভাইজার'
+                  );
+                  setStkSalaryOrLimit(20000);
+                  if (userRole === 'business_manager' && assignedBusinessFilter !== 'ALL') {
+                    setStkBizId(assignedBusinessFilter);
+                  } else {
+                    setStkBizId(businesses[0]?.id || 'ALL');
+                  }
+                  setShowStkModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 whitespace-nowrap shadow-sm shadow-blue-600/20 cursor-pointer"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>+ নতুন কর্মী নিয়োগ দিন (Hire Staff)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingStakeholder(null);
+                  setStkType('customer');
+                  setStkName('');
+                  setStkPhone('+880 1711-000000');
+                  setStkRoleCat('পাইকারি ক্রেতা');
+                  setStkSalaryOrLimit(50000);
+                  setStkBalance(0);
+                  setShowStkModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>+ নতুন পাইকার / সাপ্লায়ার</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">
+                বেতন পরিশোধ ({formatMonthFilterLabel(activeMonthFilter, true)})
+              </div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
+                {formatBDT(
+                  monthlyPostedJournals
+                    .filter((j) => j.transactionType === 'payroll')
+                    .reduce((s, j) => s + j.amount, 0)
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                মোট সক্রিয় কর্মচারী: {stakeholders.filter((s) => s.stakeholderType === 'employee' && s.status !== 'terminated').length} জন
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">মোট মাসিক বেতন বাজেট</div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-slate-900 dark:text-white">
+                {formatBDT(
+                  stakeholders
+                    .filter((s) => s.stakeholderType === 'employee' && s.status !== 'terminated')
+                    .reduce((sum, s) => sum + s.monthlySalaryOrCreditLimit, 0)
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">সকল সক্রিয় স্টাফ ও কর্মী</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">পাইকার/ক্রেতার কাছে পাওনা (পাবেন)</div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
+                {formatBDT(
+                  stakeholders
+                    .filter((s) => s.stakeholderType === 'customer')
+                    .reduce((sum, s) => sum + s.outstandingBalance, 0)
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">গ্রাহকের কাছে বকেয়া</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div className="text-xs text-slate-500">সাপ্লায়ারদের কাছে দেনা (দেবেন)</div>
+              <div className="mt-1 text-xl font-extrabold font-mono text-rose-600 dark:text-rose-400">
+                {formatBDT(
+                  stakeholders
+                    .filter((s) => s.stakeholderType === 'supplier')
+                    .reduce((sum, s) => sum + s.outstandingBalance, 0)
+                )}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">দোকান/মিলের বকেয়া</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
+                    <th className="py-3 px-4">কোড ও ধরন</th>
+                    <th className="py-3 px-4">নাম ও মোবাইল</th>
+                    <th className="py-3 px-4">ব্যবসা ইউনিট</th>
+                    <th className="py-3 px-4">পদবি / পরিচয়</th>
+                    <th className="py-3 px-4">নিয়োগকারী ম্যানেজার (Appointed By)</th>
+                    <th className="py-3 px-4 text-right">মাসিক বেতন / লিমিট</th>
+                    <th className="py-3 px-4 text-right">হিসাবের অবস্থা</th>
+                    <th className="py-3 px-4 text-right">অ্যাকশন ও ম্যানেজমেন্ট</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {stakeholders
+                    .filter((s) => stkFilter === 'all' || s.stakeholderType === stkFilter)
+                    .map((s) => {
+                      const paidThisPeriod =
+                        s.stakeholderType === 'employee'
+                          ? monthlyPostedJournals
+                              .filter(
+                                (j) =>
+                                  j.transactionType === 'payroll' &&
+                                  j.counterpartyName === s.name
+                              )
+                              .reduce((sum, j) => sum + j.amount, 0)
+                          : 0;
+
+                      const canManageThisStaff =
+                        userRole === 'super_admin' ||
+                        userRole === 'super_manager' ||
+                        (userRole === 'business_manager' &&
+                          (assignedBusinessFilter === 'ALL' || assignedBusinessFilter === s.businessId));
+
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                          <td className="py-3.5 px-4">
+                            <div className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                              {s.code}
+                            </div>
+                            <span
+                              className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                s.stakeholderType === 'employee'
+                                  ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                                  : s.stakeholderType === 'customer'
+                                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                              }`}
+                            >
+                              {s.stakeholderType === 'employee'
+                                ? 'কর্মচারী (বেতন)'
+                                : s.stakeholderType === 'customer'
+                                ? 'ক্রেতা (টাকা পাবেন)'
+                                : 'সাপ্লায়ার (টাকা দেবেন)'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-slate-900 dark:text-slate-100">
+                              {s.name}
+                            </div>
+                            <div className="text-slate-500">
+                              {s.phone} · {s.address}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 font-medium">{s.businessName}</td>
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                            {s.designationOrCategory}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {s.stakeholderType === 'employee' ? (
+                              <div className="space-y-1">
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                  <Briefcase className="h-3 w-3 text-blue-600" />
+                                  <span>{s.appointedBy || 'মালিক কর্তৃক সরাসরি'}</span>
+                                </div>
+                                {s.status === 'terminated' && (
+                                  <div>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[10px] font-bold">
+                                      <UserX className="h-3 w-3" />
+                                      <span>বরখাস্ত / বাদ দেওয়া</span>
+                                    </span>
+                                    {s.notes && (
+                                      <div className="text-[10px] text-red-500 italic truncate max-w-xs">{s.notes}</div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono tabular-nums font-semibold">
+                            <div className="text-[10px] text-slate-400">
+                              {s.stakeholderType === 'employee' ? 'মাসিক বেতন' : 'ক্রেডিট লিমিট'}
+                            </div>
+                            <div>{formatBDT(s.monthlySalaryOrCreditLimit)}</div>
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono tabular-nums">
+                            {s.stakeholderType === 'employee' ? (
+                              s.status === 'terminated' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold">
+                                  চাকরি শেষ
+                                </span>
+                              ) : paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
+                                <div className="space-y-0.5">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
+                                    ✓ পরিশোধিত: {formatBDT(paidThisPeriod)}
+                                  </span>
+                                  <div className="text-[10px] text-slate-400">
+                                    বকেয়া: ৳0 ({formatMonthFilterLabel(activeMonthFilter, true)})
+                                  </div>
+                                </div>
+                              ) : paidThisPeriod > 0 ? (
+                                <div className="space-y-0.5">
+                                  <div className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                    প্রদত্ত: {formatBDT(paidThisPeriod)}
+                                  </div>
+                                  <div className="text-amber-600 dark:text-amber-400 font-bold">
+                                    বাকি: {formatBDT(Math.max(0, s.monthlySalaryOrCreditLimit - paidThisPeriod))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px]">
+                                  বেতন বাকি: {formatBDT(s.monthlySalaryOrCreditLimit)}
+                                </span>
+                              )
+                            ) : s.stakeholderType === 'customer' ? (
+                              s.outstandingBalance > 0 ? (
+                                <span className="text-amber-600 dark:text-amber-400 font-bold">
+                                  পাবেন: {formatBDT(s.outstandingBalance)}
+                                </span>
+                              ) : (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  ✓ সব আদায় হয়েছে
+                                </span>
+                              )
+                            ) : s.outstandingBalance > 0 ? (
+                              <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                দেবেন: {formatBDT(s.outstandingBalance)}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                ✓ সব পরিশোধিত
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
+                              {s.stakeholderType === 'employee' ? (
+                                <>
+                                  {s.status !== 'terminated' && (
+                                    paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => openStkPayModal(s, 5000)}
+                                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap cursor-pointer"
+                                      >
+                                        বোনাস দিন
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openStkPayModal(
+                                            s,
+                                            Math.max(1, s.monthlySalaryOrCreditLimit - paidThisPeriod)
+                                          )
+                                        }
+                                        className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap shadow-xs cursor-pointer"
+                                      >
+                                        {paidThisPeriod > 0 ? 'বাকি বেতন দিন' : 'বেতন দিন'}
+                                      </button>
+                                    )
+                                  )}
+
+                                  {paidThisPeriod > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const latestPayroll = monthlyPostedJournals.find(
+                                          (j) => j.transactionType === 'payroll' && j.counterpartyName === s.name
+                                        );
+                                        setActiveSlip({
+                                          type: 'salary_payslip',
+                                          slipNo: latestPayroll?.referenceNo || `PAY-${s.code}-${Date.now().toString().slice(-4)}`,
+                                          date: latestPayroll?.date || new Date().toISOString().split('T')[0],
+                                          businessName: s.businessName,
+                                          recipientName: s.name,
+                                          designation: s.designationOrCategory,
+                                          amount: paidThisPeriod,
+                                          paymentMethod: latestPayroll?.creditAccountName || 'ক্যাশ / ব্যাংক একাউন্ট',
+                                          note: `বেতন প্রদান (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                                          recipientPhone: s.phone,
+                                          appointedBy: s.appointedBy || 'মালিক কর্তৃক সরাসরি',
+                                          enteredBy: actorEmail,
+                                        });
+                                      }}
+                                      className="px-2 py-1.5 rounded-lg border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/60 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap text-xs font-semibold"
+                                      title="বেতন পরিশোধ পে-স্লিপ প্রিন্ট করুন"
+                                    >
+                                      <FileText className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                                      <span>পে-স্লিপ</span>
+                                    </button>
+                                  )}
+
+                                  {canManageThisStaff && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingStakeholder(s);
+                                        setStkType(s.stakeholderType);
+                                        setStkName(s.name);
+                                        setStkPhone(s.phone);
+                                        setStkAddress(s.address);
+                                        setStkBizId(s.businessId);
+                                        setStkRoleCat(s.designationOrCategory);
+                                        setStkSalaryOrLimit(s.monthlySalaryOrCreditLimit);
+                                        setStkBalance(s.outstandingBalance);
+                                        setShowStkModal(true);
+                                      }}
+                                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+                                      title="তথ্য সংশোধন"
+                                    >
+                                      <Edit3 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+
+                                  {canManageThisStaff && s.status !== 'terminated' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setTerminatingStakeholder(s);
+                                        setTerminationReason('কাজে অবহেলা / খামারের প্রয়োজন সমাপ্তি');
+                                      }}
+                                      className="px-2 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 hover:bg-red-100 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                      title="কর্মীকে খামার থেকে বাদ / বরখাস্ত করুন"
+                                    >
+                                      <UserX className="h-3.5 w-3.5" />
+                                      <span>বাদ দিন</span>
+                                    </button>
+                                  )}
+                                </>
+                              ) : s.stakeholderType === 'customer' ? (
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => openStkPayModal(s)}
+                                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-white hover:bg-amber-600 whitespace-nowrap shadow-xs cursor-pointer"
+                                  >
+                                    বাকি আদায়
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveSlip({
+                                        type: 'money_receipt',
+                                        slipNo: `REC-${s.code}-${Date.now().toString().slice(-4)}`,
+                                        date: new Date().toISOString().split('T')[0],
+                                        businessName: s.businessName,
+                                        recipientName: s.name,
+                                        designation: 'পাইকারি ক্রেতা',
+                                        amount: s.outstandingBalance,
+                                        paymentMethod: 'বকেয়া হিসাব রসিদ',
+                                        note: `গ্রাহকের বর্তমান বকেয়া স্থিতি: ${formatBDT(s.outstandingBalance)}`,
+                                        recipientPhone: s.phone,
+                                        enteredBy: actorEmail,
+                                      });
+                                    }}
+                                    className="p-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                    title="গ্রাহক মানি রিসিট স্লিপ প্রিন্ট করুন"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-amber-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => openStkPayModal(s)}
+                                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 whitespace-nowrap shadow-xs cursor-pointer"
+                                  >
+                                    বাকি পরিশোধ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveSlip({
+                                        type: 'money_receipt',
+                                        slipNo: `SUP-${s.code}-${Date.now().toString().slice(-4)}`,
+                                        date: new Date().toISOString().split('T')[0],
+                                        businessName: s.businessName,
+                                        recipientName: s.name,
+                                        designation: 'সাপ্লায়ার / মিল',
+                                        amount: s.outstandingBalance,
+                                        paymentMethod: 'সাপ্লায়ার দেনা ভাউচার',
+                                        note: `সাপ্লায়ারের বর্তমান বকেয়া দেনা: ${formatBDT(s.outstandingBalance)}`,
+                                        recipientPhone: s.phone,
+                                        enteredBy: actorEmail,
+                                      });
+                                    }}
+                                    className="p-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                    title="সাপ্লায়ার ভাউচার স্লিপ প্রিন্ট করুন"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-rose-600" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. ENTERPRISE P&L CARDS & ANALYTICS */}
+      {activeSection === 'reports' && (() => {
+        const periodJournals = journalEntries.filter(
+          (j) => j.status === 'posted' && matchesMonthFilter(j.date, activeMonthFilter)
+        );
+        const totalPeriodRev = periodJournals
+          .filter((j) => j.transactionType === 'sale' || j.transactionType === 'income')
+          .reduce((s, j) => s + j.amount, 0);
+        const totalPeriodOpExp = periodJournals
+          .filter((j) => j.transactionType === 'expense' || j.transactionType === 'purchase')
+          .reduce((s, j) => s + j.amount, 0);
+        const totalPeriodPayroll = periodJournals
+          .filter((j) => j.transactionType === 'payroll')
+          .reduce((s, j) => s + j.amount, 0);
+        const totalPeriodExp = totalPeriodOpExp + totalPeriodPayroll;
+        const totalPeriodNet = totalPeriodRev - totalPeriodExp;
+        const totalPeriodDue = periodJournals.reduce((s, j) => s + (j.dueAmount || 0), 0);
+        const profitMarginPct =
+          totalPeriodRev > 0 ? ((totalPeriodNet / totalPeriodRev) * 100).toFixed(1) : '0.0';
+
+        // Group expenses & revenue by category so owner sees EXACTLY which sector/category cost how much
+        const expenseByCategoryMap: Record<string, { category: string; businessName: string; amount: number; count: number }> = {};
+        const revenueByCategoryMap: Record<string, { category: string; businessName: string; amount: number; count: number }> = {};
+
+        for (const j of periodJournals) {
+          if (
+            j.transactionType === 'expense' ||
+            j.transactionType === 'purchase' ||
+            j.transactionType === 'payroll'
+          ) {
+            const key = `${j.category}__${j.businessName}`;
+            if (!expenseByCategoryMap[key]) {
+              expenseByCategoryMap[key] = {
+                category: j.category,
+                businessName: j.businessName,
+                amount: 0,
+                count: 0,
+              };
+            }
+            expenseByCategoryMap[key].amount += j.amount;
+            expenseByCategoryMap[key].count += 1;
+          } else if (j.transactionType === 'sale' || j.transactionType === 'income') {
+            const key = `${j.category}__${j.businessName}`;
+            if (!revenueByCategoryMap[key]) {
+              revenueByCategoryMap[key] = {
+                category: j.category,
+                businessName: j.businessName,
+                amount: 0,
+                count: 0,
+              };
+            }
+            revenueByCategoryMap[key].amount += j.amount;
+            revenueByCategoryMap[key].count += 1;
+          }
+        }
+
+        const expenseCategories = Object.values(expenseByCategoryMap).sort(
+          (a, b) => b.amount - a.amount
+        );
+        const revenueCategories = Object.values(revenueByCategoryMap).sort(
+          (a, b) => b.amount - a.amount
+        );
+
+        return (
+          <div className="space-y-6">
+            {/* Header & Export Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs">
+              <div>
+                <div className="flex items-center gap-2">
+                  <FileBarChart className="h-5 w-5 text-emerald-600" />
+                  <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                    লাভ-ক্ষতি রিপোর্ট ও খাতভিত্তিক বিশ্লেষণ ({formatMonthFilterLabel(activeMonthFilter, true)})
+                  </h1>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  কোন ব্যবসায় এবং কোন খাতে (খাবার, ওষুধ, ডিজেল, বেতন) কত টাকা খরচ ও লাভ হচ্ছে তা কার্ড আকারে দেখুন।
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 no-print">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <Download className="h-4 w-4" />
+                  CSV ডাউনলোড
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 rounded-xl hover:bg-slate-800"
+                >
+                  <Printer className="h-4 w-4" />
+                  প্রিন্ট / PDF
+                </button>
+              </div>
+            </div>
+
+            {/* 1. HERO 4-CARD EXECUTIVE P&L SUMMARY */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/90 to-white dark:from-emerald-950/40 dark:to-slate-900 p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    সর্বমোট বিক্রি ও আয়
+                  </span>
+                  <div className="h-8 w-8 rounded-xl bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                  {formatBDT(totalPeriodRev)}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {revenueCategories.length}টি আয়ের খাত থেকে প্রাপ্ত
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-gradient-to-br from-rose-50/90 to-white dark:from-rose-950/30 dark:to-slate-900 p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-800 dark:text-rose-300">
+                    সর্বমোট খরচ ও বেতন
+                  </span>
+                  <div className="h-8 w-8 rounded-xl bg-rose-600/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                    <TrendingDown className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                  {formatBDT(totalPeriodExp)}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  খামার খরচ: {formatBDT(totalPeriodOpExp)} · বেতন: {formatBDT(totalPeriodPayroll)}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-2xl border p-5 shadow-2xs space-y-2 ${
+                  totalPeriodNet >= 0
+                    ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-600 to-teal-700 text-white'
+                    : 'border-rose-500/40 bg-gradient-to-br from-rose-600 to-red-700 text-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white/90">
+                    {totalPeriodNet >= 0 ? 'সর্বমোট নিট লাভ (Net Profit)' : 'সর্বমোট নিট ক্ষতি (Net Loss)'}
+                  </span>
+                  <div className="h-8 w-8 rounded-xl bg-white/20 text-white flex items-center justify-center">
+                    <Coins className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-extrabold font-mono tabular-nums">
+                  {formatBDT(totalPeriodNet)}
+                </div>
+                <div className="text-[11px] font-semibold text-white/90">
+                  লাভের হার (Margin): {profitMarginPct}%
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/90 to-white dark:from-amber-950/30 dark:to-slate-900 p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                    মোট বাকি পাওনা (Due)
+                  </span>
+                  <div className="h-8 w-8 rounded-xl bg-amber-600/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Wallet className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-extrabold font-mono tabular-nums text-amber-700 dark:text-amber-400">
+                  {formatBDT(totalPeriodDue)}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  ক্রেতাদের কাছে বকেয়া রয়েছে
+                </div>
+              </div>
+            </div>
+
+            {/* 2. BUSINESS-WISE P&L CARDS GRID */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                  কোন ব্যবসায় কত আয়, খরচ ও লাভ/ক্ষতি (Business-Wise P&L Cards)
+                </h2>
+                <span className="text-xs font-mono text-slate-500">
+                  {businesses.length}টি ব্যবসা
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {businesses.map((biz) => {
+                  const bEntries = periodJournals.filter((j) => j.businessId === biz.id);
+                  const rev = bEntries
+                    .filter((j) => j.transactionType === 'sale' || j.transactionType === 'income')
+                    .reduce((s, j) => s + j.amount, 0);
+                  const exp = bEntries
+                    .filter(
+                      (j) =>
+                        j.transactionType === 'expense' ||
+                        j.transactionType === 'purchase' ||
+                        j.transactionType === 'payroll'
+                    )
+                    .reduce((s, j) => s + j.amount, 0);
+                  const due = bEntries.reduce((s, j) => s + (j.dueAmount || 0), 0);
+                  const net = rev - exp;
+                  const margin = rev > 0 ? ((net / rev) * 100).toFixed(0) : '0';
+                  const expRatioPct = rev > 0 ? Math.min(100, Math.round((exp / rev) * 100)) : exp > 0 ? 100 : 0;
+
+                  // Top 3 expense categories inside this business
+                  const bizExpCatsMap: Record<string, number> = {};
+                  for (const j of bEntries) {
+                    if (
+                      j.transactionType === 'expense' ||
+                      j.transactionType === 'purchase' ||
+                      j.transactionType === 'payroll'
+                    ) {
+                      bizExpCatsMap[j.category] = (bizExpCatsMap[j.category] || 0) + j.amount;
+                    }
+                  }
+                  const topBizExpenses = Object.entries(bizExpCatsMap)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3);
+
+                  return (
+                    <div
+                      key={biz.id}
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs flex flex-col justify-between"
+                    >
+                      <div
+                        className={`h-1.5 w-full ${
+                          net >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
+                        }`}
+                      />
+                      <div className="p-5 space-y-4">
+                        {/* Card Header */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[11px] font-mono font-bold text-slate-400">
+                              {biz.code} · {biz.location}
+                            </div>
+                            <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
+                              {biz.nameBn || biz.name}
+                            </h3>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                              net > 0
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                : net < 0
+                                ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            }`}
+                          >
+                            {net >= 0 ? `লাভ ${margin}%` : `ক্ষতি ${margin}%`}
+                          </span>
+                        </div>
+
+                        {/* 3-Column Income / Expense / Net Profit */}
+                        <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-xs">
+                          <div>
+                            <div className="text-[10px] text-slate-500">আয় / বিক্রি</div>
+                            <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              {formatBDT(rev)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-slate-500">মোট খরচ</div>
+                            <div className="font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                              {formatBDT(exp)}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] text-slate-500">
+                              {net >= 0 ? 'নিট লাভ' : 'নিট ক্ষতি'}
+                            </div>
+                            <div
+                              className={`font-mono font-extrabold mt-0.5 ${
+                                net >= 0
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                              }`}
+                            >
+                              {formatBDT(net)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expense-to-Revenue Visual Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-slate-500">
+                            <span>আয়ের তুলনায় খরচ ({expRatioPct}%)</span>
+                            {due > 0 && (
+                              <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">
+                                বাকি: {formatBDT(due)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-emerald-100 dark:bg-slate-800 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                expRatioPct >= 100
+                                  ? 'bg-rose-500'
+                                  : expRatioPct >= 75
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-600'
+                              }`}
+                              style={{ width: `${expRatioPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Top Expense Categories Inside This Business */}
+                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                          <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                            এই ব্যবসার খরচের খাতসমূহ:
+                          </div>
+                          {topBizExpenses.length === 0 ? (
+                            <div className="text-[11px] text-slate-400">এই সময়ে কোনো খরচ নেই</div>
+                          ) : (
+                            <div className="space-y-1">
+                              {topBizExpenses.map(([cat, amt]) => (
+                                <div
+                                  key={cat}
+                                  className="flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="text-slate-700 dark:text-slate-300 truncate pr-2">
+                                    • {cat}
+                                  </span>
+                                  <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
+                                    {formatBDT(amt)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. CATEGORY-WISE EXPENSE & REVENUE BREAKDOWN CARDS */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Expense Breakdown by Category */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                      <PieChart className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        কোন খাতে কত টাকা খরচ হয়েছে (Expense by Sector)
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        খাবার, ওষুধ, ডিজেল, মেরামত ও বেতন খাতের হিসাব
+                      </p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-rose-600">
+                    {formatBDT(totalPeriodExp)}
+                  </span>
+                </div>
+
+                {expenseCategories.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    নির্বাচিত সময়ে কোনো খরচের এন্ট্রি নেই
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {expenseCategories.map((item) => {
+                      const pct =
+                        totalPeriodExp > 0
+                          ? Math.round((item.amount / totalPeriodExp) * 100)
+                          : 0;
+                      return (
+                        <div
+                          key={`${item.category}-${item.businessName}`}
+                          className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 dark:text-white truncate">
+                                {item.category}
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                {item.businessName} · {item.count}টি লেনদেন
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="font-mono font-extrabold text-rose-600 dark:text-rose-400">
+                                {formatBDT(item.amount)}
+                              </div>
+                              <div className="text-[10px] font-mono text-slate-500">
+                                মোট খরচের {pct}%
+                              </div>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-rose-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Revenue Breakdown by Category */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                      <TrendingUp className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        কোন খাত থেকে কত টাকা আয় হয়েছে (Revenue by Sector)
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        মুরগি, দুধ, গরু-ছাগল, মাছ ও ট্রাক ভাড়া আয়ের হিসাব
+                      </p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-emerald-600">
+                    {formatBDT(totalPeriodRev)}
+                  </span>
+                </div>
+
+                {revenueCategories.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    নির্বাচিত সময়ে কোনো আয়ের এন্ট্রি নেই
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {revenueCategories.map((item) => {
+                      const pct =
+                        totalPeriodRev > 0
+                          ? Math.round((item.amount / totalPeriodRev) * 100)
+                          : 0;
+                      return (
+                        <div
+                          key={`${item.category}-${item.businessName}`}
+                          className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 dark:text-white truncate">
+                                {item.category}
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                {item.businessName} · {item.count}টি লেনদেন
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                                {formatBDT(item.amount)}
+                              </div>
+                              <div className="text-[10px] font-mono text-slate-500">
+                                মোট আয়ের {pct}%
+                              </div>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-emerald-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 4. 12-Month Breakdown Table (Jan to Dec) */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+              <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    ১২ মাসের মাসিক আয়-ব্যয় ও লাভ-ক্ষতি তুলনা ({activeMonthFilter.year === 'ALL' ? '2026' : activeMonthFilter.year})
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    যেকোনো মাসে ক্লিক করলে পুরো রিপোর্ট ওই মাসের হিসাবে আপডেট হবে
+                  </p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
+                      <th className="py-3 px-4">মাস (Month)</th>
+                      <th className="py-3 px-4 text-right">বিক্রি ও আয়</th>
+                      <th className="py-3 px-4 text-right">খামার/ব্যবসা খরচ</th>
+                      <th className="py-3 px-4 text-right">বেতন (Payroll)</th>
+                      <th className="py-3 px-4 text-right">বাকি (Due)</th>
+                      <th className="py-3 px-4 text-right">নিট লাভ / ক্ষতি</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {MONTHS_12.map((m) => {
+                      const targetYear = activeMonthFilter.year === 'ALL' ? '2026' : activeMonthFilter.year;
+                      const mEntries = journalEntries.filter(
+                        (j) =>
+                          j.status === 'posted' &&
+                          matchesMonthFilter(j.date, { year: targetYear, month: m.code })
+                      );
+                      const rev = mEntries
+                        .filter((j) => j.transactionType === 'sale' || j.transactionType === 'income')
+                        .reduce((s, j) => s + j.amount, 0);
+                      const opExp = mEntries
+                        .filter((j) => j.transactionType === 'expense' || j.transactionType === 'purchase')
+                        .reduce((s, j) => s + j.amount, 0);
+                      const payExp = mEntries
+                        .filter((j) => j.transactionType === 'payroll')
+                        .reduce((s, j) => s + j.amount, 0);
+                      const due = mEntries.reduce((s, j) => s + (j.dueAmount || 0), 0);
+                      const net = rev - (opExp + payExp);
+                      const isSelected = activeMonthFilter.month === m.code;
+                      return (
+                        <tr
+                          key={m.code}
+                          onClick={() => setMonthFilter({ year: targetYear, month: m.code })}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-emerald-50/80 dark:bg-emerald-950/30 font-semibold'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                          }`}
+                        >
+                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
+                            {m.fullBn} ({m.shortEn} {targetYear})
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
+                            {formatBDT(rev)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono tabular-nums">
+                            {formatBDT(opExp)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono tabular-nums">
+                            {formatBDT(payExp)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono tabular-nums text-amber-600">
+                            {formatBDT(due)}
+                          </td>
+                          <td
+                            className={`py-3 px-4 text-right font-mono tabular-nums font-bold ${
+                              net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {formatBDT(net)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 5. RBAC PERMISSION CONTROL, USER MANAGEMENT & SECURITY AUDIT LOGS */}
+      {activeSection === 'security' && (
+        <div className="space-y-6">
+          {/* 4-Tier Organizational Hierarchy Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Tier 1: Owner */}
+            <div className="rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 space-y-3 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-emerald-600/30">
+                  👑
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider">
+                  সর্বোচ্চ স্বত্বাধিকারী
+                </span>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                  ১. সুপার অ্যাডমিন (মালিক)
+                </h3>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                  ৫টি ব্যবসার একমাত্র মালিক। প্রধান ম্যানেজার, সকল বিজনেস ম্যানেজার ও কর্মীসহ সবাইকে তৈরি, পদ পরিবর্তন বা ডিলিট করার সম্পূর্ণ অধিকার।
+                </p>
+              </div>
+              <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800/40 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>সব ব্যবসা ও অ্যাকাউন্টের শতভাগ নিয়ন্ত্রণ</span>
+              </div>
+            </div>
+
+            {/* Tier 2: Super Manager */}
+            <div className="rounded-2xl border-2 border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/20 p-5 space-y-3 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="h-10 w-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-purple-600/30">
+                  🎖️
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 text-[10px] font-extrabold uppercase tracking-wider">
+                  প্রধান ম্যানেজার (COO)
+                </span>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                  ২. প্রধান জেনারেল ম্যানেজার
+                </h3>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                  ৫টি ব্যবসার সার্বিক তদারককারী। সকল বিজনেস ম্যানেজারকে নিয়ন্ত্রণ করেন, তাদের কর্মী দেখেন এবং সরাসরি মালিকের কাছে লাভ-ক্ষতির রিপোর্ট জমা দেন।
+                </p>
+              </div>
+              <div className="pt-2 border-t border-purple-200 dark:border-purple-800/40 text-[10px] font-bold text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
+                <FileBarChart className="h-3.5 w-3.5" />
+                <span>মালিকের কাছে রিপোর্ট পেশ করার দায়িত্ব</span>
+              </div>
+            </div>
+
+            {/* Tier 3: Business Managers */}
+            <div className="rounded-2xl border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20 p-5 space-y-3 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-600/30">
+                  🏢
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-[10px] font-extrabold uppercase tracking-wider">
+                  ৫টি ব্যবসা ইউনিট প্রধান
+                </span>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                  ৩. বিজনেস ম্যানেজারগণ
+                </h3>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                  পোল্ট্রি, ডেইরি, ছাগল, মাছ বা ট্রাকের ইনচার্জ। নিজ ব্যবসার প্রয়োজনে নতুন কর্মী নিয়োগ ও বাদ দেওয়ার একক অধিকার রাখেন।
+                </p>
+              </div>
+              <div className="pt-2 border-t border-blue-200 dark:border-blue-800/40 text-[10px] font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                <span>নিজ ব্যবসায় কর্মী নিয়োগ ও বরখাস্তের ক্ষমতা</span>
+              </div>
+            </div>
+
+            {/* Tier 4: Employees */}
+            <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-5 space-y-3 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-amber-500/30">
+                  👷
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold uppercase tracking-wider">
+                  মাঠপর্যায়ের কর্মী বহর
+                </span>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                  ৪. খামার কর্মী ও স্টাফ
+                </h3>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                  প্রতিদিনের ডিম সংগ্রহ, খাদ্য প্রদান, মিল্কিং ও ট্রিপ এন্ট্রি করেন। গোপন হিসাব, সমন্বিত লাভ-ক্ষতি ও পারমিশন তাদের জন্য লক থাকে।
+                </p>
+              </div>
+              <div className="pt-2 border-t border-amber-200 dark:border-amber-800/40 text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                <span>নিরাপদ ডাটা এন্ট্রি সীমা</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Header & Create User Action Bar */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-emerald-600" />
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                    ম্যানেজার নিয়োগ ও পারমিশন কন্ট্রোল (Team & Permission Management)
+                  </h1>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
+                  মালিক হিসেবে আপনি প্রধান জেনারেল ম্যানেজার ও ৫টি ব্যবসার বিজনেস ম্যানেজার তৈরি করতে পারবেন। প্রধান ম্যানেজার সকল বিজনেস ম্যানেজারকে নিয়ন্ত্রণ করবেন এবং আপনাকে রিপোর্ট দেবেন।
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowExecutiveReportModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
+                >
+                  <FileBarChart className="h-4 w-4" />
+                  <span>📊 মালিকের জন্য লাভ-ক্ষতি ও কার্যবিবরণী রিপোর্ট</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openCreateUserModal}
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>+ নতুন ইউজার ও পারমিশন তৈরি করুন</span>
+                </button>
+
+                {erpUsers.length <= 1 && (
+                  <button
+                    type="button"
+                    disabled={isSavingUser}
+                    onClick={handleSeedSampleManagers}
+                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>১ ক্লিকে ৪ স্তরের টিম (প্রধান ম্যানেজার, বিজনেস ম্যানেজার ও কর্মী) তৈরি করুন</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Live Role Simulator Bar (So Admin can preview any role/business scope immediately) */}
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Eye className="h-4 w-4 text-emerald-600" />
+                  <span>লাইভ ভিউ সিমুলেটর (Test How Another User Sees the ERP):</span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  প্রধান ম্যানেজার, যেকোনো খামার ম্যানেজার বা কর্মচারী লগইন করলে ড্যাশবোর্ড কেমন দেখাবে তা এখান থেকে পরীক্ষা করুন।
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <select
+                  value={userRole}
+                  onChange={(e) => {
+                    const nextRole = e.target.value as UserRole;
+                    onChangeRoleSimulation(
+                      nextRole,
+                      nextRole === 'super_admin' || nextRole === 'super_manager'
+                        ? 'ALL'
+                        : fullBusinessList[0]?.id || 'ALL'
+                    );
+                  }}
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold"
+                >
+                  <option value="super_admin">👑 Super Admin (মালিক — সব ব্যবসা ও পূর্ণ নিয়ন্ত্রণ)</option>
+                  <option value="super_manager">🎖️ Super Manager (প্রধান ম্যানেজার — ৫টি ব্যবসার সার্বিক তদারকি ও রিপোর্ট)</option>
+                  <option value="business_manager">🏢 Business Manager (শুধু অ্যাসাইন করা ব্যবসার ম্যানেজার)</option>
+                  <option value="employee">👷 Employee / Staff (শুধু ডাটা এন্ট্রি — লাভ-ক্ষতি ও একাউন্টিং লুকানো)</option>
+                </select>
+
+                {userRole !== 'super_admin' && (
+                  <select
+                    value={assignedBusinessFilter}
+                    onChange={(e) => onChangeRoleSimulation(userRole, e.target.value)}
+                    className="rounded-lg border border-emerald-400 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+                  >
+                    <option value="ALL">সকল ব্যবসা (All Businesses)</option>
+                    {fullBusinessList.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        শুধু: {b.nameBn || b.name} ({b.code})
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {userRole !== 'super_admin' && (
+                  <button
+                    type="button"
+                    onClick={() => onChangeRoleSimulation('super_admin', 'ALL')}
+                    className="px-3 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold cursor-pointer"
+                  >
+                    👑 মালিক (Super Admin)-এ ফিরে যান
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* USER ACCOUNTS & PERMISSION MATRIX TABLE */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-emerald-600" />
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  সকল ইউজার ও অ্যাক্সেস তালিকা (Active ERP Users & Access Matrix)
+                </h2>
+              </div>
+
+              {/* Role Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                {[
+                  { id: 'all' as const, label: `সবাই (${erpUsers.length})` },
+                  {
+                    id: 'super_manager' as const,
+                    label: `🎖️ প্রধান ম্যানেজার (${erpUsers.filter((u) => u.role === 'super_manager').length})`,
+                  },
+                  {
+                    id: 'business_manager' as const,
+                    label: `🏢 বিজনেস ম্যানেজারগণ (${erpUsers.filter((u) => u.role === 'business_manager').length})`,
+                  },
+                  {
+                    id: 'employee' as const,
+                    label: `👷 কর্মী দল (${erpUsers.filter((u) => u.role === 'employee').length})`,
+                  },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSecRoleFilter(tab.id)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                      secRoleFilter === tab.id
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/70 dark:bg-slate-800/40">
+                    <th className="py-3.5 px-4">ইউজারের নাম ও ইমেইল (User & Email)</th>
+                    <th className="py-3.5 px-4">রোল / পদবি (Role)</th>
+                    <th className="py-3.5 px-4">অনুমোদিত ব্যবসা (Assigned Businesses)</th>
+                    <th className="py-3.5 px-4">কাজের পারমিশন (Granular Permissions)</th>
+                    <th className="py-3.5 px-4">স্ট্যাটাস (Status)</th>
+                    <th className="py-3.5 px-4 text-right">অ্যাকশন (Manage Access)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {erpUsers
+                    .filter((u) => secRoleFilter === 'all' || u.role === secRoleFilter)
+                    .map((u) => {
+                      const perms = parseUserPermissions(u);
+                      const assignedIds =
+                        !u.assignedBusinesses || u.assignedBusinesses === 'ALL'
+                          ? ['ALL']
+                          : u.assignedBusinesses.split(',').map((s) => s.trim());
+
+                      const firstBizId =
+                        assignedIds[0] === 'ALL'
+                          ? fullBusinessList[0]?.id || 'ALL'
+                        : assignedIds[0];
+
+                    return (
+                      <tr
+                        key={u.id}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
+                      >
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-slate-900 dark:text-slate-100">
+                            {u.displayName}
+                          </div>
+                          <div className="font-mono text-[11px] text-slate-500">{u.email}</div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold ${
+                              u.role === 'super_admin'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                                : u.role === 'super_manager'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                                : u.role === 'business_manager'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                            }`}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            {u.role === 'super_admin'
+                              ? '👑 Super Admin (মালিক)'
+                              : u.role === 'super_manager'
+                              ? '🎖️ Super Manager (প্রধান জেনারেল ম্যানেজার)'
+                              : u.role === 'business_manager'
+                              ? '🏢 Business Manager (খামার ইনচার্জ)'
+                              : '👷 Employee / Staff (খামার কর্মী)'}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {assignedIds.includes('ALL') ? (
+                              <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px]">
+                                সব ব্যবসা (All {fullBusinessList.length} Businesses)
+                              </span>
+                            ) : (
+                              assignedIds.map((bid) => {
+                                const bObj = fullBusinessList.find(
+                                  (b) => b.id === bid || b.code === bid
+                                );
+                                return (
+                                  <span
+                                    key={bid}
+                                    className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium text-[11px]"
+                                  >
+                                    {bObj ? bObj.nameBn || bObj.name : bid}
+                                  </span>
+                                );
+                              })
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-wrap gap-1 max-w-md">
+                            {perms.canView && (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-medium">
+                                View (দেখা)
+                              </span>
+                            )}
+                            {perms.canCreate && (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
+                                Create (এন্ট্রি)
+                              </span>
+                            )}
+                            {perms.canEdit && (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[10px] font-semibold">
+                                Edit (সংশোধন)
+                              </span>
+                            )}
+                            {perms.canDeleteRecords && (
+                              <span className="px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[10px] font-semibold">
+                                Delete (ডিলিট)
+                              </span>
+                            )}
+                            {perms.canApprove && (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-semibold">
+                                Approve (অনুমোদন)
+                              </span>
+                            )}
+                            {perms.canViewConsolidatedProfit && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">
+                                Profit (লাভ-ক্ষতি)
+                              </span>
+                            )}
+                            {perms.canPostAccounting && (
+                              <span className="px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-[10px] font-semibold">
+                                Accounting (ভাউচার)
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
+                              u.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : u.status === 'suspended'
+                                ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                            }`}
+                          >
+                            {u.status === 'active'
+                              ? 'Active (সক্রিয়)'
+                              : u.status === 'suspended'
+                              ? 'Suspended (স্থগিত)'
+                              : 'Invited (আমন্ত্রিত)'}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openEditUserModal(u)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 font-semibold"
+                              title="পারমিশন ও ব্যবসা পরিবর্তন করুন"
+                            >
+                              <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>পারমিশন এডিট</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onChangeRoleSimulation(
+                                  u.role,
+                                  u.role === 'super_admin' ? 'ALL' : firstBizId
+                                );
+                                showNotice(
+                                  `এখন "${u.displayName}" (${u.role})-এর ভিউ সিমুলেট করা হচ্ছে!`
+                                );
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold hover:bg-emerald-100"
+                              title="এই ইউজার লগইন করলে কেমন দেখবে তা পরীক্ষা করুন"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>ভিউ দেখুন</span>
+                            </button>
+
+                            {u.role !== 'super_admin' && u.id !== ownerId && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateErpUserPermissions(
+                                      u,
+                                      {
+                                        status: u.status === 'active' ? 'suspended' : 'active',
+                                      },
+                                      actorEmail
+                                    )
+                                  }
+                                  className="px-2 py-1.5 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-50"
+                                >
+                                  {u.status === 'active' ? 'স্থগিত করুন' : 'সক্রিয় করুন'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => deleteErpUserAccount(u, actorEmail)}
+                                  className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50"
+                                  title="ইউজার মুছে ফেলুন"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Immutable Audit Trail */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-emerald-600" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  নিরাপত্তা ও কাজের অডিট লগ (Immutable Security & Operational Audit Logs)
+                </h2>
+              </div>
+              <span className="text-xs font-mono text-slate-500">
+                {auditLogs.length} Logged Events
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
+                    <th className="py-3 px-4">Action</th>
+                    <th className="py-3 px-4">Module</th>
+                    <th className="py-3 px-4">Actor Email</th>
+                    <th className="py-3 px-4">Details</th>
+                    <th className="py-3 px-4 text-right">Severity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {auditLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
+                        {log.action}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                        {log.module}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{log.actorEmail}</td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                        {log.details}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono uppercase">
+                        {log.severity}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* CREATE / EDIT USER & GRANULAR PERMISSIONS MODAL */}
+          {showUserModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
+              <div className="w-full max-w-3xl rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-emerald-600" />
+                      <span>
+                        {editingUser
+                          ? `ইউজারের পারমিশন আপডেট করুন: ${editingUser.displayName}`
+                          : 'নতুন ইউজার তৈরি ও ব্যবসার পারমিশন অ্যাসাইন করুন (Create User & Assign Permissions)'}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      ইউজারের নাম, ইমেইল, রোল এবং কোন কোন ব্যবসা ও কাজের অ্যাক্সেস পাবে তা নিচে নির্ধারণ করুন
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowUserModal(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveUserAndPermissions} className="space-y-5 text-xs">
+                  {/* Step 1: Identity & Role */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
+                        ইউজারের পূর্ণ নাম ও পদবি (Full Name) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={usrName}
+                        onChange={(e) => setUsrName(e.target.value)}
+                        placeholder="যেমন: মোঃ রফিকুল ইসলাম (পোল্ট্রি ম্যানেজার)"
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
+                        লগইন ইমেইল ঠিকানা (Email) *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        disabled={Boolean(editingUser)}
+                        value={usrEmail}
+                        onChange={(e) => setUsrEmail(e.target.value)}
+                        placeholder="যেমন: manager@krishivumi.bd"
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
+                        {editingUser
+                          ? 'নতুন পাসওয়ার্ড (পরিবর্তন করতে চাইলে)'
+                          : 'লগইন পাসওয়ার্ড (Password) *'}
+                      </label>
+                      <input
+                        type="password"
+                        required={!editingUser}
+                        minLength={editingUser ? 0 : 6}
+                        value={usrPassword}
+                        onChange={(e) => setUsrPassword(e.target.value)}
+                        placeholder={editingUser ? 'অপরিবর্তিত রাখতে খালি রাখুন' : 'কমপক্ষে ৬ অক্ষর'}
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
+                        রোল / অ্যাক্সেস লেভেল (Role Tier) *
+                      </label>
+                      <select
+                        value={usrRole}
+                        disabled={editingUser?.role === 'super_admin'}
+                        onChange={(e) => handleRolePresetChange(e.target.value as UserRole)}
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-semibold disabled:opacity-60"
+                      >
+                        {editingUser?.role === 'super_admin' && (
+                          <option value="super_admin">👑 Super Admin (একমাত্র মালিক)</option>
+                        )}
+                        {userRole === 'super_admin' && (
+                          <option value="super_manager">🎖️ Super Manager (প্রধান জেনারেল ম্যানেজার - COO)</option>
+                        )}
+                        <option value="business_manager">🏢 Business Manager (খামার ইনচার্জ / ইউনিট ম্যানেজার)</option>
+                        <option value="employee">👷 Employee / Staff (খামার কর্মী / ডাটা এন্ট্রি)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
+                        অ্যাকাউন্ট স্ট্যাটাস (Account Status)
+                      </label>
+                      <select
+                        value={usrStatus}
+                        onChange={(e) =>
+                          setUsrStatus(e.target.value as 'active' | 'suspended' | 'invited')
+                        }
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                      >
+                        <option value="active">Active (সক্রিয়)</option>
+                        <option value="invited">Invited (আমন্ত্রিত)</option>
+                        <option value="suspended">Suspended (সাময়িক স্থগিত)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-end pb-1">
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={usrMfa}
+                          onChange={(e) => setUsrMfa(e.target.checked)}
+                          className="h-4 w-4 rounded accent-emerald-600"
+                        />
+                        <span>টু-ফ্যাক্টর সিকিউরিটি (2FA Verified)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Business Assignment */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="font-bold text-slate-900 dark:text-slate-100">
+                        ১. কোন কোন ব্যবসার অ্যাক্সেস পাবে? (Assign Businesses to This User)
+                      </div>
+                      <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-emerald-700 dark:text-emerald-400">
+                        <input
+                          type="checkbox"
+                          checked={usrAssignAllBiz || usrRole === 'super_admin' || usrRole === 'super_manager'}
+                          disabled={usrRole === 'super_admin' || usrRole === 'super_manager'}
+                          onChange={(e) => setUsrAssignAllBiz(e.target.checked)}
+                          className="h-4 w-4 rounded accent-emerald-600"
+                        />
+                        <span>সবগুলো ব্যবসার অ্যাক্সেস দিন (Access All Businesses)</span>
+                      </label>
+                    </div>
+
+                    {!usrAssignAllBiz && usrRole !== 'super_admin' && usrRole !== 'super_manager' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                        {fullBusinessList.map((biz) => {
+                          const checked = usrSelectedBizIds.includes(biz.id);
+                          return (
+                            <label
+                              key={biz.id}
+                              className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                                checked
+                                  ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 font-bold text-emerald-900 dark:text-emerald-200'
+                                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleBizSelection(biz.id)}
+                                className="h-4 w-4 rounded accent-emerald-600"
+                              />
+                              <div className="truncate">
+                                <div className="truncate">{biz.nameBn || biz.name}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">
+                                  {biz.code}
+                                </div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step 3: Granular Action & Financial Permissions */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
+                    <div className="font-bold text-slate-900 dark:text-slate-100">
+                      ২. কাজের ও হিসাবের পারমিশন কন্ট্রোল (Granular Action & Financial Permissions)
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {[
+                        {
+                          key: 'canView' as const,
+                          label: 'ডাটা ও রিপোর্ট দেখা (View Data)',
+                        },
+                        {
+                          key: 'canCreate' as const,
+                          label: 'নতুন তথ্য/এন্ট্রি যোগ করা (Create Entry)',
+                        },
+                        {
+                          key: 'canEdit' as const,
+                          label: 'তথ্য সংশোধন করা (Edit Records)',
+                        },
+                        {
+                          key: 'canDeleteRecords' as const,
+                          label: 'রেকর্ড ডিলিট করা (Delete Records)',
+                        },
+                        {
+                          key: 'canApprove' as const,
+                          label: 'ভাউচার/স্টক অনুমোদন (Approve)',
+                        },
+                        {
+                          key: 'canExportPrint' as const,
+                          label: 'রিপোর্ট ডাউনলোড ও প্রিন্ট (Export & Print)',
+                        },
+                        {
+                          key: 'canViewConsolidatedProfit' as const,
+                          label: 'লাভ-ক্ষতি ও ব্যালেন্স শিট দেখা (View Profit)',
+                        },
+                        {
+                          key: 'canPostAccounting' as const,
+                          label: 'ভাউচার ও ক্যাশ/ব্যাংক এন্ট্রি (Post Accounting)',
+                        },
+                        {
+                          key: 'canReverseTransactions' as const,
+                          label: 'পোস্ট করা ভাউচার রিভার্স (Reverse Voucher)',
+                        },
+                        {
+                          key: 'canManageInventory' as const,
+                          label: 'গোডাউন ও স্টক কন্ট্রোল (Manage Stock)',
+                        },
+                        {
+                          key: 'canCreateBusiness' as const,
+                          label: 'নতুন ব্যবসা খোলা (Create Business)',
+                        },
+                        {
+                          key: 'canManageUsers' as const,
+                          label: 'অন্য ইউজার ও পারমিশন নিয়ন্ত্রণ (Manage Users)',
+                        },
+                      ].map((item) => (
+                        <label
+                          key={item.key}
+                          className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={usrPerms[item.key]}
+                            onChange={(e) =>
+                              setUsrPerms((prev) => ({
+                                ...prev,
+                                [item.key]: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 rounded accent-emerald-600"
+                          />
+                          <span className="font-medium text-slate-800 dark:text-slate-200">
+                            {item.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Step 4: Allowed ERP Modules */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
+                    <div className="font-bold text-slate-900 dark:text-slate-100">
+                      ৩. কোন কোন মডিউল ব্যবহার করতে পারবে? (Allowed ERP Modules)
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {ALL_ERP_MODULE_OPTIONS.map((mod) => {
+                        const checked = usrPerms.allowedModules.includes(mod.id);
+                        return (
+                          <label
+                            key={mod.id}
+                            className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleModulePermission(mod.id)}
+                              className="h-4 w-4 rounded accent-emerald-600"
+                            />
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
+                              {mod.label}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowUserModal(false)}
+                      className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
+                    >
+                      বাতিল (Cancel)
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingUser}
+                      className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {isSavingUser
+                        ? 'সেভ হচ্ছে...'
+                        : editingUser
+                        ? 'পারমিশন আপডেট করুন (Update Access)'
+                        : 'ইউজার ও পারমিশন সেভ করুন (Save User)'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal 1: Simple Deposit / Add Money to Cash or Bank */}
+      {showDepositModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  ক্যাশ বা ব্যাংকে টাকা জমা করুন
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  মালিকের মূলধন বা নগদ টাকা সরাসরি অ্যাকাউন্টে যোগ করুন
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDepositModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDepositSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block mb-1.5 font-semibold">কোন অ্যাকাউন্টে টাকা জমা হবে? *</label>
+                <select
+                  value={depAccountId}
+                  onChange={(e) => setDepAccountId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                >
+                  {treasuryWallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({formatBDT(w.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1.5 font-semibold">টাকার পরিমাণ (BDT) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={depAmount}
+                    onChange={(e) => setDepAmount(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1.5 font-semibold">টাকার উৎস (Source)</label>
+                  <select
+                    value={depSource}
+                    onChange={(e) => setDepSource(e.target.value as 'capital' | 'income')}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  >
+                    <option value="capital">মালিকের মূলধন / বিনিয়োগ</option>
+                    <option value="income">অন্যান্য আয় (Income)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold">নোট / বিবরণ (Optional)</label>
+                <input
+                  type="text"
+                  value={depNote}
+                  onChange={(e) => setDepNote(e.target.value)}
+                  placeholder="যেমন: মালিকের নিজস্ব তহবিল থেকে ব্যাংকে জমা"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDepositModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDepositing}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isDepositing ? 'জমা হচ্ছে...' : 'টাকা জমা করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Easy From -> To Transfer Modal (No DR/CR confusion!) */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  টাকা ট্রান্সফার (ক্যাশ ↔ ব্যাংক)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  নিজের এক একাউন্ট থেকে আরেক একাউন্টে টাকা পাঠান
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEasyTransferSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block mb-1.5 font-semibold text-rose-600 dark:text-rose-400">
+                  ১. কোথা থেকে টাকা কাটবে? (From Account) *
+                </label>
+                <select
+                  value={trFromId}
+                  onChange={(e) => setTrFromId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                >
+                  {treasuryWallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({formatBDT(w.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                  ২. কোথায় টাকা জমা হবে? (To Account) *
+                </label>
+                <select
+                  value={trToId}
+                  onChange={(e) => setTrToId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                >
+                  {treasuryWallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({formatBDT(w.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold">কত টাকা ট্রান্সফার করবেন? (BDT) *</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={trAmount}
+                  onChange={(e) => setTrAmount(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold">বিবরণ (Optional)</label>
+                <input
+                  type="text"
+                  value={trNote}
+                  onChange={(e) => setTrNote(e.target.value)}
+                  placeholder="যেমন: অফিস ক্যাশ থেকে ইসলামী ব্যাংকে জমা"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              {trFromId && trToId && trFromId !== trToId && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                  <strong>{accounts.find((a) => a.id === trFromId)?.name}</strong> থেকে{' '}
+                  <strong>{formatBDT(trAmount)}</strong> কমে{' '}
+                  <strong>{accounts.find((a) => a.id === trToId)?.name}</strong>-এ যোগ হবে।
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isTransferring}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isTransferring ? 'ট্রান্সফার হচ্ছে...' : 'ট্রান্সফার সম্পন্ন করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Add New Bank / Cash / Mobile Banking Account */}
+      {showNewAccountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  নতুন ব্যাংক / ক্যাশ / মোবাইল ব্যাংকিং যোগ করুন
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  যেমন: Dutch-Bangla Bank, City Bank, bKash বা Nagad
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewAccountModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTreasuryAccount} className="space-y-4 text-xs">
+              <div>
+                <label className="block mb-1.5 font-semibold">অ্যাকাউন্টের নাম *</label>
+                <input
+                  type="text"
+                  required
+                  value={newAccName}
+                  onChange={(e) => setNewAccName(e.target.value)}
+                  placeholder="যেমন: bKash Merchant / Dutch-Bangla Bank"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1.5 font-semibold">অ্যাকাউন্টের ধরন</label>
+                  <select
+                    value={newAccType}
+                    onChange={(e) => setNewAccType(e.target.value as 'bank' | 'cash')}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  >
+                    <option value="bank">ব্যাংক / বিকাশ / নগদ</option>
+                    <option value="cash">নগদ ক্যাশ বাক্স</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1.5 font-semibold">শুরুর ব্যালেন্স (BDT)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newAccOpening}
+                    onChange={(e) => setNewAccOpening(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowNewAccountModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingAcc}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isCreatingAcc ? 'তৈরি হচ্ছে...' : 'অ্যাকাউন্ট যোগ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Reset Demo Balances to ৳0 Confirmation */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-rose-200 dark:border-rose-900 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-rose-600 dark:text-rose-400">
+              সব ডেমো ব্যালেন্স ৳০ করে নতুনভাবে শুরু করবেন?
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              শুরুতে সিস্টেম বোঝার জন্য ক্যাশ, ব্যাংক ও লেনদেনে কিছু স্যাম্পল (ডেমো) টাকা দেওয়া ছিল। এটি কনফার্ম করলে ক্যাশ, ব্যাংক এবং জার্নালের সব স্যাম্পল হিসাব <strong>৳০</strong> হয়ে যাবে—যাতে আপনি আপনার নিজের আসল টাকা জমা দিয়ে শুরু করতে পারেন। (আপনার ব্যবসা ও কর্মচারীদের তালিকা অক্ষত থাকবে।)
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                type="button"
+                disabled={isResettingLedger}
+                onClick={handleResetDemoBalances}
+                className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50"
+              >
+                {isResettingLedger ? 'রিসেট হচ্ছে...' : 'হ্যাঁ, সব ব্যালেন্স ৳০ করুন'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Simplified Income / Expense Voucher Modal */}
+      {showVoucherModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  আয় / খরচ ভাউচার লিখুন
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  লেনদেনের ধরন সিলেক্ট করলে ডেবিট/ক্রেডিট অটোমেটিক সেট হয়ে যাবে
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVoucherModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePostVoucher} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold">কী ধরনের হিসাব? *</label>
+                  <select
+                    value={vType}
+                    onChange={(e) => handleSelectVoucherType(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                  >
+                    <option value="sale">বিক্রি / আয় (Sales)</option>
+                    <option value="expense">খরচ / বিল (Expense)</option>
+                    <option value="purchase">মাল / স্টক কেনা (Purchase)</option>
+                    <option value="payroll">কর্মচারীর বেতন (Payroll)</option>
+                    <option value="cash_to_bank">ক্যাশ → ব্যাংক জমা</option>
+                    <option value="bank_to_cash">ব্যাংক → ক্যাশ উত্তোলন</option>
+                    <option value="adjustment">সমন্বয় (Adjustment)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">কোন ব্যবসা?</label>
+                  <select
+                    value={vBizId}
+                    onChange={(e) => setVBizId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  >
+                    <option value="ALL">সমন্বিত (Consolidated HQ)</option>
+                    {businesses.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.nameBn || b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold">মোট টাকার পরিমাণ (BDT) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={vAmount}
+                    onChange={(e) => setVAmount(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">পেমেন্ট অবস্থা</label>
+                  <select
+                    value={vPaymentStatus}
+                    onChange={(e) => setVPaymentStatus(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  >
+                    <option value="paid">নগদ/ব্যাংকে পরিশোধ (Paid)</option>
+                    <option value="partial">আংশিক বাকি (Partial Due)</option>
+                    <option value="due">সম্পূর্ণ বাকি (Full Due)</option>
+                  </select>
+                </div>
+              </div>
+
+              {vPaymentStatus !== 'paid' && (
+                <div>
+                  <label className="block mb-1 font-semibold">বাকি টাকার পরিমাণ (BDT)</label>
+                  <input
+                    type="number"
+                    value={vDueAmount}
+                    onChange={(e) => setVDueAmount(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold">খাতের নাম (Category) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={vCategory}
+                    onChange={(e) => setVCategory(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">ক্রেতা / সাপ্লায়ারের নাম</label>
+                  <input
+                    type="text"
+                    value={vCounterparty}
+                    onChange={(e) => setVCounterparty(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold">বিস্তারিত বিবরণ (Note)</label>
+                <input
+                  type="text"
+                  value={vDesc}
+                  onChange={(e) => setVDesc(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              {/* Optional Advanced DR/CR toggle */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedDrCr(!showAdvancedDrCr)}
+                  className="text-[11px] font-semibold text-emerald-600 hover:underline"
+                >
+                  {showAdvancedDrCr
+                    ? '▲ ডেবিট/ক্রেডিট অ্যাকাউন্ট লুকান'
+                    : '▼ কোন ব্যাংক বা ক্যাশ ব্যবহার হবে তা পরিবর্তন করুন (Advanced DR/CR)'}
+                </button>
+              </div>
+
+              {showAdvancedDrCr && (
+                <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
+                  <div>
+                    <label className="block mb-1 font-medium">টাকা ঢুকবে / খরচ (DR) *</label>
+                    <select
+                      value={vDebitId}
+                      onChange={(e) => setVDebitId(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-2"
+                    >
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} — {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-medium">টাকা যাবে / আয় খাত (CR) *</label>
+                    <select
+                      value={vCreditId}
+                      onChange={(e) => setVCreditId(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-2"
+                    >
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} — {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowVoucherModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                >
+                  হিসাব সেভ করুন
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Stock Movement Modal */}
+      {stockMoveItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  স্টক ইন / আউট করুন ({stockMoveItem.unit})
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {stockMoveItem.name} · বর্তমান মজুদ: {stockMoveItem.quantity} {stockMoveItem.unit}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStockMoveItem(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCustomStockMoveSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1.5 font-semibold">কী করতে চান?</label>
+                  <select
+                    value={smType}
+                    onChange={(e) => setSmType(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                  >
+                    <option value="purchase">+ স্টক ক্রয় / ইন (Stock In)</option>
+                    <option value="consumption">- খামারে ব্যবহার (Stock Out)</option>
+                    <option value="sale">- সরাসরি বিক্রি (Sale Out)</option>
+                    <option value="transfer">গোডাউন ট্রান্সফার</option>
+                    <option value="adjustment">হিসাব সমন্বয় (Adjustment)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1.5 font-semibold">
+                    কত {stockMoveItem.unit}? (পরিমাণ) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={smQty}
+                    onChange={(e) => setSmQty(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold">
+                  {smType === 'purchase' ? 'কোন গোডাউনে রাখা হবে?' : 'কোথায় ব্যবহার / পাঠানো হচ্ছে?'}
+                </label>
+                <input
+                  type="text"
+                  value={smDest}
+                  onChange={(e) => setSmDest(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              {smType === 'purchase' && (
+                <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 p-3 space-y-1">
+                  <label className="block font-bold text-rose-900 dark:text-rose-200">
+                    দোকান/মিলের মূল ক্যাশ মেমো বা চালান নং *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={smSupplierMemoNo}
+                    onChange={(e) => setSmSupplierMemoNo(e.target.value)}
+                    placeholder="যেমন: MEMO-88412 বা মিল ভাউচার নং"
+                    className="w-full rounded-lg border border-rose-300 dark:border-rose-800 bg-white dark:bg-slate-900 px-3 py-2 font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                  <p className="text-[10px] text-rose-700 dark:text-rose-400">
+                    🛡️ চুরি ও ভুয়া বস্তা এন্ট্রি রোধে মিল থেকে সরবরাহকৃত মূল মেমোর নম্বরটি দেওয়া বাধ্যতামূলক।
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block mb-1.5 font-semibold">নোট / বিবরণ (Optional)</label>
+                <input
+                  type="text"
+                  value={smNotes}
+                  onChange={(e) => setSmNotes(e.target.value)}
+                  placeholder="যেমন: শেড-২ মুরগির জন্য / নতুন চালান"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              {smType === 'purchase' && (
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 space-y-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-emerald-900 dark:text-emerald-200">
+                    <input
+                      type="checkbox"
+                      checked={smPostExpense}
+                      onChange={(e) => setSmPostExpense(e.target.checked)}
+                      className="h-4 w-4 rounded accent-emerald-600"
+                    />
+                    <span>
+                      কেনার টাকা ({formatBDT(Number(smQty) * Number(stockMoveItem.unitCost))}) ক্যাশ/ব্যাংক থেকে খরচ হিসেবে কাটুন
+                    </span>
+                  </label>
+                  {smPostExpense && (
+                    <select
+                      value={smPayAccId}
+                      onChange={(e) => setSmPayAccId(e.target.value)}
+                      className="w-full rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 px-3 py-2 font-semibold"
+                    >
+                      {treasuryWallets.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} ({formatBDT(w.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setStockMoveItem(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isMovingStock}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isMovingStock ? 'আপডেট হচ্ছে...' : 'স্টক সেভ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Modal */}
+      {showInvModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Add Inventory Product SKU
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowInvModal(false)}
+                className="text-xs text-slate-500 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+            <form onSubmit={handleCreateInventory} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-medium">SKU Code</label>
+                  <input
+                    type="text"
+                    required
+                    value={invSku}
+                    onChange={(e) => setInvSku(e.target.value)}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Category</label>
+                  <select
+                    value={invCat}
+                    onChange={(e) => setInvCat(e.target.value as any)}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    <option value="feed">Feed</option>
+                    <option value="medicine">Medicine</option>
+                    <option value="vaccine">Vaccine</option>
+                    <option value="seed_fingerling">Seed / Fingerling</option>
+                    <option value="fuel_parts">Fuel & Spare Parts</option>
+                    <option value="finished_goods">Finished Agro Goods</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Product Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={invName}
+                  onChange={(e) => setInvName(e.target.value)}
+                  placeholder="e.g., Finisher Pellet Feed 50 KG"
+                  className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-medium">Assigned Business</label>
+                  <select
+                    value={invBizId}
+                    onChange={(e) => setInvBizId(e.target.value)}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    {businesses.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Warehouse Location</label>
+                  <input
+                    type="text"
+                    value={invWarehouse}
+                    onChange={(e) => setInvWarehouse(e.target.value)}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block mb-1 font-medium">Opening Qty</label>
+                  <input
+                    type="number"
+                    value={invQty}
+                    onChange={(e) => setInvQty(Number(e.target.value))}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Unit Cost (BDT)</label>
+                  <input
+                    type="number"
+                    value={invCost}
+                    onChange={(e) => setInvCost(Number(e.target.value))}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Expiry Date</label>
+                  <input
+                    type="date"
+                    value={invExpiry}
+                    onChange={(e) => setInvExpiry(e.target.value)}
+                    className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                >
+                  Save SKU & Opening Stock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stakeholder Settlement Modal (Pay Salary / Collect Due / Pay Supplier) */}
+      {stkPayTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {stkPayTarget.stakeholderType === 'employee'
+                    ? 'কর্মচারীর বেতন প্রদান করুন'
+                    : stkPayTarget.stakeholderType === 'customer'
+                    ? 'ক্রেতার কাছ থেকে বাকি আদায় করুন'
+                    : 'সাপ্লায়ারের বাকি পরিশোধ করুন'}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {stkPayTarget.name} · {stkPayTarget.businessName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStkPayTarget(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleStakeholderPaymentSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1.5 font-semibold">টাকার পরিমাণ (BDT) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={stkPayAmount}
+                    onChange={(e) => setStkPayAmount(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1.5 font-semibold">তারিখ (Date)</label>
+                  <input
+                    type="date"
+                    value={stkPayDate}
+                    onChange={(e) => setStkPayDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold">
+                  {stkPayTarget.stakeholderType === 'customer'
+                    ? 'কোন ক্যাশ বা ব্যাংকে টাকা জমা হবে? *'
+                    : 'কোন ক্যাশ বা ব্যাংক থেকে টাকা দেবেন? *'}
+                </label>
+                <select
+                  value={stkPayWalletId}
+                  onChange={(e) => setStkPayWalletId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                >
+                  {treasuryWallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({formatBDT(w.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-1.5 font-semibold">নোট / বিবরণ (Optional)</label>
+                <input
+                  type="text"
+                  value={stkPayNote}
+                  onChange={(e) => setStkPayNote(e.target.value)}
+                  placeholder={
+                    stkPayTarget.stakeholderType === 'employee'
+                      ? 'যেমন: নভেম্বর মাসের বেতন / বোনাস'
+                      : 'যেমন: নগদ / ব্যাংক চেকের মাধ্যমে পরিশোধ'
+                  }
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setStkPayTarget(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSettlingStk}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isSettlingStk
+                    ? 'সংরক্ষণ হচ্ছে...'
+                    : stkPayTarget.stakeholderType === 'customer'
+                    ? 'টাকা জমা নিশ্চিত করুন'
+                    : 'পেমেন্ট নিশ্চিত করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stakeholder Modal */}
+      {showStkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {editingStakeholder
+                    ? `তথ্য সম্পাদনা করুন: ${editingStakeholder.name}`
+                    : stkType === 'employee'
+                    ? 'নতুন খামার কর্মী নিয়োগ দিন (Hire Farm Staff)'
+                    : 'নতুন ক্রেতা বা সাপ্লায়ার যোগ করুন'}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {userRole === 'business_manager'
+                    ? 'বিজনেস ম্যানেজার হিসেবে আপনি নিজ ইউনিটের জন্য কর্মী নিয়োগ দিতে পারেন'
+                    : 'খামার কর্মী, কাস্টমার বা ফিড সাপ্লায়ারের হিসাব ও তথ্য সংরক্ষণ'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStkModal(false);
+                  setEditingStakeholder(null);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateOrUpdateStakeholder} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold">কী ধরনের ব্যক্তি/প্রতিষ্ঠান? *</label>
+                  <select
+                    value={stkType}
+                    disabled={Boolean(editingStakeholder) || userRole === 'business_manager'}
+                    onChange={(e) => setStkType(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold disabled:opacity-60"
+                  >
+                    <option value="employee">👷 খামার কর্মী / স্টাফ (বেতন পাবেন)</option>
+                    <option value="customer">🛒 পাইকারি ক্রেতা (টাকা পাব)</option>
+                    <option value="supplier">🏭 সাপ্লায়ার / মিল (টাকা দেব)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">কোন ব্যবসা ইউনিট?</label>
+                  <select
+                    value={stkBizId}
+                    disabled={userRole === 'business_manager' && assignedBusinessFilter !== 'ALL'}
+                    onChange={(e) => setStkBizId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 disabled:opacity-60 font-semibold"
+                  >
+                    {businesses.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.nameBn || b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold">
+                    {stkType === 'employee' ? 'কর্মীর পূর্ণ নাম *' : 'নাম / প্রতিষ্ঠানের নাম *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={stkName}
+                    onChange={(e) => setStkName(e.target.value)}
+                    placeholder={
+                      stkType === 'employee'
+                        ? 'যেমন: মোঃ আব্দুল আলিম'
+                        : 'যেমন: বিসমিল্লাহ ট্রেডার্স'
+                    }
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">মোবাইল নম্বর</label>
+                  <input
+                    type="text"
+                    value={stkPhone}
+                    onChange={(e) => setStkPhone(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold">
+                    {stkType === 'employee' ? 'কাজের পদবি / দায়িত্ব *' : 'পরিচয় / ক্যাটাগরি'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={stkRoleCat}
+                    onChange={(e) => setStkRoleCat(e.target.value)}
+                    placeholder={
+                      stkType === 'employee'
+                        ? 'যেমন: শেড ইনচার্জ / খাদ্য ও টিকাদান সহকারী'
+                        : 'যেমন: পাইকার'
+                    }
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">
+                    {stkType === 'employee' ? 'মাসিক বেতন (BDT) *' : 'ক্রেডিট লিমিট (BDT)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={stkSalaryOrLimit}
+                    onChange={(e) => setStkSalaryOrLimit(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold">ঠিকানা / কর্মস্থল</label>
+                <input
+                  type="text"
+                  value={stkAddress}
+                  onChange={(e) => setStkAddress(e.target.value)}
+                  placeholder="যেমন: খামার ক্যাম্প ১, শ্রীপুর, গাজীপুর"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              {stkType !== 'employee' && !editingStakeholder && (
+                <div>
+                  <label className="block mb-1 font-semibold">
+                    {stkType === 'customer'
+                      ? 'আগের বাকি (তার কাছে কত টাকা পাবেন - BDT)'
+                      : 'আগের বাকি (তাকে কত টাকা দেবেন - BDT)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={stkBalance}
+                    onChange={(e) => setStkBalance(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStkModal(false);
+                    setEditingStakeholder(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingStakeholder}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingStakeholder
+                    ? 'সংরক্ষণ হচ্ছে...'
+                    : editingStakeholder
+                    ? 'আপডেট করুন'
+                    : stkType === 'employee'
+                    ? 'নিয়োগ নিশ্চিত করুন'
+                    : 'সেভ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Terminate Employee Confirmation Modal */}
+      {terminatingStakeholder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-red-200 dark:border-red-900 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center text-red-600 font-bold">
+                <UserX className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  কর্মীকে বাদ / বরখাস্ত নিশ্চিতকরণ
+                </h3>
+                <p className="text-xs text-slate-500">
+                  ব্যবসা ইউনিট: {terminatingStakeholder.businessName}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300">
+              আপনি কি নিশ্চিতভাবে কর্মী <strong>&ldquo;{terminatingStakeholder.name}&rdquo;</strong> ({terminatingStakeholder.designationOrCategory})-কে খামার থেকে বরখাস্ত বা বাদ দিতে চান?
+            </div>
+
+            <div>
+              <label className="block mb-1 font-bold text-xs text-slate-800 dark:text-slate-200">
+                বাদ দেওয়ার কারণ / অফিসিয়াল মন্তব্য *
+              </label>
+              <textarea
+                rows={3}
+                value={terminationReason}
+                onChange={(e) => setTerminationReason(e.target.value)}
+                placeholder="যেমন: খামারের চুক্তি শেষ / কাজে অবহেলা / পদ বিলুপ্তি"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 text-xs font-medium"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={isTerminatingStakeholder}
+                onClick={() => setTerminatingStakeholder(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                disabled={isTerminatingStakeholder}
+                onClick={handleTerminateStakeholder}
+                className="px-5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isTerminatingStakeholder ? 'প্রসেসিং হচ্ছে...' : 'হ্যাঁ, বরখাস্ত করুন'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EXECUTIVE REPORT MODAL (Super Manager & Super Admin) */}
+      {showExecutiveReportModal && (() => {
+        const periodJournals = journalEntries.filter(
+          (j) => j.status === 'posted' && matchesMonthFilter(j.date, activeMonthFilter)
+        );
+        const execTotalRev = periodJournals
+          .filter((j) => j.transactionType === 'sale' || j.transactionType === 'income')
+          .reduce((s, j) => s + j.amount, 0);
+        const execTotalOpExp = periodJournals
+          .filter((j) => j.transactionType === 'expense' || j.transactionType === 'purchase')
+          .reduce((s, j) => s + j.amount, 0);
+        const execTotalPayroll = periodJournals
+          .filter((j) => j.transactionType === 'payroll')
+          .reduce((s, j) => s + j.amount, 0);
+        const execTotalExp = execTotalOpExp + execTotalPayroll;
+        const execNetProfit = execTotalRev - execTotalExp;
+
+        const cashVaultBalance = accounts
+          .filter((a) => a.subType === 'cash')
+          .reduce((s, a) => s + (a.balance || 0), 0);
+
+        const bankPLCBalance = accounts
+          .filter((a) => a.subType === 'bank')
+          .reduce((s, a) => s + (a.balance || 0), 0);
+
+        const totalEmployeesCount = stakeholders.filter(
+          (s) => s.stakeholderType === 'employee' && s.status !== 'terminated'
+        ).length;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto">
+            <div className="w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto">
+              {/* Report Header */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-extrabold text-[11px] uppercase tracking-wider">
+                    <Award className="h-3.5 w-3.5" />
+                    <span>প্রধান ম্যানেজারের অফিসিয়াল নির্বাহী প্রতিবেদন (Executive Report)</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                    কৃষিভূমি এন্টারপ্রাইজ — ৫টি ব্যবসার সামগ্রিক লাভ-ক্ষতি ও কার্যবিবরণী
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    প্রস্তুতকারক: <strong>প্রধান জেনারেল ম্যানেজার (Super Manager / COO)</strong> · প্রাপক: <strong>মালিক / স্বত্বাধিকারী (Super Admin)</strong> · সময়কাল: {formatMonthFilterLabel(activeMonthFilter, true)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExecutiveReportModal(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 self-start cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* 4 Executive KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5">
+                  <div className="text-[11px] font-semibold text-slate-500">মোট রাজস্ব ও বিক্রি</div>
+                  <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                    {formatBDT(execTotalRev)}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">সকল ৫টি ব্যবসা</div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5">
+                  <div className="text-[11px] font-semibold text-slate-500">পরিচালন ব্যয় ও বেতন</div>
+                  <div className="text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-1">
+                    {formatBDT(execTotalExp)}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">ফিড, ওষুধ, বেতন ও মেইনটেন্যান্স</div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-3.5">
+                  <div className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">সামগ্রিক নীট লাভ (Net Profit)</div>
+                  <div className={`text-lg font-black font-mono mt-1 ${execNetProfit >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600'}`}>
+                    {formatBDT(execNetProfit)}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    {execTotalRev > 0 ? `${((execNetProfit / execTotalRev) * 100).toFixed(1)}% মার্জিন` : 'প্রক্রিয়াধীন'}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-blue-50/60 dark:bg-blue-950/30 p-3.5">
+                  <div className="text-[11px] font-semibold text-blue-800 dark:text-blue-300">ক্যাশ ও ব্যাংক রিজার্ভ</div>
+                  <div className="text-lg font-black font-mono text-blue-700 dark:text-blue-300 mt-1">
+                    {formatBDT(cashVaultBalance + bankPLCBalance)}
+                  </div>
+                  <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">
+                    মোট কর্মী বহর: {totalEmployeesCount} জন
+                  </div>
+                </div>
+              </div>
+
+              {/* 5 Business Units Breakdown Table */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="bg-slate-100/70 dark:bg-slate-800/60 px-4 py-2.5 font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                  <span>৫টি খামার ও ব্যবসার আলাদা লাভ-ক্ষতি ও দায়িত্বরত ম্যানেজার</span>
+                  <span className="text-[11px] text-slate-500 font-normal">রিয়েলটাইম অডিট ট্রেইল অনুযায়ী</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 font-semibold">
+                      <tr>
+                        <th className="py-2.5 px-3">ব্যবসায়িক ইউনিট</th>
+                        <th className="py-2.5 px-3">দায়িত্বপ্রাপ্ত বিজনেস ম্যানেজার</th>
+                        <th className="py-2.5 px-3 text-right">আয় / বিক্রি</th>
+                        <th className="py-2.5 px-3 text-right">ব্যয় ও বেতন</th>
+                        <th className="py-2.5 px-3 text-right">নীট লাভ / ক্ষতি</th>
+                        <th className="py-2.5 px-3 text-center">কর্মী সংখ্যা</th>
+                        <th className="py-2.5 px-3 text-center">স্ট্যাটাস</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {fullBusinessList.map((biz) => {
+                        const bRev = periodJournals
+                          .filter((j) => j.businessId === biz.id && (j.transactionType === 'sale' || j.transactionType === 'income'))
+                          .reduce((s, j) => s + j.amount, 0);
+                        const bExp = periodJournals
+                          .filter((j) => j.businessId === biz.id && (j.transactionType === 'expense' || j.transactionType === 'purchase' || j.transactionType === 'payroll'))
+                          .reduce((s, j) => s + j.amount, 0);
+                        const bProfit = bRev - bExp;
+                        const bStaffCount = stakeholders.filter((s) => s.businessId === biz.id && s.stakeholderType === 'employee' && s.status !== 'terminated').length;
+                        const mgrUser = erpUsers.find((u) => u.role === 'business_manager' && (u.assignedBusinesses === 'ALL' || u.assignedBusinesses?.includes(biz.id)));
+
+                        return (
+                          <tr key={biz.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                            <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">
+                              {biz.nameBn || biz.name}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
+                              {mgrUser ? (
+                                <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3 text-blue-500" />
+                                  <span>{mgrUser.displayName}</span>
+                                </div>
+                              ) : (
+                                <span className="text-amber-600 dark:text-amber-400 font-medium">নিয়োগ প্রক্রিয়াধীন</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                              {formatBDT(bRev)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
+                              {formatBDT(bExp)}
+                            </td>
+                            <td className={`py-2.5 px-3 text-right font-mono font-extrabold ${bProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                              {formatBDT(bProfit)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-mono">
+                              {bStaffCount} জন
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${bProfit >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}`}>
+                                {bProfit >= 0 ? '✓ লাভজনক' : 'ঘাটতি'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Manager Remarks & Recommendations for Owner */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  প্রধান ম্যানেজারের পর্যবেক্ষণ ও মালিকের কাছে সুপারিশ (COO Executive Remarks & Recommendations):
+                </label>
+                <textarea
+                  rows={3}
+                  value={executiveReportRemarks}
+                  onChange={(e) => setExecutiveReportRemarks(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-xs font-medium leading-relaxed"
+                  placeholder="মালিকের জন্য খামার ব্যবস্থাপনা বা লাভ বৃদ্ধির সুপারিশ লিখুন..."
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold hover:bg-slate-100 text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>প্রিন্ট / PDF সেভ করুন</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowExecutiveReportModal(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold hover:bg-slate-200 text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    বন্ধ করুন
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSendingReport}
+                    onClick={handleSendExecutiveReport}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 shadow-sm shadow-purple-600/30 cursor-pointer disabled:opacity-50"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>{isSendingReport ? 'রিপোর্ট পাঠানো হচ্ছে...' : 'মালিকের কাছে অফিসিয়াল রিপোর্ট পেশ করুন'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 5. UNIVERSAL OFFICIAL PRINTABLE SLIP / CHALLAN / VOUCHER MODAL */}
+      {activeSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl space-y-5 text-slate-900 dark:text-slate-100 max-h-[92vh] overflow-y-auto">
+            {/* Action Bar (Hidden in Print) */}
+            <div className="no-print flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>অফিসিয়াল অনুমোদিত স্লিপ প্রস্তুত</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm shadow-emerald-600/30 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>স্লিপ প্রিন্ট / PDF সেভ</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSlip(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  title="বন্ধ করুন"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Area Begins */}
+            <div className="border-2 border-slate-300 dark:border-slate-700 rounded-2xl p-6 sm:p-8 bg-white dark:bg-slate-900 space-y-5">
+              {/* Slip Header */}
+              <div className="text-center space-y-1 border-b-2 border-slate-200 dark:border-slate-800 pb-4">
+                <div className="inline-flex items-center justify-center gap-2">
+                  <Landmark className="h-6 w-6 text-emerald-600" />
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                    কৃষিভূমি এন্টারপ্রাইজ
+                  </h2>
+                </div>
+                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  KrishiVumi Enterprise · সেন্ট্রাল এগ্রো মাল্টি-বিজনেস ম্যানেজমেন্ট
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  হিসাব ও গোডাউন অডিট ট্রেইল শাখা · প্রধান কার্যালয় কমপ্লেক্স
+                </p>
+
+                <div className="pt-2">
+                  <span className="inline-block px-4 py-1 rounded-full text-xs font-black tracking-wide uppercase bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
+                    {activeSlip.type === 'salary_payslip'
+                      ? 'কর্মচারী বেতন ও মজুরি পরিশোধ পে-স্লিপ'
+                      : activeSlip.type === 'goods_purchase_slip'
+                      ? 'গোডাউন পণ্য গ্রহণ ও ক্রয় চালান ভাউচার'
+                      : 'আর্থিক লেনদেন ও ক্যাশ মানি রিসিট'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Meta Info Grid */}
+              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="space-y-1.5">
+                  <div>
+                    <span className="text-slate-500">ভাউচার / স্লিপ নম্বর:</span>{' '}
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">{activeSlip.slipNo}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">লেনদেনের তারিখ:</span>{' '}
+                    <span className="font-semibold">{activeSlip.date}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">ব্যবসা ইউনিট:</span>{' '}
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400">{activeSlip.businessName}</span>
+                  </div>
+                  {activeSlip.appointedBy && (
+                    <div>
+                      <span className="text-slate-500">নিয়োগকারী কর্তৃপক্ষ:</span>{' '}
+                      <span className="font-semibold">{activeSlip.appointedBy}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 text-right sm:text-left">
+                  <div>
+                    <span className="text-slate-500">
+                      {activeSlip.type === 'salary_payslip'
+                        ? 'কর্মচারীর নাম:'
+                        : activeSlip.type === 'goods_purchase_slip'
+                        ? 'গোডাউন / রিসিভার:'
+                        : 'প্রাপক / প্রদানকারী:'}
+                    </span>{' '}
+                    <span className="font-bold text-slate-950 dark:text-white">{activeSlip.recipientName}</span>
+                  </div>
+                  {(activeSlip.designation || activeSlip.recipientDesignation) && (
+                    <div>
+                      <span className="text-slate-500">পদবি / বিবরণ:</span>{' '}
+                      <span className="font-medium">{activeSlip.designation || activeSlip.recipientDesignation}</span>
+                    </div>
+                  )}
+                  {activeSlip.recipientPhone && (
+                    <div>
+                      <span className="text-slate-500">মোবাইল:</span>{' '}
+                      <span className="font-mono">{activeSlip.recipientPhone}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-500">পেমেন্ট মাধ্যম:</span>{' '}
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{activeSlip.paymentMethod}</span>
+                  </div>
+                  {activeSlip.supplierMemoNo && (
+                    <div className="text-rose-700 dark:text-rose-400 font-bold">
+                      <span>মিলের মূল মেমো নং:</span>{' '}
+                      <span className="font-mono underline">{activeSlip.supplierMemoNo}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Itemized Table or Payment Details */}
+              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <th className="py-2.5 px-4">বিবরণ / আইটেম</th>
+                      {activeSlip.type === 'goods_purchase_slip' ? (
+                        <>
+                          <th className="py-2.5 px-4 text-center">পরিমাণ</th>
+                          <th className="py-2.5 px-4 text-right">দর (প্রতি একক)</th>
+                        </>
+                      ) : (
+                        <th className="py-2.5 px-4">খাত / নোট</th>
+                      )}
+                      <th className="py-2.5 px-4 text-right">মোট টাকা (BDT)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    <tr>
+                      <td className="py-3 px-4 font-semibold">
+                        {activeSlip.itemName || activeSlip.note || 'সাধারণ লেনদেন'}
+                        {activeSlip.supplierName && (
+                          <div className="text-[11px] text-slate-500 font-normal">
+                            সাপ্লায়ার / ডিলার: {activeSlip.supplierName}
+                          </div>
+                        )}
+                      </td>
+                      {activeSlip.type === 'goods_purchase_slip' ? (
+                        <>
+                          <td className="py-3 px-4 text-center font-mono font-bold">
+                            {activeSlip.quantity} {activeSlip.unit}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono">
+                            {formatBDT(activeSlip.unitPrice || 0)}
+                          </td>
+                        </>
+                      ) : (
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                          {activeSlip.note}
+                        </td>
+                      )}
+                      <td className="py-3 px-4 text-right font-mono font-extrabold text-sm text-slate-950 dark:text-white">
+                        {formatBDT(activeSlip.amount)}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="bg-slate-50 dark:bg-slate-800/60 font-bold border-t border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <td
+                        colSpan={activeSlip.type === 'goods_purchase_slip' ? 3 : 2}
+                        className="py-2.5 px-4 text-right text-slate-700 dark:text-slate-300"
+                      >
+                        সর্বমোট পরিশোধিত / গৃহীত অর্থ:
+                      </td>
+                      <td className="py-2.5 px-4 text-right font-mono text-base font-black text-emerald-700 dark:text-emerald-400">
+                        {formatBDT(activeSlip.amount)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Words & Remarks */}
+              <div className="text-xs space-y-1">
+                <div className="font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="text-slate-500">কথায়:</span>{' '}
+                  <span className="italic font-bold">{formatBDT(activeSlip.amount)} মাত্র</span>
+                </div>
+                {activeSlip.enteredBy && (
+                  <div className="text-[11px] text-slate-500">
+                    সিস্টেম অডিট এন্ট্রি প্রদানকারী: <span className="font-mono">{activeSlip.enteredBy}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Anti-Theft / Fraud Warning Note */}
+              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-amber-600" />
+                  <span>চুরি ও জালিয়াতি প্রতিরোধ নীতি (Anti-Theft Compliance & Counter-Sign Rule):</span>
+                </div>
+                <p className="leading-relaxed">
+                  ১. এই অনুমোদিত স্লিপ ছাড়া কোনো নগদ অর্থ লেনদেন বা গোডাউনে মাল খালাস বৈধ বলে গণ্য হবে না।
+                  ২. গোডাউনে পণ্য ইনওয়ার্ডের ক্ষেত্রে সাপ্লায়ার বা মিলের মূল ক্যাশ মেমো এই স্লিপের সাথে গেঁথে সংরক্ষণ করতে হবে।
+                  ৩. গ্রহীতা এবং ম্যানেজার উভয়ের শারীরিক স্বাক্ষর ব্যতিরেকে হিসাব নথিতে চূড়ান্ত হিসেবে গৃহীত হবে না।
+                </p>
+              </div>
+
+              {/* 3 Physical Signature Blocks */}
+              <div className="pt-6 grid grid-cols-3 gap-4 text-center text-xs">
+                <div className="space-y-1 border-t border-slate-400 pt-2">
+                  <div className="font-bold text-slate-900 dark:text-slate-100">
+                    {activeSlip.type === 'salary_payslip'
+                      ? 'বেতন গ্রহণকারী কর্মীর স্বাক্ষর'
+                      : activeSlip.type === 'goods_purchase_slip'
+                      ? 'পণ্য গ্রহণকারী গোডাউন রক্ষক'
+                      : 'অর্থ প্রদানকারী / গ্রহণকারী'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">স্বাক্ষর ও তারিখ</div>
+                </div>
+
+                <div className="space-y-1 border-t border-slate-400 pt-2">
+                  <div className="font-bold text-slate-900 dark:text-slate-100">
+                    শাখা ম্যানেজার / হিসাবরক্ষক
+                  </div>
+                  <div className="text-[10px] text-slate-400">প্রতিস্বাক্ষর ও যাচাই</div>
+                </div>
+
+                <div className="space-y-1 border-t border-slate-400 pt-2">
+                  <div className="font-bold text-emerald-800 dark:text-emerald-300">
+                    মালিক / প্রধান ম্যানেজারের অনুমোদন
+                  </div>
+                  <div className="text-[10px] text-slate-400">অনুমোদনের সিল ও স্বাক্ষর</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

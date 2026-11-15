@@ -1,0 +1,399 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated ERP user profile with role-based access control and business assignments.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 160 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["super_admin", "business_manager", "employee"], "maxLength": 32 },
+        "assignedBusinesses": { "type": "string", "maxLength": 1000 },
+        "permissionsJson": { "type": "string", "maxLength": 4000 },
+        "status": { "type": "string", "enum": ["active", "suspended", "invited"], "maxLength": 32 },
+        "mfaEnabled": { "type": "boolean" },
+        "lastLoginAt": { "type": "string", "maxLength": 64 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "assignedBusinesses", "permissionsJson", "status", "mfaEnabled", "lastLoginAt", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Trusted administrator registry entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Business": {
+      "title": "Business",
+      "description": "Dynamic business entity managed in the Agro ERP platform.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 120 },
+        "nameBn": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 64 },
+        "templateType": { "type": "string", "enum": ["poultry", "cattle", "goat", "fish", "transport", "custom"], "maxLength": 32 },
+        "description": { "type": "string", "maxLength": 500 },
+        "iconName": { "type": "string", "maxLength": 40 },
+        "location": { "type": "string", "maxLength": 160 },
+        "contactPhone": { "type": "string", "maxLength": 40 },
+        "managerName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["active", "inactive", "archived"], "maxLength": 32 },
+        "enabledModules": { "type": "string", "maxLength": 600 },
+        "customFieldsSpec": { "type": "string", "maxLength": 1500 },
+        "currency": { "type": "string", "maxLength": 10 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "name", "nameBn", "category", "templateType", "description", "iconName", "location", "contactPhone", "managerName", "status", "enabledModules", "customFieldsSpec", "currency", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Account": {
+      "title": "Account",
+      "description": "Chart of Accounts ledger account for double-entry accounting.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 120 },
+        "accountType": { "type": "string", "enum": ["asset", "liability", "equity", "revenue", "expense"], "maxLength": 32 },
+        "subType": { "type": "string", "enum": ["cash", "bank", "receivable", "payable", "inventory", "loan", "operating_revenue", "operating_expense", "payroll", "capital"], "maxLength": 40 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "balance": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 10 },
+        "isActive": { "type": "boolean" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "name", "accountType", "subType", "businessId", "balance", "currency", "isActive", "ownerId", "createdAt", "updatedAt"]
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "Balanced double-entry financial transaction record.",
+      "type": "object",
+      "properties": {
+        "referenceNo": { "type": "string", "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 32 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "businessName": { "type": "string", "maxLength": 120 },
+        "transactionType": { "type": "string", "enum": ["income", "expense", "purchase", "sale", "cash_to_bank", "bank_to_cash", "payroll", "reversal", "adjustment"], "maxLength": 32 },
+        "category": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 400 },
+        "debitAccountId": { "type": "string", "maxLength": 128 },
+        "debitAccountName": { "type": "string", "maxLength": 120 },
+        "creditAccountId": { "type": "string", "maxLength": 128 },
+        "creditAccountName": { "type": "string", "maxLength": 120 },
+        "amount": { "type": "number" },
+        "paymentStatus": { "type": "string", "enum": ["paid", "partial", "due"], "maxLength": 24 },
+        "dueAmount": { "type": "number" },
+        "counterpartyName": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "enum": ["posted", "reversed"], "maxLength": 24 },
+        "reversedByEntryId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referenceNo", "date", "businessId", "businessName", "transactionType", "category", "description", "debitAccountId", "debitAccountName", "creditAccountId", "creditAccountName", "amount", "paymentStatus", "dueAmount", "counterpartyName", "status", "reversedByEntryId", "ownerId", "createdAt", "updatedAt"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Centralized and business-wise stock item with expiry and reorder alerts.",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "maxLength": 64 },
+        "barcode": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 140 },
+        "category": { "type": "string", "enum": ["feed", "medicine", "vaccine", "seed_fingerling", "equipment", "fertilizer", "fuel_parts", "finished_goods", "other"], "maxLength": 40 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "businessName": { "type": "string", "maxLength": 120 },
+        "warehouse": { "type": "string", "maxLength": 100 },
+        "unit": { "type": "string", "maxLength": 24 },
+        "quantity": { "type": "number" },
+        "reorderLevel": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "expiryDate": { "type": "string", "maxLength": 32 },
+        "supplierName": { "type": "string", "maxLength": 120 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sku", "barcode", "name", "category", "businessId", "businessName", "warehouse", "unit", "quantity", "reorderLevel", "unitCost", "sellingPrice", "expiryDate", "supplierName", "ownerId", "createdAt", "updatedAt"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Audit trail for stock purchases, sales, transfers, and adjustments.",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string", "maxLength": 128 },
+        "itemName": { "type": "string", "maxLength": 140 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "movementType": { "type": "string", "enum": ["purchase", "consumption", "sale", "transfer", "adjustment"], "maxLength": 32 },
+        "quantity": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "sourceLocation": { "type": "string", "maxLength": 100 },
+        "destinationLocation": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 300 },
+        "date": { "type": "string", "maxLength": 32 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemId", "itemName", "businessId", "movementType", "quantity", "unitCost", "sourceLocation", "destinationLocation", "notes", "date", "ownerId", "createdAt"]
+    },
+    "Stakeholder": {
+      "title": "Stakeholder",
+      "description": "Employee, Supplier, or Customer record associated with a business.",
+      "type": "object",
+      "properties": {
+        "stakeholderType": { "type": "string", "enum": ["employee", "supplier", "customer"], "maxLength": 32 },
+        "code": { "type": "string", "maxLength": 40 },
+        "name": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "email": { "type": "string", "maxLength": 120 },
+        "address": { "type": "string", "maxLength": 240 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "businessName": { "type": "string", "maxLength": 120 },
+        "designationOrCategory": { "type": "string", "maxLength": 100 },
+        "monthlySalaryOrCreditLimit": { "type": "number" },
+        "outstandingBalance": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "inactive"], "maxLength": 24 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["stakeholderType", "code", "name", "phone", "email", "address", "businessId", "businessName", "designationOrCategory", "monthlySalaryOrCreditLimit", "outstandingBalance", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "PoultryBatch": {
+      "title": "PoultryBatch",
+      "description": "Batch-based poultry management record including mortality, feed, medicine, grading, and profit/loss.",
+      "type": "object",
+      "properties": {
+        "batchCode": { "type": "string", "maxLength": 40 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "chickPurchaseDate": { "type": "string", "maxLength": 32 },
+        "chickenType": { "type": "string", "enum": ["Broiler", "Layer", "Sonali", "Deshi", "Breeder"], "maxLength": 40 },
+        "shedNumber": { "type": "string", "maxLength": 40 },
+        "supplierName": { "type": "string", "maxLength": 120 },
+        "initialQuantity": { "type": "number" },
+        "mortalityCount": { "type": "number" },
+        "sickBirdsCount": { "type": "number" },
+        "soldBirdsCount": { "type": "number" },
+        "purchaseCost": { "type": "number" },
+        "starterFeedKg": { "type": "number" },
+        "growerFeedKg": { "type": "number" },
+        "finisherFeedKg": { "type": "number" },
+        "feedCost": { "type": "number" },
+        "medicineCost": { "type": "number" },
+        "labourAndUtilityCost": { "type": "number" },
+        "otherExpense": { "type": "number" },
+        "totalSoldKg": { "type": "number" },
+        "gradeBreakdown": { "type": "string", "maxLength": 200 },
+        "pricePerKg": { "type": "number" },
+        "totalSalesRevenue": { "type": "number" },
+        "outstandingDue": { "type": "number" },
+        "vaccineScheduleNotes": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["active", "harvested", "closed"], "maxLength": 24 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["batchCode", "businessId", "chickPurchaseDate", "chickenType", "shedNumber", "supplierName", "initialQuantity", "mortalityCount", "sickBirdsCount", "soldBirdsCount", "purchaseCost", "starterFeedKg", "growerFeedKg", "finisherFeedKg", "feedCost", "medicineCost", "labourAndUtilityCost", "otherExpense", "totalSoldKg", "gradeBreakdown", "pricePerKg", "totalSalesRevenue", "outstandingDue", "vaccineScheduleNotes", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "LivestockRecord": {
+      "title": "LivestockRecord",
+      "description": "Individual animal management record for Cattle and Goat farming.",
+      "type": "object",
+      "properties": {
+        "animalTag": { "type": "string", "maxLength": 40 },
+        "species": { "type": "string", "enum": ["cattle", "goat"], "maxLength": 24 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 80 },
+        "breed": { "type": "string", "maxLength": 80 },
+        "gender": { "type": "string", "enum": ["Male", "Female"], "maxLength": 16 },
+        "ageMonths": { "type": "number" },
+        "purchaseDate": { "type": "string", "maxLength": 32 },
+        "purchasePrice": { "type": "number" },
+        "currentWeightKg": { "type": "number" },
+        "healthStatus": { "type": "string", "enum": ["Healthy", "Under Observation", "Treatment", "Pregnant", "Lactating", "Sold"], "maxLength": 40 },
+        "feedCost": { "type": "number" },
+        "medicineAndVetCost": { "type": "number" },
+        "vaccinationHistory": { "type": "string", "maxLength": 300 },
+        "breedingAndOffspringNotes": { "type": "string", "maxLength": 300 },
+        "parentTag": { "type": "string", "maxLength": 40 },
+        "totalMilkLiters": { "type": "number" },
+        "milkSalesRevenue": { "type": "number" },
+        "animalSalePrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "sold", "deceased"], "maxLength": 24 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["animalTag", "species", "businessId", "name", "breed", "gender", "ageMonths", "purchaseDate", "purchasePrice", "currentWeightKg", "healthStatus", "feedCost", "medicineAndVetCost", "vaccinationHistory", "breedingAndOffspringNotes", "parentTag", "totalMilkLiters", "milkSalesRevenue", "animalSalePrice", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "FishCycle": {
+      "title": "FishCycle",
+      "description": "Pond and aquaculture production cycle record.",
+      "type": "object",
+      "properties": {
+        "cycleCode": { "type": "string", "maxLength": 40 },
+        "pondId": { "type": "string", "maxLength": 40 },
+        "pondName": { "type": "string", "maxLength": 80 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "areaDecimals": { "type": "number" },
+        "depthFeet": { "type": "number" },
+        "location": { "type": "string", "maxLength": 120 },
+        "waterQualityNotes": { "type": "string", "maxLength": 200 },
+        "fishSpecies": { "type": "string", "maxLength": 160 },
+        "stockingDate": { "type": "string", "maxLength": 32 },
+        "initialQuantity": { "type": "number" },
+        "mortalityCount": { "type": "number" },
+        "fingerlingCost": { "type": "number" },
+        "feedCost": { "type": "number" },
+        "medicineAndLimeCost": { "type": "number" },
+        "labourCost": { "type": "number" },
+        "harvestDate": { "type": "string", "maxLength": 32 },
+        "harvestWeightKg": { "type": "number" },
+        "totalSalesRevenue": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "harvested", "fallow"], "maxLength": 24 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["cycleCode", "pondId", "pondName", "businessId", "areaDecimals", "depthFeet", "location", "waterQualityNotes", "fishSpecies", "stockingDate", "initialQuantity", "mortalityCount", "fingerlingCost", "feedCost", "medicineAndLimeCost", "labourCost", "harvestDate", "harvestWeightKg", "totalSalesRevenue", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "TransportOp": {
+      "title": "TransportOp",
+      "description": "Vehicle fleet, trip profitability, document expiry, and maintenance record.",
+      "type": "object",
+      "properties": {
+        "tripOrVehicleCode": { "type": "string", "maxLength": 40 },
+        "recordType": { "type": "string", "enum": ["trip", "vehicle_maintenance"], "maxLength": 32 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "registrationNumber": { "type": "string", "maxLength": 60 },
+        "vehicleType": { "type": "string", "maxLength": 60 },
+        "driverName": { "type": "string", "maxLength": 100 },
+        "origin": { "type": "string", "maxLength": 100 },
+        "destination": { "type": "string", "maxLength": 100 },
+        "cargoDetails": { "type": "string", "maxLength": 200 },
+        "customerName": { "type": "string", "maxLength": 120 },
+        "distanceKm": { "type": "number" },
+        "fuelCost": { "type": "number" },
+        "tollCost": { "type": "number" },
+        "driverAllowance": { "type": "number" },
+        "maintenanceCost": { "type": "number" },
+        "maintenanceDetails": { "type": "string", "maxLength": 240 },
+        "tripRevenue": { "type": "number" },
+        "outstandingDue": { "type": "number" },
+        "insuranceExpiry": { "type": "string", "maxLength": 32 },
+        "fitnessExpiry": { "type": "string", "maxLength": 32 },
+        "taxTokenExpiry": { "type": "string", "maxLength": 32 },
+        "nextServiceDate": { "type": "string", "maxLength": 32 },
+        "date": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["active", "completed", "maintenance"], "maxLength": 24 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tripOrVehicleCode", "recordType", "businessId", "registrationNumber", "vehicleType", "driverName", "origin", "destination", "cargoDetails", "customerName", "distanceKm", "fuelCost", "tollCost", "driverAllowance", "maintenanceCost", "maintenanceDetails", "tripRevenue", "outstandingDue", "insuranceExpiry", "fitnessExpiry", "taxTokenExpiry", "nextServiceDate", "date", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and operational audit trail record.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "maxLength": 100 },
+        "module": { "type": "string", "maxLength": 64 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 500 },
+        "severity": { "type": "string", "enum": ["info", "warning", "critical"], "maxLength": 24 },
+        "actorEmail": { "type": "string", "maxLength": 160 },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["action", "module", "businessId", "details", "severity", "actorEmail", "ownerId", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Centralized operational and security alert or reminder.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 140 },
+        "message": { "type": "string", "maxLength": 400 },
+        "category": { "type": "string", "enum": ["low_inventory", "medicine_expiry", "vaccination", "animal_health", "payroll", "receivable", "vehicle_doc", "maintenance", "security"], "maxLength": 40 },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"], "maxLength": 24 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "isRead": { "type": "boolean" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "category", "priority", "businessId", "isRead", "ownerId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and RBAC configurations."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "System administrator UIDs."
+    },
+    "/businesses/{businessId}": {
+      "schema": { "$ref": "#/entities/Business" },
+      "description": "Dynamic business registry and module configurations."
+    },
+    "/accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/Account" },
+      "description": "Central Chart of Accounts for double-entry accounting."
+    },
+    "/journal_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/JournalEntry" },
+      "description": "Balanced double-entry ledger transactions."
+    },
+    "/inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Centralized and business-wise inventory items."
+    },
+    "/stock_movements/{movementId}": {
+      "schema": { "$ref": "#/entities/StockMovement" },
+      "description": "Traceable inventory stock movements."
+    },
+    "/stakeholders/{stakeholderId}": {
+      "schema": { "$ref": "#/entities/Stakeholder" },
+      "description": "Employees, Suppliers, and Customers."
+    },
+    "/poultry_batches/{batchId}": {
+      "schema": { "$ref": "#/entities/PoultryBatch" },
+      "description": "Poultry batch management and daily farm records."
+    },
+    "/livestock_records/{animalId}": {
+      "schema": { "$ref": "#/entities/LivestockRecord" },
+      "description": "Individual cattle and goat livestock records."
+    },
+    "/fish_cycles/{cycleId}": {
+      "schema": { "$ref": "#/entities/FishCycle" },
+      "description": "Aquaculture pond and fish production cycle records."
+    },
+    "/transport_ops/{opId}": {
+      "schema": { "$ref": "#/entities/TransportOp" },
+      "description": "Truck fleet, trip profitability, and maintenance records."
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable security and operational audit trail."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Centralized alerts and reminders."
+    }
+  }
+}

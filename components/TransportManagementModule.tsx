@@ -1,0 +1,1041 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import {
+  Truck,
+  Search,
+  Plus,
+  Route,
+  Wrench,
+  FileSpreadsheet,
+  CheckCircle2,
+  Bell,
+} from 'lucide-react';
+import {
+  ErpBusiness,
+  ErpTransportOp,
+  ErpJournalEntry,
+  ErpAccount,
+  ErpAuditLog,
+  formatBDT,
+} from '@/lib/erp-types';
+import {
+  createTransportOpRecord,
+  updateTransportOpRecord,
+  postDoubleEntryTransaction,
+  logAuditEvent,
+  createNotificationRecord,
+} from '@/lib/erp-service';
+
+interface TransportManagementModuleProps {
+  activeBusiness: ErpBusiness;
+  ops: ErpTransportOp[];
+  journalEntries: ErpJournalEntry[];
+  accounts: ErpAccount[];
+  auditLogs: ErpAuditLog[];
+  ownerId: string;
+  actorEmail: string;
+  onNotify: (msg: string) => void;
+}
+
+type TransportSubTab =
+  | 'PROFILE_OVERVIEW'
+  | 'A_TRIP_MANAGEMENT'
+  | 'B_MAINTENANCE_DOCS';
+
+export default function TransportManagementModule({
+  activeBusiness,
+  ops,
+  accounts,
+  ownerId,
+  actorEmail,
+  onNotify,
+}: TransportManagementModuleProps) {
+  const [activeSubTab, setActiveSubTab] = useState<TransportSubTab>('PROFILE_OVERVIEW');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOpId, setSelectedOpId] = useState<string>(ops[0]?.id || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const filteredOps = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return ops;
+    return ops.filter(
+      (o) =>
+        o.tripOrVehicleCode.toLowerCase().includes(q) ||
+        o.registrationNumber.toLowerCase().includes(q) ||
+        o.driverName.toLowerCase().includes(q) ||
+        o.origin.toLowerCase().includes(q) ||
+        o.destination.toLowerCase().includes(q)
+    );
+  }, [ops, searchQuery]);
+
+  const selectedOp = useMemo(() => {
+    return (
+      ops.find((o) => o.id === selectedOpId) ||
+      filteredOps[0] ||
+      ops[0] ||
+      null
+    );
+  }, [ops, filteredOps, selectedOpId]);
+
+  // ============================================================================
+  // A. Trip Management & New Vehicle/Trip State (Exact Example: TRUCK-001)
+  // ============================================================================
+  const [aVehicleCode, setAVehicleCode] = useState('TRUCK-001');
+  const [aRegNo, setARegNo] = useState('ঢাকা মেট্রো-ট-১২-৩৪৫৬');
+  const [aVehicleType, setAVehicleType] = useState('Heavy Truck (খামারের পণ্যবাহী ট্রাক)');
+  const [aPurchasePriceInfo, setAPurchasePriceInfo] = useState('২৫,০০,০০০');
+  const [aDriverName, setADriverName] = useState('আব্দুল');
+  const [aTripDate, setATripDate] = useState(new Date().toISOString().split('T')[0]);
+  const [aOrigin, setAOrigin] = useState('ঢাকা');
+  const [aDestination, setADestination] = useState('চট্টগ্রাম');
+  const [aCargoDetails, setACargoDetails] = useState('খামারের মুরগি, মাছ ও পশুখাদ্য পরিবহন');
+  const [aCustomerName, setACustomerName] = useState('চট্টগ্রাম পাইকারি আড়ত');
+  const [aDistanceKm, setADistanceKm] = useState(255);
+  const [aTripRevenue, setATripRevenue] = useState(25000);
+  const [aDieselCost, setADieselCost] = useState(8000);
+  const [aTollCost, setATollCost] = useState(1000);
+  const [aDriverAllowance, setADriverAllowance] = useState(1000);
+  const [aOtherTripCost, setAOtherTripCost] = useState(500);
+  const [aDueAmount, setADueAmount] = useState(0);
+  const [aTripStatus, setATripStatus] = useState<'completed' | 'active' | 'maintenance'>(
+    'completed'
+  );
+
+  const formTotalTripExpense =
+    Number(aDieselCost) +
+    Number(aTollCost) +
+    Number(aDriverAllowance) +
+    Number(aOtherTripCost);
+  const formNetTripProfit = Number(aTripRevenue) - formTotalTripExpense;
+
+  // ============================================================================
+  // B. Vehicle Maintenance & Document Expiry Reminder State
+  // ============================================================================
+  const [bEngineOilChange, setBEngineOilChange] = useState('হ্যাঁ — ১৫W-৪০ ডিজেল ইঞ্জিন অয়েল');
+  const [bTyreChange, setBTyreChange] = useState('সামনের ২টি চাকা রোটেশন ও হাওয়া চেক');
+  const [bServiceDetails, setBServiceDetails] = useState(
+    'ইঞ্জিন অয়েল পরিবর্তন, ব্রেক সার্ভিসিং ও ফিল্টার পরিবর্তন'
+  );
+  const [bMaintenanceCost, setBMaintenanceCost] = useState(4500);
+  const [bDriverSalary, setBDriverSalary] = useState(18000);
+  const [bDowntimeDays, setBDowntimeDays] = useState(1);
+  const [bFitnessExpiry, setBFitnessExpiry] = useState(
+    selectedOp?.fitnessExpiry || '2027-06-30'
+  );
+  const [bTaxTokenExpiry, setBTaxTokenExpiry] = useState(
+    selectedOp?.taxTokenExpiry || '2027-03-31'
+  );
+  const [bInsuranceExpiry, setBInsuranceExpiry] = useState(
+    selectedOp?.insuranceExpiry || '2027-09-30'
+  );
+  const [bNextServiceDate, setBNextServiceDate] = useState(
+    selectedOp?.nextServiceDate || '2026-12-20'
+  );
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  // 1-Click Load User's Exact Prompt Example: TRUCK-001 (ঢাকা → চট্টগ্রাম, ভাড়া ২৫,০০০, খরচ ১০,৫০০, লাভ ১৪,৫০০)
+  const handleLoadPromptTruckExample = async () => {
+    setIsSubmitting(true);
+    try {
+      await createTransportOpRecord(
+        {
+          tripOrVehicleCode: 'TRUCK-001',
+          recordType: 'trip',
+          businessId: activeBusiness.id,
+          registrationNumber: 'ঢাকা মেট্রো-ট-১২-৩৪৫৬',
+          vehicleType: 'Heavy Truck (ক্রয়মূল্য: ৳২৫,০০,০০০)',
+          driverName: 'আব্দুল',
+          origin: 'ঢাকা',
+          destination: 'চট্টগ্রাম',
+          cargoDetails: 'খামারের পোল্ট্রি, মাছ ও ফিড পণ্য পরিবহন',
+          customerName: 'চট্টগ্রাম আগ্রাবাদ পাইকারি ট্রেডার্স',
+          distanceKm: 250,
+          fuelCost: 8000,
+          tollCost: 1000,
+          driverAllowance: 1000,
+          maintenanceCost: 500, // অন্যান্য খরচ ৫০০ টাকা
+          maintenanceDetails: 'কেনার দাম: ৳২৫,০০,০০০ | ট্রিপের অন্যান্য খরচ: ৳৫০০ | গাড়ি সচল (Active)',
+          tripRevenue: 25000,
+          outstandingDue: 0,
+          insuranceExpiry: '2027-08-30',
+          fitnessExpiry: '2027-05-15',
+          taxTokenExpiry: '2027-03-31',
+          nextServiceDate: '2026-12-15',
+          date: '2026-11-12',
+          status: 'completed',
+        },
+        ownerId,
+        actorEmail
+      );
+
+      onNotify(
+        'উদাহরণের গাড়ি ও ট্রিপ রিপোর্ট TRUCK-001 (ঢাকা মেট্রো-ট-১২-৩৪৫৬, চালক: আব্দুল, রুট: ঢাকা → চট্টগ্রাম, ভাড়া: ৳২৫,০০০, মোট খরচ: ৳১০,৫০০, ট্রিপের লাভ: ৳১৪,৫০০) সফলভাবে লোড হয়েছে!'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler A: Create New Trip & Vehicle Profile
+  const handleCreateTripA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await createTransportOpRecord(
+        {
+          tripOrVehicleCode: aVehicleCode,
+          recordType: 'trip',
+          businessId: activeBusiness.id,
+          registrationNumber: aRegNo,
+          vehicleType: `${aVehicleType} (দাম: ৳${aPurchasePriceInfo})`.slice(0, 60),
+          driverName: aDriverName,
+          origin: aOrigin,
+          destination: aDestination,
+          cargoDetails: aCargoDetails,
+          customerName: aCustomerName,
+          distanceKm: Number(aDistanceKm),
+          fuelCost: Number(aDieselCost),
+          tollCost: Number(aTollCost),
+          driverAllowance: Number(aDriverAllowance),
+          maintenanceCost: Number(aOtherTripCost),
+          maintenanceDetails: `কেনার দাম: ৳${aPurchasePriceInfo} | অন্যান্য ট্রিপ খরচ: ৳${aOtherTripCost}`,
+          tripRevenue: Number(aTripRevenue),
+          outstandingDue: Number(aDueAmount),
+          insuranceExpiry: bInsuranceExpiry,
+          fitnessExpiry: bFitnessExpiry,
+          taxTokenExpiry: bTaxTokenExpiry,
+          nextServiceDate: bNextServiceDate,
+          date: aTripDate,
+          status: aTripStatus,
+        },
+        ownerId,
+        actorEmail
+      );
+
+      const cashOrBank =
+        accounts.find((a) => a.subType === 'cash' || a.subType === 'bank') || accounts[0];
+      const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
+      const expAcc = accounts.find((a) => a.accountType === 'expense') || accounts[0];
+
+      if (cashOrBank && revAcc && Number(aTripRevenue) > 0) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: `TRP-REV-${aVehicleCode}-${Date.now().toString().slice(-4)}`,
+            date: aTripDate,
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'sale',
+            category: `ট্রাক ট্রিপ ভাড়া (${aVehicleCode})`,
+            description: `${aVehicleCode} (${aRegNo}): ${aOrigin} → ${aDestination} | চালক: ${aDriverName} | পণ্য: ${aCargoDetails}`,
+            debitAccountId: cashOrBank.id,
+            debitAccountName: cashOrBank.name,
+            creditAccountId: revAcc.id,
+            creditAccountName: revAcc.name,
+            amount: Number(aTripRevenue),
+            paymentStatus: Number(aDueAmount) > 0 ? 'partial' : 'paid',
+            dueAmount: Number(aDueAmount) || 0,
+            counterpartyName: aCustomerName,
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      if (cashOrBank && expAcc && formTotalTripExpense > 0) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: `TRP-EXP-${aVehicleCode}-${Date.now().toString().slice(-4)}`,
+            date: aTripDate,
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'expense',
+            category: `ট্রিপের ডিজেল, টোল ও ভাতা (${aVehicleCode})`,
+            description: `${aVehicleCode}: ডিজেল ৳${aDieselCost}, টোল ৳${aTollCost}, চালকের ভাতা ৳${aDriverAllowance}, অন্যান্য ৳${aOtherTripCost}`,
+            debitAccountId: expAcc.id,
+            debitAccountName: expAcc.name,
+            creditAccountId: cashOrBank.id,
+            creditAccountName: cashOrBank.name,
+            amount: formTotalTripExpense,
+            paymentStatus: 'paid',
+            dueAmount: 0,
+            counterpartyName: aDriverName,
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      onNotify(
+        `${aVehicleCode} (${aOrigin} → ${aDestination}) ট্রিপ সেভ হয়েছে! ভাড়া: ${formatBDT(Number(aTripRevenue))}, মোট খরচ: ${formatBDT(formTotalTripExpense)}, ট্রিপের লাভ: ${formatBDT(formNetTripProfit)}।`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler B: Update Vehicle Maintenance, Downtime & Set Expiry Reminders
+  const handleRecordMaintenanceB = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOp) return;
+    setIsSubmitting(true);
+    try {
+      const maintSummary = `ইঞ্জিন অয়েল: ${bEngineOilChange} | টায়ার: ${bTyreChange} | সার্ভিসিং: ${bServiceDetails} | বন্ধ ছিল: ${bDowntimeDays} দিন | ড্রাইভার বেতন: ৳${bDriverSalary}`.slice(
+        0,
+        240
+      );
+      const addedCost = Number(bMaintenanceCost) + Number(bDriverSalary);
+
+      await updateTransportOpRecord(
+        selectedOp,
+        {
+          maintenanceCost: selectedOp.maintenanceCost + Number(bMaintenanceCost),
+          maintenanceDetails: maintSummary,
+          fitnessExpiry: bFitnessExpiry,
+          taxTokenExpiry: bTaxTokenExpiry,
+          insuranceExpiry: bInsuranceExpiry,
+          nextServiceDate: bNextServiceDate,
+        },
+        actorEmail
+      );
+
+      // Create Document & Servicing Reminder Notification
+      await createNotificationRecord({
+        title: `গাড়ির কাগজপত্র ও সার্ভিসিং রিমাইন্ডার: ${selectedOp.tripOrVehicleCode} (${selectedOp.registrationNumber})`.slice(
+          0,
+          140
+        ),
+        message: `ফিটনেস মেয়াদ: ${bFitnessExpiry} | ট্যাক্স টোকেন: ${bTaxTokenExpiry} | ইন্স্যুরেন্স: ${bInsuranceExpiry} | পরবর্তী সার্ভিসিং: ${bNextServiceDate} | বন্ধ ছিল: ${bDowntimeDays} দিন`.slice(
+          0,
+          400
+        ),
+        category: 'vehicle_doc',
+        priority: 'high',
+        businessId: activeBusiness.id,
+      });
+
+      const cashOrBank =
+        accounts.find((a) => a.subType === 'cash' || a.subType === 'bank') || accounts[0];
+      const expAcc = accounts.find((a) => a.accountType === 'expense') || accounts[0];
+      if (cashOrBank && expAcc && addedCost > 0) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: `MNT-${selectedOp.tripOrVehicleCode}-${Date.now().toString().slice(-4)}`,
+            date: new Date().toISOString().split('T')[0],
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'expense',
+            category: `গাড়ি মেরামত ও ড্রাইভার বেতন (${selectedOp.tripOrVehicleCode})`,
+            description: maintSummary,
+            debitAccountId: expAcc.id,
+            debitAccountName: expAcc.name,
+            creditAccountId: cashOrBank.id,
+            creditAccountName: cashOrBank.name,
+            amount: addedCost,
+            paymentStatus: 'paid',
+            dueAmount: 0,
+            counterpartyName: selectedOp.driverName,
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      onNotify(
+        `${selectedOp.tripOrVehicleCode}-এর সার্ভিসিং, ড্রাইভার বেতন ও কাগজপত্রের মেয়াদ (ফিটনেস: ${bFitnessExpiry}, ট্যাক্স টোকেন: ${bTaxTokenExpiry}) রিমাইন্ডার সহ আপডেট হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Selected Trip Computed Profit
+  const selDiesel = selectedOp?.fuelCost || 0;
+  const selToll = selectedOp?.tollCost || 0;
+  const selAllowance = selectedOp?.driverAllowance || 0;
+  const selOtherMaint = selectedOp?.maintenanceCost || 0;
+  const selTotalTripCost = selDiesel + selToll + selAllowance + selOtherMaint;
+  const selTripRevenue = selectedOp?.tripRevenue || 0;
+  const selTripProfit = selTripRevenue - selTotalTripCost;
+
+  return (
+    <div className="space-y-6">
+      {/* =====================================================================
+          TOP VEHICLE ID & TRIP SELECTOR BAR
+         ===================================================================== */}
+      <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              <Truck className="h-4 w-4" />
+              <span>Truck & Transport Business — Vehicle ID & Trip Profit System</span>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              প্রতিটি গাড়ির আলাদা প্রোফাইল (TRUCK-001), ট্রিপের আয়-ব্যয় রিপোর্ট ও মেইনটেন্যান্স রিমাইন্ডার
+            </h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              প্রতিটি ট্রিপের ভাড়া থেকে ডিজেল, টোল, চালকের ভাতা ও অন্যান্য খরচ বাদ দিয়ে প্রকৃত লাভ এবং ফিটনেস/ট্যাক্স টোকেন মেয়াদের অ্যালার্ট।
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!ops.some((o) => o.tripOrVehicleCode === 'TRUCK-001') && (
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleLoadPromptTruckExample}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                উদাহরণ ট্রাক (TRUCK-001 ঢাকা → চট্টগ্রাম) লোড করুন
+              </button>
+            )}
+
+            <div className="relative">
+              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="TRUCK-001 বা চালকের নাম সার্চ..."
+                className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-60 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Vehicle & Trip Selector Pills */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">
+            গাড়ি ও ট্রিপ নির্বাচন করুন:
+          </span>
+          {filteredOps.map((o) => {
+            const isSelected = selectedOp?.id === o.id;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setSelectedOpId(o.id)}
+                className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-emerald-600 dark:border-emerald-500 shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
+                }`}
+              >
+                <span className="font-mono font-bold">{o.tripOrVehicleCode}</span>
+                <span>({o.origin} → {o.destination})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          3-STEP NAVIGATION TABS
+         ===================================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          {
+            id: 'PROFILE_OVERVIEW' as TransportSubTab,
+            step: 'Profile & Report',
+            titleBn: 'গাড়ির প্রোফাইল ও Trip Report কার্ড',
+            titleEn: 'Vehicle Profile & Profit Card',
+            icon: FileSpreadsheet,
+          },
+          {
+            id: 'A_TRIP_MANAGEMENT' as TransportSubTab,
+            step: 'A',
+            titleBn: 'A. নতুন ট্রিপ ও ভাড়ার হিসাব',
+            titleEn: 'Trip Management',
+            icon: Route,
+          },
+          {
+            id: 'B_MAINTENANCE_DOCS' as TransportSubTab,
+            step: 'B',
+            titleBn: 'B. সার্ভিসিং, ফিটনেস ও মেয়াদ রিমাইন্ডার',
+            titleEn: 'Vehicle Maintenance & Docs',
+            icon: Wrench,
+          },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                active
+                  ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1.5">
+                <span
+                  className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded ${
+                    active
+                      ? 'bg-white/20 text-white'
+                      : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
+                  }`}
+                >
+                  {tab.step}
+                </span>
+                <Icon className="h-4 w-4 opacity-85" />
+              </div>
+              <div>
+                <div className="text-xs font-bold leading-tight">{tab.titleBn}</div>
+                <div
+                  className={`text-[10px] mt-0.5 ${
+                    active ? 'text-emerald-100' : 'text-slate-400'
+                  }`}
+                >
+                  {tab.titleEn}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* =====================================================================
+          TAB 1: প্রতিটি ট্রাকের Profile ও Trip Report Card (যেমন TRUCK-001)
+         ===================================================================== */}
+      {activeSubTab === 'PROFILE_OVERVIEW' && selectedOp && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: Exact Truck Profile Table as in User Prompt */}
+          <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <span className="text-xs font-mono font-bold text-emerald-600 uppercase">
+                  Vehicle Digital Profile
+                </span>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {selectedOp.tripOrVehicleCode} — {selectedOp.registrationNumber}
+                </h3>
+              </div>
+              <span className="px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                Active
+              </span>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
+                    <th className="py-2.5 px-4 w-2/5">বিষয় (Field)</th>
+                    <th className="py-2.5 px-4">তথ্য (Information)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      Vehicle ID (গাড়ির আইডি)
+                    </td>
+                    <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {selectedOp.tripOrVehicleCode}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      Registration Number
+                    </td>
+                    <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
+                      {selectedOp.registrationNumber}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      গাড়ির ধরন ও কেনার দাম
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold">{selectedOp.vehicleType}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      চালক (Driver Name)
+                    </td>
+                    <td className="py-2.5 px-4 font-bold">{selectedOp.driverName}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      ফিটনেস ও ট্যাক্স টোকেনের মেয়াদ
+                    </td>
+                    <td className="py-2.5 px-4 font-mono">
+                      ফিটনেস: {selectedOp.fitnessExpiry} | ট্যাক্স টোকেন: {selectedOp.taxTokenExpiry}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      ইন্স্যুরেন্স ও পরবর্তী সার্ভিসিং
+                    </td>
+                    <td className="py-2.5 px-4 font-mono">
+                      ইন্স্যুরেন্স: {selectedOp.insuranceExpiry} | সার্ভিসিং: {selectedOp.nextServiceDate}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      রক্ষণাবেক্ষণ নোট
+                    </td>
+                    <td className="py-2.5 px-4">{selectedOp.maintenanceDetails}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Right: Exact Trip Report Card (TRUCK-001 – Trip Report) as in User Prompt */}
+          <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {selectedOp.tripOrVehicleCode} – Trip Report
+                </h3>
+                <p className="text-xs text-slate-500">
+                  তারিখ: {selectedOp.date} · ক্রেতা: {selectedOp.customerName}
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                {selectedOp.status === 'completed' ? 'Completed' : selectedOp.status}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                <div className="text-[11px] text-slate-500">রুট (Route)</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                  {selectedOp.origin} → {selectedOp.destination} ({selectedOp.distanceKm} কি.মি.)
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                <div className="text-[11px] text-slate-500">ট্রিপ ভাড়া (Trip Revenue)</div>
+                <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                  {formatBDT(selTripRevenue)}
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
+                    <th className="py-2.5 px-4">খরচ (Expense Head)</th>
+                    <th className="py-2.5 px-4 text-right">টাকা (BDT)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold">ডিজেল (Diesel / Fuel Cost)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold">
+                      {formatBDT(selDiesel)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold">টোল (Bridge & Highway Toll)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold">
+                      {formatBDT(selToll)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold">চালকের ভাতা (Driver Allowance)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold">
+                      {formatBDT(selAllowance)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold">অন্যান্য ও রক্ষণাবেক্ষণ (Other)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold">
+                      {formatBDT(selOtherMaint)}
+                    </td>
+                  </tr>
+                  <tr className="bg-amber-50/70 dark:bg-amber-950/20 font-bold">
+                    <td className="py-2.5 px-4">মোট খরচ (Total Trip Expense)</td>
+                    <td className="py-2.5 px-4 text-right font-mono text-amber-700 dark:text-amber-400">
+                      {formatBDT(selTotalTripCost)}
+                    </td>
+                  </tr>
+                  <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
+                    <td className="py-3 px-4">ট্রিপের লাভ (Net Trip Profit)</td>
+                    <td
+                      className={`py-3 px-4 text-right font-mono text-base ${
+                        selTripProfit >= 0
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-red-600'
+                      }`}
+                    >
+                      {formatBDT(selTripProfit)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB A: Trip Management (নতুন ট্রিপ ও ভাড়ার হিসাব এন্ট্রি)
+         ===================================================================== */}
+      {activeSubTab === 'A_TRIP_MANAGEMENT' && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 max-w-4xl space-y-4">
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Plus className="h-4 w-4 text-emerald-600" />
+            A. নতুন ট্রিপ ও গাড়ির ভাড়ার হিসাব লিখুন (Trip Management)
+          </h3>
+
+          <form onSubmit={handleCreateTripA} className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block font-semibold mb-1">Vehicle / Trip ID *</label>
+                <input
+                  type="text"
+                  required
+                  value={aVehicleCode}
+                  onChange={(e) => setAVehicleCode(e.target.value)}
+                  placeholder="TRUCK-001"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">Registration Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={aRegNo}
+                  onChange={(e) => setARegNo(e.target.value)}
+                  placeholder="ঢাকা মেট্রো-ট-১২-৩৪৫৬"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">গাড়ির ধরন</label>
+                <input
+                  type="text"
+                  value={aVehicleType}
+                  onChange={(e) => setAVehicleType(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">চালকের নাম (Driver) *</label>
+                <input
+                  type="text"
+                  required
+                  value={aDriverName}
+                  onChange={(e) => setADriverName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block font-semibold mb-1">ট্রিপের তারিখ</label>
+                <input
+                  type="date"
+                  value={aTripDate}
+                  onChange={(e) => setATripDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">কোথা থেকে (Origin) *</label>
+                <input
+                  type="text"
+                  required
+                  value={aOrigin}
+                  onChange={(e) => setAOrigin(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">কোথায় যাবে (Destination) *</label>
+                <input
+                  type="text"
+                  required
+                  value={aDestination}
+                  onChange={(e) => setADestination(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">যাত্রার দূরত্ব (কি.মি.)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={aDistanceKm}
+                  onChange={(e) => setADistanceKm(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold mb-1">কোন পণ্য বহন করছে? (Cargo)</label>
+                <input
+                  type="text"
+                  value={aCargoDetails}
+                  onChange={(e) => setACargoDetails(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">ক্রেতা / পার্টির নাম</label>
+                <input
+                  type="text"
+                  value={aCustomerName}
+                  onChange={(e) => setACustomerName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">ট্রিপ শেষ হয়েছে কি না?</label>
+                <select
+                  value={aTripStatus}
+                  onChange={(e) => setATripStatus(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-bold"
+                >
+                  <option value="completed">হ্যাঁ — Completed (সম্পন্ন)</option>
+                  <option value="active">চলমান (On Route / Active)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+              <div>
+                <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
+                  ট্রিপ ভাড়া (৳) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={aTripRevenue}
+                  onChange={(e) => setATripRevenue(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">ডিজেল খরচ (৳)</label>
+                <input
+                  type="number"
+                  value={aDieselCost}
+                  onChange={(e) => setADieselCost(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">টোল খরচ (৳)</label>
+                <input
+                  type="number"
+                  value={aTollCost}
+                  onChange={(e) => setATollCost(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">চালকের ভাতা (৳)</label>
+                <input
+                  type="number"
+                  value={aDriverAllowance}
+                  onChange={(e) => setADriverAllowance(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">অন্যান্য খরচ (৳)</label>
+                <input
+                  type="number"
+                  value={aOtherTripCost}
+                  onChange={(e) => setAOtherTripCost(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">বকেয়া (Due ৳)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={aDueAmount}
+                  onChange={(e) => setADueAmount(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="text-[11px] text-slate-500">মোট ভাড়া</div>
+                <div className="text-sm font-mono font-bold">{formatBDT(aTripRevenue)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-500">মোট খরচ</div>
+                <div className="text-sm font-mono font-bold text-amber-600">
+                  {formatBDT(formTotalTripExpense)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-500">ট্রিপের নিট লাভ</div>
+                <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                  {formatBDT(formNetTripProfit)}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+            >
+              + নতুন ট্রিপ ও লাভ-ক্ষতি সেভ করুন
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB B: Vehicle Maintenance & Expiry Reminder (ইঞ্জিন অয়েল, টায়ার, ফিটনেস, ট্যাক্স টোকেন)
+         ===================================================================== */}
+      {activeSubTab === 'B_MAINTENANCE_DOCS' && selectedOp && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 max-w-4xl space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-emerald-600" />
+                B. গাড়ির সার্ভিসিং, রক্ষণাবেক্ষণ ও কাগজপত্রের মেয়াদ রিমাইন্ডার ({selectedOp.tripOrVehicleCode})
+              </h3>
+              <p className="text-xs text-slate-500">
+                ইঞ্জিন অয়েল, টায়ার, মেরামত খরচ, ড্রাইভারের বেতন, গাড়ি কতদিন বন্ধ ছিল এবং ফিটনেস/ট্যাক্স টোকেন/ইন্স্যুরেন্স মেয়াদের রিমাইন্ডার।
+              </p>
+            </div>
+            <Bell className="h-5 w-5 text-amber-500" />
+          </div>
+
+          <form onSubmit={handleRecordMaintenanceB} className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold mb-1">১. ইঞ্জিন অয়েল পরিবর্তন</label>
+                <input
+                  type="text"
+                  value={bEngineOilChange}
+                  onChange={(e) => setBEngineOilChange(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">২. টায়ার পরিবর্তন / চেকআপ</label>
+                <input
+                  type="text"
+                  value={bTyreChange}
+                  onChange={(e) => setBTyreChange(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">৩. গাড়ির সার্ভিসিং বিবরণ</label>
+                <input
+                  type="text"
+                  value={bServiceDetails}
+                  onChange={(e) => setBServiceDetails(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block font-semibold mb-1">৪. মেরামতের খরচ (Maintenance ৳)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={bMaintenanceCost}
+                  onChange={(e) => setBMaintenanceCost(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">৮. ড্রাইভারের মাসিক বেতন (৳)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={bDriverSalary}
+                  onChange={(e) => setBDriverSalary(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-red-600">
+                  ৯. গাড়ি কতদিন বন্ধ ছিল? (Downtime Days)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={bDowntimeDays}
+                  onChange={(e) => setBDowntimeDays(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block font-semibold mb-1 text-amber-600">
+                  ৫. ফিটনেসের মেয়াদ (Fitness Expiry)
+                </label>
+                <input
+                  type="date"
+                  value={bFitnessExpiry}
+                  onChange={(e) => setBFitnessExpiry(e.target.value)}
+                  className="w-full rounded-lg border border-amber-300 bg-amber-50/30 dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-amber-600">
+                  ৬. ট্যাক্স টোকেনের মেয়াদ (Tax Token)
+                </label>
+                <input
+                  type="date"
+                  value={bTaxTokenExpiry}
+                  onChange={(e) => setBTaxTokenExpiry(e.target.value)}
+                  className="w-full rounded-lg border border-amber-300 bg-amber-50/30 dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-amber-600">
+                  ৭. ইন্স্যুরেন্সের মেয়াদ (Insurance)
+                </label>
+                <input
+                  type="date"
+                  value={bInsuranceExpiry}
+                  onChange={(e) => setBInsuranceExpiry(e.target.value)}
+                  className="w-full rounded-lg border border-amber-300 bg-amber-50/30 dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">পরবর্তী সার্ভিসিং তারিখ</label>
+                <input
+                  type="date"
+                  value={bNextServiceDate}
+                  onChange={(e) => setBNextServiceDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+            >
+              + রক্ষণাবেক্ষণ খরচ ও মেয়াদ শেষ হওয়ার Reminder সেভ করুন
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}

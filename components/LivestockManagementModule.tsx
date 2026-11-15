@@ -1,0 +1,2515 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import {
+  Beef,
+  ShieldCheck,
+  Search,
+  Plus,
+  Milk,
+  Utensils,
+  Stethoscope,
+  GitBranch,
+  BadgeDollarSign,
+  Calendar,
+  TrendingUp,
+  CheckCircle2,
+  Baby,
+  QrCode,
+  Scale,
+  AlertCircle,
+} from 'lucide-react';
+import {
+  ErpBusiness,
+  ErpLivestockRecord,
+  ErpInventoryItem,
+  ErpJournalEntry,
+  ErpAccount,
+  ErpAuditLog,
+  formatBDT,
+} from '@/lib/erp-types';
+import {
+  createLivestockAnimalRecord,
+  updateLivestockAnimalRecord,
+  recordStockMovement,
+  postDoubleEntryTransaction,
+  logAuditEvent,
+  createNotificationRecord,
+} from '@/lib/erp-service';
+
+interface LivestockManagementModuleProps {
+  activeBusiness: ErpBusiness;
+  species: 'cattle' | 'goat';
+  animals: ErpLivestockRecord[];
+  inventoryItems: ErpInventoryItem[];
+  journalEntries: ErpJournalEntry[];
+  accounts: ErpAccount[];
+  auditLogs: ErpAuditLog[];
+  ownerId: string;
+  actorEmail: string;
+  onNotify: (msg: string) => void;
+}
+
+type LivestockSubTab =
+  | 'A_PROFILE'
+  | 'B_MILK_WEIGHT'
+  | 'C_FEEDING'
+  | 'D_VET_BREEDING'
+  | 'E_FAMILY_TREE'
+  | 'F_SALE_PROFIT';
+
+export default function LivestockManagementModule({
+  activeBusiness,
+  species,
+  animals,
+  inventoryItems,
+  journalEntries,
+  accounts,
+  auditLogs,
+  ownerId,
+  actorEmail,
+  onNotify,
+}: LivestockManagementModuleProps) {
+  const isCattle = species === 'cattle';
+  const [activeSubTab, setActiveSubTab] = useState<LivestockSubTab>('A_PROFILE');
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [selectedAnimalId, setSelectedAnimalId] = useState<string>(animals[0]?.id || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Filter animals by Tag ID, Name, Breed, Parent Tag, Health Status
+  const filteredAnimals = useMemo(() => {
+    const q = tagSearchQuery.trim().toLowerCase();
+    if (!q) return animals;
+    return animals.filter(
+      (a) =>
+        a.animalTag.toLowerCase().includes(q) ||
+        a.name.toLowerCase().includes(q) ||
+        a.breed.toLowerCase().includes(q) ||
+        a.parentTag.toLowerCase().includes(q) ||
+        a.healthStatus.toLowerCase().includes(q)
+    );
+  }, [animals, tagSearchQuery]);
+
+  const selectedAnimal = useMemo(() => {
+    return (
+      animals.find((a) => a.id === selectedAnimalId) ||
+      filteredAnimals[0] ||
+      animals[0] ||
+      null
+    );
+  }, [animals, filteredAnimals, selectedAnimalId]);
+
+  // Feed inventory items
+  const feedInventory = useMemo(
+    () =>
+      inventoryItems.filter(
+        (i) =>
+          i.category === 'feed' &&
+          (i.businessId === activeBusiness.id ||
+            i.businessName.toLowerCase().includes(isCattle ? 'cattle' : 'goat'))
+      ),
+    [inventoryItems, activeBusiness.id, isCattle]
+  );
+
+  // ============================================================================
+  // A. নতুন গরু / ছাগল প্রোফাইল রেজিস্ট্রেশন (Digital Profile State)
+  // ============================================================================
+  const [aTag, setATag] = useState(
+    isCattle ? `CAT-000${animals.length + 1}` : `GOAT-000${animals.length + 1}`
+  );
+  const [aName, setAName] = useState(isCattle ? 'লক্ষ্মী (Laxmi)' : 'কুষ্টিয়া ব্ল্যাক পার্ল');
+  const [aPurposeType, setAPurposeType] = useState(
+    isCattle ? 'Dairy Cow (দুধের গাভী)' : 'Breeding Doe (প্রজননক্ষম মা ছাগল)'
+  );
+  const [aBreed, setABreed] = useState(
+    isCattle ? 'Holstein Cross (হলস্টেইন ক্রস)' : 'Black Bengal (ব্ল্যাক বেঙ্গল)'
+  );
+  const [aGender, setAGender] = useState<'Female' | 'Male'>('Female');
+  const [aBirthYear, setABirthYear] = useState('2024');
+  const [aPurchaseDate, setAPurchaseDate] = useState('2025-01-15');
+  const [aAgeMonths, setAAgeMonths] = useState(isCattle ? 24 : 18);
+  const [aPurchasePrice, setAPurchasePrice] = useState(isCattle ? 80000 : 14500);
+  const [aWeightKg, setAWeightKg] = useState(isCattle ? 350 : 26);
+  const [aHealthStatus, setAHealthStatus] = useState<
+    'Healthy' | 'Under Observation' | 'Treatment' | 'Pregnant' | 'Lactating' | 'Sold'
+  >(isCattle ? 'Lactating' : 'Healthy');
+  const [aSireTag, setASireTag] = useState(isCattle ? 'BULL-AF-88' : 'GOAT-0002');
+  const [aDamTag, setADamTag] = useState(isCattle ? 'CAT-DAM-01' : 'GOAT-0001');
+
+  // ============================================================================
+  // B. দুধ উৎপাদন (Morning + Evening) ও ওজন বৃদ্ধি (Milk & Weight State)
+  // ============================================================================
+  const [bMilkDate, setBMilkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bMorningLiters, setBMorningLiters] = useState(isCattle ? 6 : 1.2);
+  const [bEveningLiters, setBEveningLiters] = useState(isCattle ? 5 : 0.8);
+  const [bFarmUseLiters, setBFarmUseLiters] = useState(0);
+  const [bWastedLiters, setBWastedLiters] = useState(0);
+  const [bMilkPricePerLiter, setBMilkPricePerLiter] = useState(isCattle ? 80 : 120);
+  const [bMilkBuyer, setBMilkBuyer] = useState('আড়ং ডেইরি চিলিং পয়েন্ট / স্থানীয় ক্রেতা');
+
+  const totalDailyMilk = Number((Number(bMorningLiters) + Number(bEveningLiters)).toFixed(2));
+  const soldDailyMilk = Math.max(
+    0,
+    Number((totalDailyMilk - Number(bFarmUseLiters) - Number(bWastedLiters)).toFixed(2))
+  );
+  const dailyMilkRevenue = Math.round(soldDailyMilk * Number(bMilkPricePerLiter));
+
+  // Weight & Fattening (ADG) State
+  const [wMeasureDate, setWMeasureDate] = useState(new Date().toISOString().split('T')[0]);
+  const [wNewWeightKg, setWNewWeightKg] = useState(
+    selectedAnimal ? selectedAnimal.currentWeightKg + (isCattle ? 12 : 2) : isCattle ? 362 : 28
+  );
+  const [wTargetWeightKg, setWTargetWeightKg] = useState(isCattle ? 450 : 38);
+  const [wExpectedPricePerKg, setWExpectedPricePerKg] = useState(isCattle ? 650 : 1100);
+  const [wNotes, setWNotes] = useState('মাসিক ওজন পরিমাপ — শারীরিক বৃদ্ধি সন্তোষজনক');
+
+  // ============================================================================
+  // C. খাবারের হিসাব — একক ও যৌথ (Individual & Group Feeding State)
+  // ============================================================================
+  const [cFeedMode, setCFeedMode] = useState<
+    'individual' | 'group_equal' | 'group_weight_ratio'
+  >('individual');
+  const [cGrassKg, setCGrassKg] = useState(isCattle ? 10 : 3);
+  const [cGrassRate, setCGrassRate] = useState(8);
+  const [cStrawKg, setCStrawKg] = useState(isCattle ? 3 : 0.5);
+  const [cStrawRate, setCStrawRate] = useState(15);
+  const [cBranKg, setCBranKg] = useState(isCattle ? 2 : 0.5);
+  const [cBranRate, setCBranRate] = useState(55);
+  const [cOtherKg, setCOtherKg] = useState(isCattle ? 1 : 0.2);
+  const [cOtherRate, setCOtherRate] = useState(70);
+  const [cDaysCount, setCDaysCount] = useState(1);
+  const [cSelectedInvId, setCSelectedInvId] = useState('');
+
+  const dailyRationKg =
+    Number(cGrassKg) + Number(cStrawKg) + Number(cBranKg) + Number(cOtherKg);
+  const dailyRationCost =
+    Number(cGrassKg) * Number(cGrassRate) +
+    Number(cStrawKg) * Number(cStrawRate) +
+    Number(cBranKg) * Number(cBranRate) +
+    Number(cOtherKg) * Number(cOtherRate);
+  const totalPeriodFeedCost = Math.round(dailyRationCost * Number(cDaysCount));
+  const monthlyEstimatedFeedCost = Math.round(dailyRationCost * 30);
+
+  // ============================================================================
+  // D. চিকিৎসা, ভ্যাকসিন, গর্ভধারণ ও বাচ্চা জন্ম (Vet, Breeding & Newborn Offspring)
+  // ============================================================================
+  const [dDiseaseName, setDDiseaseName] = useState('রুটিন স্বাস্থ্য পরীক্ষা ও কৃমিনাশক');
+  const [dDoctorName, setDDoctorName] = useState('ডা. কামরুল ইসলাম (DVM)');
+  const [dTreatDate, setDTreatDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dMedicineName, setDMedicineName] = useState('Ivermectin + Livavet + Calcium');
+  const [dMedCost, setDMedCost] = useState(isCattle ? 1500 : 450);
+  const [dVaccineName, setDVaccineName] = useState(
+    isCattle ? 'FMD (ক্ষুরা রোগ টিকা)' : 'PPR (পিপিআর ভ্যাকসিন)'
+  );
+  const [dVaccineDate, setDVaccineDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dNextVaccineDate, setDNextVaccineDate] = useState('2027-05-12');
+  const [dIsPregnant, setDIsPregnant] = useState(false);
+  const [dBreedingDate, setDBreedingDate] = useState('2026-09-10');
+  const [dSireUsed, setDSireUsed] = useState(
+    isCattle ? 'হলস্টেইন ফ্রিজিয়ান সিমেন #AF-88' : 'পাঠা ছাগল GOAT-0002'
+  );
+
+  // Auto-calculate expected delivery date (Cattle: ~283 days, Goat: ~150 days)
+  const expectedDeliveryDate = useMemo(() => {
+    if (!dBreedingDate) return '';
+    const d = new Date(dBreedingDate);
+    if (isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() + (isCattle ? 283 : 150));
+    return d.toISOString().split('T')[0];
+  }, [dBreedingDate, isCattle]);
+
+  // Newborn Calf / Kid Generator State
+  const [newbornTag, setNewbornTag] = useState(
+    isCattle ? `CAT-000${animals.length + 2}` : `GOAT-000${animals.length + 2}`
+  );
+  const [newbornName, setNewbornName] = useState(
+    isCattle ? 'নতুন বাছুর ( মা: লক্ষ্মী )' : 'নতুন ছাগলছানা (Kid)'
+  );
+  const [newbornGender, setNewbornGender] = useState<'Female' | 'Male'>('Female');
+  const [newbornWeight, setNewbornWeight] = useState(isCattle ? 28 : 2.2);
+  const [newbornSireTag, setNewbornSireTag] = useState(
+    isCattle ? 'BULL-AF-88' : 'GOAT-0002'
+  );
+  const [newbornBirthDate, setNewbornBirthDate] = useState(
+    new Date().toISOString().split('T')[0]
+  );
+
+  // ============================================================================
+  // F. পশু বিক্রির হিসাব ও Lifetime Profit (Sale & Profit State)
+  // ============================================================================
+  const [fSalePrice, setFSalePrice] = useState(isCattle ? 120000 : 32000);
+  const [fBuyerName, setFBuyerName] = useState('সাভার ডেইরি অ্যান্ড মিট মার্ট');
+  const [fSaleDate, setFSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [fPaymentMethod, setFPaymentMethod] = useState<'Cash' | 'Bank' | 'Mobile Payment'>('Cash');
+  const [fDueAmount, setFDueAmount] = useState(0);
+  const [fMarkAsSold, setFMarkAsSold] = useState(false);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  // 1-Click Load User's Exact Prompt Example: CAT-0001 (লক্ষ্মী) or GOAT-0001 Family Tree
+  const handleLoadPromptExample = async () => {
+    setIsSubmitting(true);
+    try {
+      if (isCattle) {
+        await createLivestockAnimalRecord(
+          {
+            animalTag: 'CAT-0001',
+            species: 'cattle',
+            businessId: activeBusiness.id,
+            name: 'লক্ষ্মী (Laxmi - Dairy Cow)',
+            breed: 'Holstein Cross (হলস্টেইন ক্রস)',
+            gender: 'Female',
+            ageMonths: 28,
+            purchaseDate: '2025-01-10',
+            purchasePrice: 80000,
+            currentWeightKg: 350,
+            healthStatus: 'Lactating',
+            feedCost: 18000,
+            medicineAndVetCost: 7000,
+            vaccinationHistory: 'FMD (ক্ষুরা রোগ), Anthrax ও BQ ভ্যাকসিন সম্পন্ন | পরবর্তী: 2027-03-15',
+            breedingAndOffspringNotes:
+              'জন্ম: ২০২৪ | কেনা: ২০২৫ | বর্তমান অবস্থা: প্রতিদিন দুধ দেয় (সকাল ৬ লি. + বিকেল ৫ লি. = ১১ লি.)',
+            parentTag: 'Sire: HF-AU-88 | Dam: CAT-0000',
+            totalMilkLiters: 330,
+            milkSalesRevenue: 26400,
+            animalSalePrice: 120000,
+            status: 'active',
+          },
+          ownerId,
+          actorEmail
+        );
+
+        await logAuditEvent({
+          action: 'DAILY_MILK_LOG',
+          module: 'Cattle Management',
+          businessId: activeBusiness.id,
+          details:
+            '[CAT-0001 | লক্ষ্মী] তারিখ: 2026-11-12 | সকাল: 6 লিটার | বিকেল: 5 লিটার | মোট: 11 লিটার | বিক্রি: 11 লিটার @ ৳80 = ৳880',
+          severity: 'info',
+          actorEmail,
+          ownerId,
+        });
+
+        onNotify(
+          'উদাহরণের গাভী CAT-0001 (নাম: লক্ষ্মী, ক্রয়মূল্য ৳৮০,০০০, বরাদ্দ খরচ ৳২৫,০০০, বিক্রয়মূল্য ৳১,২০,০০০, প্রকৃত লাভ ৳১৫,০০০ + দুধের আয়) সফলভাবে লোড হয়েছে!'
+        );
+      } else {
+        // Create Mother Goat + 2 Offspring Kids so Family Tree works out of the box
+        await createLivestockAnimalRecord(
+          {
+            animalTag: 'GOAT-0001',
+            species: 'goat',
+            businessId: activeBusiness.id,
+            name: 'কালো মানিক (Mother Doe)',
+            breed: 'Black Bengal Purebred',
+            gender: 'Female',
+            ageMonths: 24,
+            purchaseDate: '2025-04-10',
+            purchasePrice: 14000,
+            currentWeightKg: 28,
+            healthStatus: 'Healthy',
+            feedCost: 4200,
+            medicineAndVetCost: 800,
+            vaccinationHistory: 'PPR ভ্যাকসিন ও কৃমিনাশক সম্পন্ন',
+            breedingAndOffspringNotes:
+              '২টি বাচ্চা দিয়েছে (GOAT-K01 ও GOAT-K02) | পুনরায় গর্ভবতী',
+            parentTag: 'Sire: ROOT-BUCK | Dam: ROOT-DOE',
+            totalMilkLiters: 0,
+            milkSalesRevenue: 0,
+            animalSalePrice: 28000,
+            status: 'active',
+          },
+          ownerId,
+          actorEmail
+        );
+
+        await createLivestockAnimalRecord(
+          {
+            animalTag: 'GOAT-K01',
+            species: 'goat',
+            businessId: activeBusiness.id,
+            name: 'বিজলি (১ম বাচ্চা - মাদি)',
+            breed: 'Black Bengal Purebred',
+            gender: 'Female',
+            ageMonths: 7,
+            purchaseDate: '2026-04-12',
+            purchasePrice: 0,
+            currentWeightKg: 14,
+            healthStatus: 'Healthy',
+            feedCost: 1600,
+            medicineAndVetCost: 300,
+            vaccinationHistory: 'PPR ১ম ডোজ সম্পন্ন',
+            breedingAndOffspringNotes: 'খামারে জন্ম (জন্ম তারিখ: ১২ এপ্রিল ২০২৬)',
+            parentTag: 'Sire: GOAT-0002 | Dam: GOAT-0001',
+            totalMilkLiters: 0,
+            milkSalesRevenue: 0,
+            animalSalePrice: 15000,
+            status: 'active',
+          },
+          ownerId,
+          actorEmail
+        );
+
+        await createLivestockAnimalRecord(
+          {
+            animalTag: 'GOAT-K02',
+            species: 'goat',
+            businessId: activeBusiness.id,
+            name: 'তুফান (২য় বাচ্চা - খাসি)',
+            breed: 'Black Bengal Purebred',
+            gender: 'Male',
+            ageMonths: 7,
+            purchaseDate: '2026-04-12',
+            purchasePrice: 0,
+            currentWeightKg: 16,
+            healthStatus: 'Healthy',
+            feedCost: 1800,
+            medicineAndVetCost: 300,
+            vaccinationHistory: 'PPR ১ম ডোজ সম্পন্ন',
+            breedingAndOffspringNotes: 'খামারে জন্ম (জন্ম তারিখ: ১২ এপ্রিল ২০২৬)',
+            parentTag: 'Sire: GOAT-0002 | Dam: GOAT-0001',
+            totalMilkLiters: 0,
+            milkSalesRevenue: 0,
+            animalSalePrice: 18000,
+            status: 'active',
+          },
+          ownerId,
+          actorEmail
+        );
+
+        onNotify(
+          'মা ছাগল GOAT-0001 এবং তার ২টি বাচ্চা (GOAT-K01 ও GOAT-K02) সহ সম্পূর্ণ Family Tree লোড করা হয়েছে!'
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler A: Register New Cattle or Goat Digital Profile
+  const handleCreateAnimalA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const parentStr = `Sire: ${aSireTag || 'N/A'} | Dam: ${aDamTag || 'N/A'}`.slice(0, 40);
+      const profileNotes = `ধরন: ${aPurposeType} | জন্ম সাল: ${aBirthYear} | কেনা: ${aPurchaseDate}`.slice(
+        0,
+        300
+      );
+
+      await createLivestockAnimalRecord(
+        {
+          animalTag: aTag,
+          species,
+          businessId: activeBusiness.id,
+          name: aName,
+          breed: aBreed,
+          gender: aGender,
+          ageMonths: Number(aAgeMonths),
+          purchaseDate: aPurchaseDate,
+          purchasePrice: Number(aPurchasePrice),
+          currentWeightKg: Number(aWeightKg),
+          healthStatus: aHealthStatus,
+          feedCost: 0,
+          medicineAndVetCost: 0,
+          vaccinationHistory: isCattle
+            ? 'প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন (FMD/BQ Scheduled)'
+            : 'প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন (PPR Scheduled)',
+          breedingAndOffspringNotes: profileNotes,
+          parentTag: parentStr,
+          totalMilkLiters: 0,
+          milkSalesRevenue: 0,
+          animalSalePrice: 0,
+          status: 'active',
+        },
+        ownerId,
+        actorEmail
+      );
+
+      // Post purchase cost to Central Accounting if > 0
+      const cashOrBank =
+        accounts.find((a) => a.subType === 'cash' || a.subType === 'bank') || accounts[0];
+      const expAcc = accounts.find((a) => a.accountType === 'expense') || accounts[0];
+      if (cashOrBank && expAcc && Number(aPurchasePrice) > 0) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: `BUY-${aTag}`,
+            date: aPurchaseDate,
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'purchase',
+            category: `${isCattle ? 'গরু' : 'ছাগল'} ক্রয় (${aTag})`,
+            description: `${aTag} (${aName} - ${aBreed}), ওজন: ${aWeightKg} কেজি, ধরন: ${aPurposeType}`,
+            debitAccountId: expAcc.id,
+            debitAccountName: expAcc.name,
+            creditAccountId: cashOrBank.id,
+            creditAccountName: cashOrBank.name,
+            amount: Number(aPurchasePrice),
+            paymentStatus: 'paid',
+            dueAmount: 0,
+            counterpartyName: 'খামার পশু হাট / ব্রিডার',
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      onNotify(
+        `নতুন ডিজিটাল প্রোফাইল ${aTag} (${aName}, ক্রয়মূল্য ${formatBDT(Number(aPurchasePrice))}) সফলভাবে তৈরি হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler B1: Daily Morning + Evening Milk Production Log
+  const handleRecordDailyMilkB = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    setIsSubmitting(true);
+    try {
+      const updatedLiters = Number(
+        (selectedAnimal.totalMilkLiters + soldDailyMilk).toFixed(2)
+      );
+      const updatedRev = selectedAnimal.milkSalesRevenue + dailyMilkRevenue;
+
+      await updateLivestockAnimalRecord(
+        selectedAnimal,
+        {
+          totalMilkLiters: updatedLiters,
+          milkSalesRevenue: updatedRev,
+          healthStatus: 'Lactating',
+        },
+        actorEmail
+      );
+
+      await logAuditEvent({
+        action: 'DAILY_MILK_LOG',
+        module: isCattle ? 'Cattle Management' : 'Goat Management',
+        businessId: activeBusiness.id,
+        details: `[${selectedAnimal.animalTag} | ${selectedAnimal.name}] তারিখ: ${bMilkDate} | সকাল: ${bMorningLiters} লি. | বিকেল: ${bEveningLiters} লি. | মোট: ${totalDailyMilk} লি. | বিক্রি: ${soldDailyMilk} লি. | খামারে ব্যবহার: ${bFarmUseLiters} লি. | নষ্ট: ${bWastedLiters} লি. | দর: ৳${bMilkPricePerLiter} | আয়: ৳${dailyMilkRevenue}`,
+        severity: 'info',
+        actorEmail,
+        ownerId,
+      });
+
+      const cashOrBank =
+        accounts.find((a) => a.subType === 'cash' || a.subType === 'bank') || accounts[0];
+      const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
+      if (cashOrBank && revAcc && dailyMilkRevenue > 0) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: `MLK-${selectedAnimal.animalTag}-${Date.now().toString().slice(-4)}`,
+            date: bMilkDate,
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'sale',
+            category: `দুধ বিক্রি (${selectedAnimal.animalTag} - ${selectedAnimal.name})`,
+            description: `তারিখ: ${bMilkDate} | সকাল ${bMorningLiters} লি. + বিকেল ${bEveningLiters} লি. = মোট ${totalDailyMilk} লিটার (বিক্রি ${soldDailyMilk} লি. @ ৳${bMilkPricePerLiter})`,
+            debitAccountId: cashOrBank.id,
+            debitAccountName: cashOrBank.name,
+            creditAccountId: revAcc.id,
+            creditAccountName: revAcc.name,
+            amount: dailyMilkRevenue,
+            paymentStatus: 'paid',
+            dueAmount: 0,
+            counterpartyName: bMilkBuyer,
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      onNotify(
+        `${selectedAnimal.animalTag} (${selectedAnimal.name})-এর আজকের দুধ উৎপাদন: সকাল ${bMorningLiters} লি. + বিকেল ${bEveningLiters} লি. = ${totalDailyMilk} লিটার (আয় ${formatBDT(dailyMilkRevenue)}) সংরক্ষিত হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler B2: Weight Growth Update
+  const handleUpdateWeightB = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    setIsSubmitting(true);
+    try {
+      const prevWeight = selectedAnimal.currentWeightKg;
+      const diff = Number((Number(wNewWeightKg) - prevWeight).toFixed(1));
+      await updateLivestockAnimalRecord(
+        selectedAnimal,
+        {
+          currentWeightKg: Number(wNewWeightKg),
+        },
+        actorEmail
+      );
+
+      await logAuditEvent({
+        action: 'WEIGHT_GROWTH_LOG',
+        module: isCattle ? 'Cattle Management' : 'Goat Management',
+        businessId: activeBusiness.id,
+        details: `[${selectedAnimal.animalTag} | ${selectedAnimal.name}] তারিখ: ${wMeasureDate} | পূর্বের ওজন: ${prevWeight} কেজি ➔ বর্তমান ওজন: ${wNewWeightKg} কেজি (পরিবর্তন: ${diff >= 0 ? '+' : ''}${diff} কেজি) | টার্গেট: ${wTargetWeightKg} কেজি | নোট: ${wNotes}`,
+        severity: 'info',
+        actorEmail,
+        ownerId,
+      });
+
+      onNotify(
+        `${selectedAnimal.animalTag}-এর নতুন ওজন ${wNewWeightKg} কেজি (${diff >= 0 ? '+' : ''}${diff} কেজি) আপডেট হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler C: Individual or Group Feeding Allocation
+  const handleRecordFeedingC = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    setIsSubmitting(true);
+    try {
+      const activeHerd = animals.filter((a) => a.status === 'active');
+      const targets =
+        cFeedMode === 'individual' || activeHerd.length === 0
+          ? [selectedAnimal]
+          : activeHerd;
+
+      const totalHerdWeight = targets.reduce(
+        (sum, a) => sum + Math.max(1, a.currentWeightKg),
+        0
+      );
+
+      for (const animal of targets) {
+        let allocatedCost = totalPeriodFeedCost;
+        if (cFeedMode === 'group_equal') {
+          allocatedCost = Math.round(totalPeriodFeedCost / targets.length);
+        } else if (cFeedMode === 'group_weight_ratio') {
+          allocatedCost = Math.round(
+            (totalPeriodFeedCost * Math.max(1, animal.currentWeightKg)) / totalHerdWeight
+          );
+        }
+
+        await updateLivestockAnimalRecord(
+          animal,
+          {
+            feedCost: animal.feedCost + allocatedCost,
+          },
+          actorEmail
+        );
+      }
+
+      // Deduct from inventory if selected
+      const invItem = feedInventory.find((i) => i.id === cSelectedInvId);
+      if (invItem) {
+        const totalKgUsed = dailyRationKg * Number(cDaysCount);
+        await recordStockMovement(
+          invItem,
+          'consumption',
+          totalKgUsed,
+          invItem.warehouse,
+          cFeedMode === 'individual' ? selectedAnimal.animalTag : `Group Herd (${targets.length})`,
+          `ঘাস ${cGrassKg}kg, খড় ${cStrawKg}kg, ভুসি ${cBranKg}kg, অন্যান্য ${cOtherKg}kg (${cDaysCount} দিন)`,
+          actorEmail
+        );
+      }
+
+      const modeLabel =
+        cFeedMode === 'individual'
+          ? `একক পশু (${selectedAnimal.animalTag})`
+          : cFeedMode === 'group_equal'
+          ? `যৌথ খাবার (${targets.length}টি পশুর মধ্যে সমান বণ্টন)`
+          : `যৌথ খাবার (${targets.length}টি পশুর ওজন অনুপাতে বণ্টন)`;
+
+      await logAuditEvent({
+        action: 'LIVESTOCK_FEED_LOG',
+        module: isCattle ? 'Cattle Management' : 'Goat Management',
+        businessId: activeBusiness.id,
+        details: `[${modeLabel}] দৈনিক রেশন: ঘাস ${cGrassKg} কেজি, খড় ${cStrawKg} কেজি, ভুসি ${cBranKg} কেজি, অন্যান্য ${cOtherKg} কেজি (দৈনিক ৳${dailyRationCost} × ${cDaysCount} দিন = মোট ৳${totalPeriodFeedCost})`,
+        severity: 'info',
+        actorEmail,
+        ownerId,
+      });
+
+      onNotify(
+        `খাবারের হিসাব (${modeLabel}: মোট ${formatBDT(totalPeriodFeedCost)}) সফলভাবে প্রোফাইলে যুক্ত হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler D1: Veterinary Treatment, Vaccine & Pregnancy Update
+  const handleRecordVetAndBreedingD = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    setIsSubmitting(true);
+    try {
+      const newVacHistory = `${dVaccineName} (${dVaccineDate}, পরবর্তী: ${dNextVaccineDate}) | ডা. ${dDoctorName}`.slice(
+        0,
+        300
+      );
+      const newBreedingNotes = dIsPregnant
+        ? `গর্ভবতী (প্রজনন: ${dBreedingDate}, বীজ/পাঠা: ${dSireUsed}, সম্ভাব্য প্রসব: ${expectedDeliveryDate}) | রোগ/চিকিৎসা: ${dDiseaseName} (${dMedicineName})`.slice(
+            0,
+            300
+          )
+        : `${selectedAnimal.breedingAndOffspringNotes} | চিকিৎসা (${dTreatDate}): ${dDiseaseName} - ${dMedicineName}`.slice(
+            0,
+            300
+          );
+
+      await updateLivestockAnimalRecord(
+        selectedAnimal,
+        {
+          medicineAndVetCost: selectedAnimal.medicineAndVetCost + Number(dMedCost),
+          vaccinationHistory: newVacHistory,
+          breedingAndOffspringNotes: newBreedingNotes,
+          healthStatus: dIsPregnant ? 'Pregnant' : selectedAnimal.healthStatus,
+        },
+        actorEmail
+      );
+
+      // Create Vaccine Reminder Notification
+      if (dNextVaccineDate) {
+        await createNotificationRecord({
+          title: `টিকা ও প্রজনন রিমাইন্ডার: ${selectedAnimal.animalTag} (${selectedAnimal.name})`.slice(
+            0,
+            140
+          ),
+          message: `${selectedAnimal.animalTag}-এর পরবর্তী ভ্যাকসিন (${dVaccineName}): ${dNextVaccineDate}${
+            dIsPregnant ? ` | সম্ভাব্য বাচ্চা প্রসবের তারিখ: ${expectedDeliveryDate}` : ''
+          }`.slice(0, 400),
+          category: 'vaccination',
+          priority: 'high',
+          businessId: activeBusiness.id,
+        });
+      }
+
+      onNotify(
+        `${selectedAnimal.animalTag}-এর চিকিৎসা ও ভ্যাকসিন খরচ (${formatBDT(Number(dMedCost))}) এবং পরবর্তী ভ্যাকসিন রিমাইন্ডার (${dNextVaccineDate}) সেভ হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler D2: Register Newborn Calf / Goat Kid with Automatic Parent Linkage
+  const handleRegisterNewbornOffspring = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    setIsSubmitting(true);
+    try {
+      const parentLink = `Sire: ${newbornSireTag} | Dam: ${selectedAnimal.animalTag}`.slice(
+        0,
+        40
+      );
+
+      await createLivestockAnimalRecord(
+        {
+          animalTag: newbornTag,
+          species,
+          businessId: activeBusiness.id,
+          name: newbornName,
+          breed: selectedAnimal.breed,
+          gender: newbornGender,
+          ageMonths: 1,
+          purchaseDate: newbornBirthDate,
+          purchasePrice: 0, // Born on farm!
+          currentWeightKg: Number(newbornWeight),
+          healthStatus: 'Healthy',
+          feedCost: 0,
+          medicineAndVetCost: 0,
+          vaccinationHistory: 'খামারে সদ্যজাত — শালদুধ (Colostrum) প্রদান করা হয়েছে',
+          breedingAndOffspringNotes: `খামারে জন্ম: ${newbornBirthDate} | মা: ${selectedAnimal.animalTag} (${selectedAnimal.name})`,
+          parentTag: parentLink,
+          totalMilkLiters: 0,
+          milkSalesRevenue: 0,
+          animalSalePrice: 0,
+          status: 'active',
+        },
+        ownerId,
+        actorEmail
+      );
+
+      // Update Mother's breedingAndOffspringNotes to record the newborn ID
+      const updatedMotherNotes = `সন্তান জন্ম (${newbornBirthDate}): ${newbornTag} (${newbornName}) | ${selectedAnimal.breedingAndOffspringNotes}`.slice(
+        0,
+        300
+      );
+      await updateLivestockAnimalRecord(
+        selectedAnimal,
+        {
+          breedingAndOffspringNotes: updatedMotherNotes,
+          healthStatus: isCattle ? 'Lactating' : 'Healthy',
+        },
+        actorEmail
+      );
+
+      onNotify(
+        `অভিনন্দন! মা ${selectedAnimal.animalTag}-এর নতুন বাচ্চা ${newbornTag} (${newbornName}) স্বয়ংক্রিয় বংশলতিকা (Parent Link) সহ রেজিস্ট্রেশন হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler F: Animal Sale & Lifetime Profit Realization
+  const handleRecordAnimalSaleF = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    setIsSubmitting(true);
+    try {
+      await updateLivestockAnimalRecord(
+        selectedAnimal,
+        {
+          animalSalePrice: Number(fSalePrice),
+          status: fMarkAsSold ? 'sold' : selectedAnimal.status,
+          healthStatus: fMarkAsSold ? 'Sold' : selectedAnimal.healthStatus,
+        },
+        actorEmail
+      );
+
+      if (fMarkAsSold && Number(fSalePrice) > 0) {
+        const cashOrBank =
+          accounts.find((a) => a.subType === 'cash' || a.subType === 'bank') || accounts[0];
+        const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
+        if (cashOrBank && revAcc) {
+          await postDoubleEntryTransaction(
+            {
+              referenceNo: `SL-${selectedAnimal.animalTag}`,
+              date: fSaleDate,
+              businessId: activeBusiness.id,
+              businessName: activeBusiness.name,
+              transactionType: 'sale',
+              category: `${isCattle ? 'গরু' : 'ছাগল'} বিক্রি (${selectedAnimal.animalTag})`,
+              description: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed}), ওজন: ${selectedAnimal.currentWeightKg} কেজি | ক্রেতা: ${fBuyerName} | মাধ্যম: ${fPaymentMethod}`,
+              debitAccountId: cashOrBank.id,
+              debitAccountName: cashOrBank.name,
+              creditAccountId: revAcc.id,
+              creditAccountName: revAcc.name,
+              amount: Number(fSalePrice),
+              paymentStatus: Number(fDueAmount) > 0 ? 'partial' : 'paid',
+              dueAmount: Number(fDueAmount) || 0,
+              counterpartyName: fBuyerName,
+            },
+            accounts,
+            ownerId,
+            actorEmail
+          );
+        }
+      }
+
+      onNotify(
+        `${selectedAnimal.animalTag} (${selectedAnimal.name})-এর বিক্রয়মূল্য ${formatBDT(Number(fSalePrice))} আপডেট হয়েছে!`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Filter historical logs for milk, weight, and feeding
+  const milkHistoryLogs = useMemo(
+    () =>
+      auditLogs.filter(
+        (l) =>
+          l.action === 'DAILY_MILK_LOG' &&
+          (!selectedAnimal || l.details.includes(selectedAnimal.animalTag))
+      ),
+    [auditLogs, selectedAnimal]
+  );
+
+  const weightHistoryLogs = useMemo(
+    () =>
+      auditLogs.filter(
+        (l) =>
+          l.action === 'WEIGHT_GROWTH_LOG' &&
+          (!selectedAnimal || l.details.includes(selectedAnimal.animalTag))
+      ),
+    [auditLogs, selectedAnimal]
+  );
+
+  // Selected Animal Financial Calculations (Matches User's Exact Prompt Formula)
+  const animPurchasePrice = selectedAnimal?.purchasePrice || 0;
+  const animFeedCost = selectedAnimal?.feedCost || 0;
+  const animVetCost = selectedAnimal?.medicineAndVetCost || 0;
+  const animAllocatedCost = animFeedCost + animVetCost;
+  const animTotalInvestment = animPurchasePrice + animAllocatedCost;
+  const animSaleOrMarketVal =
+    selectedAnimal && selectedAnimal.animalSalePrice > 0
+      ? selectedAnimal.animalSalePrice
+      : selectedAnimal
+      ? selectedAnimal.currentWeightKg * (isCattle ? 620 : 1100)
+      : 0;
+  const animDirectSaleProfit = animSaleOrMarketVal - animTotalInvestment;
+  const animMilkRevenue = selectedAnimal?.milkSalesRevenue || 0;
+  const animLifetimeTotalProfit = animDirectSaleProfit + animMilkRevenue;
+
+  // Find children (offspring) of a given animal tag for Family Tree
+  const getOffspringOf = (parentTagCode: string) => {
+    return animals.filter(
+      (a) =>
+        a.id !== parentTagCode &&
+        (a.parentTag.toLowerCase().includes(parentTagCode.toLowerCase()) ||
+          a.breedingAndOffspringNotes.toLowerCase().includes(parentTagCode.toLowerCase()))
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* =====================================================================
+          TOP DIGITAL TAG SEARCH BAR & ANIMAL SELECTOR
+         ===================================================================== */}
+      <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              {isCattle ? <Beef className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+              <span>
+                {isCattle
+                  ? 'Cattle Farm — Individual Digital ID System (A to F)'
+                  : 'Goat Farm — Individual ID & Family Tree System (A to F)'}
+              </span>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              {isCattle
+                ? 'প্রতিটি গরুর আলাদা Digital ID, দুধ উৎপাদন, খাবার, চিকিৎসা, বাছুর ও আজীবন লাভ-ক্ষতি'
+                : 'প্রতিটি ছাগলের আলাদা Digital ID, বংশলতিকা (Family Tree), বাচ্চা, খাবার ও আজীবন লাভ-ক্ষতি'}
+            </h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              সার্চ বক্সে <span className="font-mono font-bold">{isCattle ? 'CAT-0001' : 'GOAT-0001'}</span> বা পশুর নাম লিখলেই ওই পশুর জন্ম থেকে বিক্রি পর্যন্ত সম্পূর্ণ ইতিহাস চলে আসবে।
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleLoadPromptExample}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {isCattle
+                ? 'উদাহরণ গরু (CAT-0001 লক্ষ্মী) লোড করুন'
+                : 'উদাহরণ ছাগল ও Family Tree লোড করুন'}
+            </button>
+
+            <div className="relative">
+              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={tagSearchQuery}
+                onChange={(e) => setTagSearchQuery(e.target.value)}
+                placeholder={`${isCattle ? 'CAT-0001 বা লক্ষ্মী' : 'GOAT-0001'} লিখে সার্চ করুন...`}
+                className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Animal Tag Selector Pills */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">
+            {isCattle ? 'গরুর Digital ID সিলেক্ট করুন:' : 'ছাগলের Digital ID সিলেক্ট করুন:'}
+          </span>
+          {filteredAnimals.map((a) => {
+            const isSelected = selectedAnimal?.id === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setSelectedAnimalId(a.id)}
+                className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-emerald-600 dark:border-emerald-500 shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
+                }`}
+              >
+                <span className="font-mono font-bold">{a.animalTag}</span>
+                <span>({a.name})</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                    isSelected
+                      ? 'bg-emerald-500/20 text-emerald-200'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {a.currentWeightKg} কেজি
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          6-STEP NAVIGATION TABS (A to F)
+         ===================================================================== */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        {[
+          {
+            id: 'A_PROFILE' as LivestockSubTab,
+            step: 'A',
+            titleBn: 'Digital ID ও প্রোফাইল',
+            titleEn: 'Digital Profile',
+            icon: QrCode,
+          },
+          {
+            id: 'B_MILK_WEIGHT' as LivestockSubTab,
+            step: 'B',
+            titleBn: isCattle ? 'দুধ উৎপাদন ও ওজন' : 'ওজন বৃদ্ধি ও দুধ',
+            titleEn: 'Milk & Weight Log',
+            icon: Milk,
+          },
+          {
+            id: 'C_FEEDING' as LivestockSubTab,
+            step: 'C',
+            titleBn: 'খাবারের খরচ (একক/যৌথ)',
+            titleEn: 'Individual & Group Feed',
+            icon: Utensils,
+          },
+          {
+            id: 'D_VET_BREEDING' as LivestockSubTab,
+            step: 'D',
+            titleBn: 'চিকিৎসা, প্রজনন ও বাচ্চা',
+            titleEn: 'Vet, Vaccine & Birth',
+            icon: Stethoscope,
+          },
+          {
+            id: 'E_FAMILY_TREE' as LivestockSubTab,
+            step: 'E',
+            titleBn: 'বংশলতিকা (Family Tree)',
+            titleEn: 'Parent & Kids Tree',
+            icon: GitBranch,
+          },
+          {
+            id: 'F_SALE_PROFIT' as LivestockSubTab,
+            step: 'F',
+            titleBn: 'বিক্রি ও প্রকৃত লাভ-ক্ষতি',
+            titleEn: 'Sale & Lifetime Profit',
+            icon: BadgeDollarSign,
+          },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                active
+                  ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1.5">
+                <span
+                  className={`text-[11px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    active
+                      ? 'bg-white/20 text-white'
+                      : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
+                  }`}
+                >
+                  ধাপ {tab.step}
+                </span>
+                <Icon className="h-4 w-4 opacity-85" />
+              </div>
+              <div>
+                <div className="text-xs font-bold leading-tight">{tab.titleBn}</div>
+                <div
+                  className={`text-[10px] mt-0.5 ${
+                    active ? 'text-emerald-100' : 'text-slate-400'
+                  }`}
+                >
+                  {tab.titleEn}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* =====================================================================
+          TAB A: প্রতিটি গরু / ছাগলের Digital Profile & New Registration
+         ===================================================================== */}
+      {activeSubTab === 'A_PROFILE' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: Selected Animal's Complete Digital ID Profile Card */}
+          <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-mono font-bold text-sm shadow-xs">
+                  {selectedAnimal ? selectedAnimal.animalTag.split('-')[0] : 'ID'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100">
+                      {selectedAnimal?.animalTag || 'N/A'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                      {selectedAnimal?.status === 'active' ? 'Active (সক্রিয়)' : selectedAnimal?.status}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {isCattle ? 'Cattle Digital Profile' : 'Goat Digital Profile'} —{' '}
+                    {selectedAnimal?.name}
+                  </p>
+                </div>
+              </div>
+              <QrCode className="h-8 w-8 text-slate-400" />
+            </div>
+
+            {selectedAnimal ? (
+              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      <th className="py-2.5 px-4 w-2/5">বিষয় (Field)</th>
+                      <th className="py-2.5 px-4">তথ্য (Information)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        Unique ID (ডিজিটাল ট্যাগ)
+                      </td>
+                      <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        {selectedAnimal.animalTag}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        নাম (Animal Name)
+                      </td>
+                      <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
+                        {selectedAnimal.name}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        ধরন ও লিঙ্গ (Type & Gender)
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {selectedAnimal.gender === 'Female'
+                          ? isCattle
+                            ? 'Dairy Cow / গাভী (Female)'
+                            : 'মা ছাগল / Doe (Female)'
+                          : isCattle
+                          ? 'ষাঁড় / Bull (Male)'
+                          : 'পাঠা বা খাসি / Buck (Male)'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        জাত ও বয়স (Breed & Age)
+                      </td>
+                      <td className="py-2.5 px-4 font-semibold">
+                        {selectedAnimal.breed} ({selectedAnimal.ageMonths} মাস)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        কেনার / জন্মের তারিখ
+                      </td>
+                      <td className="py-2.5 px-4 font-mono">{selectedAnimal.purchaseDate}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        ক্রয়মূল্য (Purchase Price)
+                      </td>
+                      <td className="py-2.5 px-4 font-mono font-bold">
+                        {selectedAnimal.purchasePrice > 0
+                          ? formatBDT(selectedAnimal.purchasePrice)
+                          : 'খামারে জন্ম (৳০)'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        বর্তমান ওজন (Current Weight)
+                      </td>
+                      <td className="py-2.5 px-4 font-mono font-bold text-slate-900 dark:text-slate-100">
+                        {selectedAnimal.currentWeightKg} কেজি
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        স্বাস্থ্য ও বর্তমান অবস্থা
+                      </td>
+                      <td className="py-2.5 px-4 font-bold text-emerald-700 dark:text-emerald-400">
+                        {selectedAnimal.healthStatus === 'Lactating'
+                          ? 'ভালো — দুধ দেয় (Lactating)'
+                          : selectedAnimal.healthStatus === 'Pregnant'
+                          ? 'ভালো — গর্ভবতী (Pregnant)'
+                          : selectedAnimal.healthStatus === 'Healthy'
+                          ? 'ভালো — সুস্থ (Healthy)'
+                          : selectedAnimal.healthStatus}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        বংশ ও বাবা-মায়ের পরিচয়
+                      </td>
+                      <td className="py-2.5 px-4 font-mono text-[11px]">
+                        {selectedAnimal.parentTag}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        ভ্যাকসিন ও চিকিৎসার ইতিহাস
+                      </td>
+                      <td className="py-2.5 px-4">{selectedAnimal.vaccinationHistory}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        প্রজনন ও বাচ্চা জন্মের ইতিহাস
+                      </td>
+                      <td className="py-2.5 px-4">{selectedAnimal.breedingAndOffspringNotes}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                        খাবার ও চিকিৎসার মোট খরচ
+                      </td>
+                      <td className="py-2.5 px-4 font-mono">
+                        খাবার: {formatBDT(selectedAnimal.feedCost)} + চিকিৎসা:{' '}
+                        {formatBDT(selectedAnimal.medicineAndVetCost)} ={' '}
+                        <span className="font-bold">
+                          {formatBDT(selectedAnimal.feedCost + selectedAnimal.medicineAndVetCost)}
+                        </span>
+                      </td>
+                    </tr>
+                    {isCattle && (
+                      <tr>
+                        <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                          মোট দুধ উৎপাদন ও আয়
+                        </td>
+                        <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                          {selectedAnimal.totalMilkLiters} লিটার ({formatBDT(selectedAnimal.milkSalesRevenue)})
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="bg-emerald-50/70 dark:bg-emerald-950/30">
+                      <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
+                        আজীবন নিট লাভ (Lifetime Profit)
+                      </td>
+                      <td className="py-2.5 px-4 font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                        {formatBDT(animLifetimeTotalProfit)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">কোনো পশু পাওয়া যায়নি। ডানপাশের ফর্ম থেকে যোগ করুন।</p>
+            )}
+          </div>
+
+          {/* Right: Register New Animal Digital ID Form */}
+          <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Plus className="h-4 w-4 text-emerald-600" />
+              নতুন {isCattle ? 'গরুর' : 'ছাগলের'} Digital Profile তৈরি করুন
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              খামারে নতুন {isCattle ? 'গরু' : 'ছাগল'} কিনলে বা যোগ করলে আলাদা ইউনিক আইডি দিয়ে নিবন্ধন করুন।
+            </p>
+
+            <form onSubmit={handleCreateAnimalA} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-semibold mb-1">
+                    Unique ID (ডিজিটাল ট্যাগ নাম্বার) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={aTag}
+                    onChange={(e) => setATag(e.target.value)}
+                    placeholder={isCattle ? 'CAT-0001' : 'GOAT-0001'}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">
+                    {isCattle ? 'গরুর নাম (Name) *' : 'ছাগলের নাম (Name) *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={aName}
+                    onChange={(e) => setAName(e.target.value)}
+                    placeholder={isCattle ? 'যেমন: লক্ষ্মী / সুলতান' : 'যেমন: কালো মানিক'}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-semibold mb-1">ধরন (Category / Type)</label>
+                  <select
+                    value={aPurposeType}
+                    onChange={(e) => setAPurposeType(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    {isCattle ? (
+                      <>
+                        <option value="Dairy Cow (দুধের গাভী)">Dairy Cow (দুধের গাভী)</option>
+                        <option value="Bull Fattening (কোরবানির ষাঁড়)">
+                          Bull Fattening (মোটাতাজাকরণ ষাঁড়)
+                        </option>
+                        <option value="Heifer / বকনা বাছুর">Heifer (বকনা বাছুর)</option>
+                        <option value="Breeding Bull (প্রজনন ষাঁড়)">
+                          Breeding Bull (প্রজনন ষাঁড়)
+                        </option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Breeding Doe (প্রজননক্ষম মা ছাগল)">
+                          Breeding Doe (মা ছাগল)
+                        </option>
+                        <option value="Meat Goat / খাসি">Meat Goat (মাংসের খাসি)</option>
+                        <option value="Breeding Buck (প্রজনন পাঠা)">
+                          Breeding Buck (প্রজনন পাঠা)
+                        </option>
+                        <option value="Kid / ছাগলছানা">Kid (ছাগলছানা)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">জাত (Breed)</label>
+                  <input
+                    type="text"
+                    value={aBreed}
+                    onChange={(e) => setABreed(e.target.value)}
+                    placeholder={isCattle ? 'Holstein Cross / Sahiwal' : 'Black Bengal / Jamunapari'}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">লিঙ্গ (Gender)</label>
+                  <select
+                    value={aGender}
+                    onChange={(e) => setAGender(e.target.value as 'Female' | 'Male')}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    <option value="Female">মাদি (Female)</option>
+                    <option value="Male">মর্দা (Male)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">জন্ম সাল (Birth Year)</label>
+                  <input
+                    type="text"
+                    value={aBirthYear}
+                    onChange={(e) => setABirthYear(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বয়স (মাস)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={aAgeMonths}
+                    onChange={(e) => setAAgeMonths(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">কেনার তারিখ</label>
+                  <input
+                    type="date"
+                    value={aPurchaseDate}
+                    onChange={(e) => setAPurchaseDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">ক্রয়মূল্য (৳)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={aPurchasePrice}
+                    onChange={(e) => setAPurchasePrice(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বর্তমান ওজন (কেজি)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step="0.5"
+                    value={aWeightKg}
+                    onChange={(e) => setAWeightKg(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">বর্তমান অবস্থা</label>
+                  <select
+                    value={aHealthStatus}
+                    onChange={(e) => setAHealthStatus(e.target.value as any)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    <option value="Lactating">দুধ দেয় (Lactating)</option>
+                    <option value="Healthy">সুস্থ (Healthy)</option>
+                    <option value="Pregnant">গর্ভবতী (Pregnant)</option>
+                    <option value="Under Observation">পর্যবেক্ষণে</option>
+                    <option value="Treatment">চিকিৎসাধীন</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বাবার আইডি (Sire ID)</label>
+                  <input
+                    type="text"
+                    value={aSireTag}
+                    onChange={(e) => setASireTag(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">মায়ের আইডি (Dam ID)</label>
+                  <input
+                    type="text"
+                    value={aDamTag}
+                    onChange={(e) => setADamTag(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors"
+              >
+                + নতুন {isCattle ? 'গরুর' : 'ছাগলের'} Digital ID সেভ করুন
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB B: দুধ উৎপাদনের হিসাব (Morning + Evening) ও ওজন বৃদ্ধি (ADG)
+         ===================================================================== */}
+      {activeSubTab === 'B_MILK_WEIGHT' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Morning + Evening Milk Production Form */}
+            <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Milk className="h-4 w-4 text-emerald-600" />
+                    B1. প্রতিদিনের দুধ উৎপাদনের হিসাব (Morning + Evening Milk Log)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    পশু:{' '}
+                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                      {selectedAnimal?.animalTag} ({selectedAnimal?.name})
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleRecordDailyMilkB} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">তারিখ (Date)</label>
+                    <input
+                      type="date"
+                      value={bMilkDate}
+                      onChange={(e) => setBMilkDate(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
+                      সকাল (Morning লিটার) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min={0}
+                      value={bMorningLiters}
+                      onChange={(e) => setBMorningLiters(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
+                      বিকেল (Evening লিটার) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min={0}
+                      value={bEveningLiters}
+                      onChange={(e) => setBEveningLiters(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">খামারে/বাছুরকে ব্যবহার (লি.)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min={0}
+                      value={bFarmUseLiters}
+                      onChange={(e) => setBFarmUseLiters(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">নষ্ট দুধ (Wasted লি.)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min={0}
+                      value={bWastedLiters}
+                      onChange={(e) => setBWastedLiters(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">প্রতি লিটার দাম (৳)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={bMilkPricePerLiter}
+                      onChange={(e) => setBMilkPricePerLiter(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Calculation Summary Strip */}
+                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 p-3.5 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[11px] text-slate-500">আজকের মোট দুধ</div>
+                    <div className="text-base font-mono font-bold text-slate-900 dark:text-slate-100">
+                      {totalDailyMilk} লিটার
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500">বিক্রিযোগ্য দুধ</div>
+                    <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {soldDailyMilk} লিটার
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500">আজকের দুধ বিক্রির আয়</div>
+                    <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {formatBDT(dailyMilkRevenue)}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                >
+                  + আজকের দুধের হিসাব ও বিক্রয় আয় সেভ করুন
+                </button>
+              </form>
+            </div>
+
+            {/* Right: Weight Growth & Qurbani/Fattening ADG Calculator */}
+            <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Scale className="h-4 w-4 text-emerald-600" />
+                B2. ওজনের ইতিহাস ও মোটাতাজাকরণ (Weight Growth & Target Tracker)
+              </h3>
+              <p className="text-xs text-slate-500">
+                প্রতি মাসে বা সপ্তাহে ওজন মেপে রেকর্ড রাখুন এবং বিক্রির সম্ভাব্য বাজারমূল্য দেখুন।
+              </p>
+
+              <form onSubmit={handleUpdateWeightB} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">পরিমাপের তারিখ</label>
+                    <input
+                      type="date"
+                      value={wMeasureDate}
+                      onChange={(e) => setWMeasureDate(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">পূর্বের ওজন</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={`${selectedAnimal?.currentWeightKg || 0} কেজি`}
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/50 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
+                      নতুন ওজন (কেজি) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      required
+                      value={wNewWeightKg}
+                      onChange={(e) => setWNewWeightKg(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">
+                      টার্গেট ওজন (কোরবানি/বিক্রি কেজি)
+                    </label>
+                    <input
+                      type="number"
+                      value={wTargetWeightKg}
+                      onChange={(e) => setWTargetWeightKg(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">
+                      আনুমানিক লাইভ ওয়েট দর (৳/কেজি)
+                    </label>
+                    <input
+                      type="number"
+                      value={wExpectedPricePerKg}
+                      onChange={(e) => setWExpectedPricePerKg(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-3.5 grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[11px] text-slate-500">বর্তমান ওজনে সম্ভাব্য বাজারমূল্য</div>
+                    <div className="text-sm font-mono font-bold text-slate-900 dark:text-slate-100">
+                      {formatBDT(Number(wNewWeightKg) * Number(wExpectedPricePerKg))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500">টার্গেট ওজনে সম্ভাব্য বাজারমূল্য</div>
+                    <div className="text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {formatBDT(Number(wTargetWeightKg) * Number(wExpectedPricePerKg))}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-2.5 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95"
+                >
+                  + নতুন ওজন ({wNewWeightKg} কেজি) সংরক্ষণ করুন
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Comparative Milk Yield Ranking & History Table */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  কোন পশু কত দুধ দিচ্ছে ও ওজন কত — তুলনামূলক তালিকা ও ইতিহাস (Milk & Weight History)
+                </h4>
+                <p className="text-xs text-slate-500">
+                  এতে সহজেই বুঝবেন কোন গরু বেশি দুধ দিচ্ছে এবং কার উৎপাদন কমে যাচ্ছে
+                </p>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                    <th className="py-3 px-4">Digital ID ও নাম</th>
+                    <th className="py-3 px-4">জাত ও বর্তমান অবস্থা</th>
+                    <th className="py-3 px-4 text-right">বর্তমান ওজন</th>
+                    <th className="py-3 px-4 text-right">মোট দুধ উৎপাদন (লিটার)</th>
+                    <th className="py-3 px-4 text-right">মোট দুধ বিক্রির আয়</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {animals.map((a) => (
+                    <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4 font-mono font-bold">
+                        {a.animalTag} — <span className="font-sans">{a.name}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {a.breed} · <span className="text-emerald-600 font-semibold">{a.healthStatus}</span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold">
+                        {a.currentWeightKg} কেজি
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        {a.totalMilkLiters} লিটার
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold">
+                        {formatBDT(a.milkSalesRevenue)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {milkHistoryLogs.length > 0 && (
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  সাম্প্রতিক সকাল-বিকেল দুধ উৎপাদনের লগ (Daily Morning/Evening Logs):
+                </div>
+                {milkHistoryLogs.slice(0, 5).map((log) => (
+                  <div
+                    key={log.id}
+                    className="text-xs font-mono bg-white dark:bg-slate-900 px-3 py-2 rounded border border-slate-200 dark:border-slate-800"
+                  >
+                    {log.details}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB C: খাবারের খরচ — Individual ও Group Feeding Record
+         ===================================================================== */}
+      {activeSubTab === 'C_FEEDING' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Utensils className="h-4 w-4 text-emerald-600" />
+              C. প্রতিদিনের খাবারের হিসাব (Individual & Group Feeding Calculator)
+            </h3>
+            <p className="text-xs text-slate-500">
+              সব গরু/ছাগলকে একই পরিমাণ খাবার দেওয়া হয় না। আপনি চাইলে নির্দিষ্ট ১টি পশুর জন্য অথবা সব পশুর জন্য একসঙ্গে (Group Feeding) হিসাব রাখতে পারবেন।
+            </p>
+
+            <form onSubmit={handleRecordFeedingC} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold mb-1.5">
+                  খাবার বণ্টনের পদ্ধতি নির্বাচন করুন (Feeding Allocation Method):
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setCFeedMode('individual')}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      cFeedMode === 'individual'
+                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-bold'
+                        : 'border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <div>১. একক পশুর খাবার</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      শুধু {selectedAnimal?.animalTag}-এর জন্য
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCFeedMode('group_equal')}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      cFeedMode === 'group_equal'
+                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-bold'
+                        : 'border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <div>২. যৌথ খাবার (সমান ভাগ)</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      সব পশুর মধ্যে সমানভাবে বণ্টন
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCFeedMode('group_weight_ratio')}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      cFeedMode === 'group_weight_ratio'
+                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-bold'
+                        : 'border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <div>৩. যৌথ (ওজন অনুপাতে)</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      পশুর শরীরের ওজন অনুযায়ী বণ্টন
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Feed Items Table (Grass, Straw, Wheat Bran, Other) */}
+              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
+                      <th className="py-2.5 px-3">খাবারের নাম (Feed Item)</th>
+                      <th className="py-2.5 px-3">দৈনিক পরিমাণ (কেজি)</th>
+                      <th className="py-2.5 px-3">প্রতি কেজির দাম (৳)</th>
+                      <th className="py-2.5 px-3 text-right">দৈনিক খরচ (৳)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    <tr>
+                      <td className="py-2 px-3 font-semibold">কাঁচা ঘাস (Green Grass / Napier)</td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          value={cGrassKg}
+                          onChange={(e) => setCGrassKg(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          min={0}
+                          value={cGrassRate}
+                          onChange={(e) => setCGrassRate(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">
+                        {formatBDT(cGrassKg * cGrassRate)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-semibold">খড় (Dry Paddy Straw)</td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          value={cStrawKg}
+                          onChange={(e) => setCStrawKg(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          min={0}
+                          value={cStrawRate}
+                          onChange={(e) => setCStrawRate(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">
+                        {formatBDT(cStrawKg * cStrawRate)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-semibold">ভুসি ও দানাদার (Wheat Bran)</td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          value={cBranKg}
+                          onChange={(e) => setCBranKg(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          min={0}
+                          value={cBranRate}
+                          onChange={(e) => setCBranRate(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">
+                        {formatBDT(cBranKg * cBranRate)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-semibold">অন্যান্য খাবার (খৈল / মিনারেল / ভিটামিন)</td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          value={cOtherKg}
+                          onChange={(e) => setCOtherKg(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input
+                          type="number"
+                          min={0}
+                          value={cOtherRate}
+                          onChange={(e) => setCOtherRate(Number(e.target.value))}
+                          className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">
+                        {formatBDT(cOtherKg * cOtherRate)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">কত দিনের খাবার একসাথে যোগ করবেন?</label>
+                  <select
+                    value={cDaysCount}
+                    onChange={(e) => setCDaysCount(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-semibold"
+                  >
+                    <option value={1}>১ দিনের খাবার (Daily Entry)</option>
+                    <option value={7}>৭ দিনের খাবার (Weekly Entry)</option>
+                    <option value={15}>১৫ দিনের খাবার (Bi-Weekly)</option>
+                    <option value={30}>৩০ দিনের / ১ মাসের খাবার (Monthly)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">গোডাউন স্টক থেকে কমান (ঐচ্ছিক)</label>
+                  <select
+                    value={cSelectedInvId}
+                    onChange={(e) => setCSelectedInvId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    <option value="">সরাসরি বাজার/খামার থেকে (স্টক অপরিবর্তিত)</option>
+                    {feedInventory.map((fi) => (
+                      <option key={fi.id} value={fi.id}>
+                        {fi.name} (মজুদ: {fi.quantity} {fi.unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              >
+                + খাবারের খরচ ({formatBDT(totalPeriodFeedCost)}) প্রোফাইলে যোগ করুন
+              </button>
+            </form>
+          </div>
+
+          {/* Right: Daily & Monthly Ration Summary Card */}
+          <div className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              দৈনিক ও মাসিক খাবারের হিসাব সারসংক্ষেপ (Ration Summary)
+            </h4>
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center">
+                <span>দৈনিক মোট খাবারের ওজন:</span>
+                <span className="font-mono font-bold text-sm">{dailyRationKg} কেজি / দিন</span>
+              </div>
+              <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center">
+                <span>দৈনিক খাবারের খরচ (Daily Cost):</span>
+                <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                  {formatBDT(dailyRationCost)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center">
+                <span>মাসিক প্রাক্কলিত খরচ (৩০ দিন):</span>
+                <span className="font-mono font-bold text-sm text-amber-600 dark:text-amber-400">
+                  {formatBDT(monthlyEstimatedFeedCost)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
+                <span className="font-bold">
+                  {selectedAnimal?.animalTag}-এর এ পর্যন্ত মোট খাবার খরচ:
+                </span>
+                <span className="font-mono font-bold text-base text-emerald-700 dark:text-emerald-400">
+                  {formatBDT(selectedAnimal?.feedCost || 0)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB D: চিকিৎসা, ভ্যাকসিন, গর্ভধারণ ও বাছুর/বাচ্চা জন্ম রেজিস্ট্রেশন
+         ===================================================================== */}
+      {activeSubTab === 'D_VET_BREEDING' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: 9-Point Veterinary, Vaccine & Pregnancy Form */}
+          <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Stethoscope className="h-4 w-4 text-emerald-600" />
+              D1. চিকিৎসা, ভ্যাকসিন ও গর্ভধারণের হিসাব (Vet, Vaccine & Pregnancy)
+            </h3>
+
+            <form onSubmit={handleRecordVetAndBreedingD} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">১. রোগের নাম ও লক্ষণ</label>
+                  <input
+                    type="text"
+                    value={dDiseaseName}
+                    onChange={(e) => setDDiseaseName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">২. চিকিৎসকের নাম (Vet Doctor)</label>
+                  <input
+                    type="text"
+                    value={dDoctorName}
+                    onChange={(e) => setDDoctorName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">৩. চিকিৎসার তারিখ</label>
+                  <input
+                    type="date"
+                    value={dTreatDate}
+                    onChange={(e) => setDTreatDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">৪. ওষুধের নাম</label>
+                  <input
+                    type="text"
+                    value={dMedicineName}
+                    onChange={(e) => setDMedicineName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">ওষুধ ও ডাক্তার খরচ (৳)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={dMedCost}
+                    onChange={(e) => setDMedCost(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">ভ্যাকসিনের নাম</label>
+                  <input
+                    type="text"
+                    value={dVaccineName}
+                    onChange={(e) => setDVaccineName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">৫. ভ্যাকসিনের তারিখ</label>
+                  <input
+                    type="date"
+                    value={dVaccineDate}
+                    onChange={(e) => setDVaccineDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-amber-600 dark:text-amber-400">
+                    ৬. পরবর্তী ভ্যাকসিনের তারিখ
+                  </label>
+                  <input
+                    type="date"
+                    value={dNextVaccineDate}
+                    onChange={(e) => setDNextVaccineDate(e.target.value)}
+                    className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Pregnancy & Expected Delivery Date Calculator */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-800/40 space-y-3">
+                <label className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={dIsPregnant}
+                    onChange={(e) => setDIsPregnant(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  <span>৭. গর্ভধারণের তথ্য যুক্ত করুন (Mark as Pregnant & Calculate Delivery Date)</span>
+                </label>
+
+                {dIsPregnant && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div>
+                      <label className="block font-semibold mb-1">বীজ দেওয়ার / প্রজননের তারিখ</label>
+                      <input
+                        type="date"
+                        value={dBreedingDate}
+                        onChange={(e) => setDBreedingDate(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">ষাঁড় বা পাঠার আইডি/সিমেন</label>
+                      <input
+                        type="text"
+                        value={dSireUsed}
+                        onChange={(e) => setDSireUsed(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
+                        ৮. সম্ভাব্য বাচ্চা জন্মের তারিখ
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        value={expectedDeliveryDate}
+                        className="w-full rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 font-mono font-bold text-emerald-800 dark:text-emerald-300"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              >
+                + চিকিৎসা, ভ্যাকসিন ও প্রজনন তথ্য সেভ করুন
+              </button>
+            </form>
+          </div>
+
+          {/* Right: 9. Newborn Calf / Kid Registration (Auto Parent Relationship Link) */}
+          <div className="lg:col-span-5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Baby className="h-5 w-5 text-emerald-600" />
+              ৯. বাচ্চা জন্ম নিলে নতুন Digital ID তৈরি করুন (Newborn Offspring)
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              একটি {isCattle ? 'গরু বাছুর' : 'ছাগল বাচ্চা'} জন্ম দিলে এখানে ক্লিক করলেই সেই বাচ্চার জন্য নতুন ID তৈরি হবে এবং তার <strong>মা ({selectedAnimal?.animalTag})</strong> ও <strong>বাবার সম্পর্ক</strong> স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকবে।
+            </p>
+
+            <form onSubmit={handleRegisterNewbornOffspring} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">
+                    নতুন {isCattle ? 'বাছুরের' : 'বাচ্চার'} Digital ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newbornTag}
+                    onChange={(e) => setNewbornTag(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বাচ্চার নাম *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newbornName}
+                    onChange={(e) => setNewbornName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">লিঙ্গ</label>
+                  <select
+                    value={newbornGender}
+                    onChange={(e) => setNewbornGender(e.target.value as 'Female' | 'Male')}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    <option value="Female">মাদি (Female)</option>
+                    <option value="Male">মর্দা (Male)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">জন্ম ওজন (কেজি)</label>
+                  <input
+                    type="number"
+                    step="0.2"
+                    value={newbornWeight}
+                    onChange={(e) => setNewbornWeight(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">জন্মের তারিখ</label>
+                  <input
+                    type="date"
+                    value={newbornBirthDate}
+                    onChange={(e) => setNewbornBirthDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">মায়ের আইডি (Mother / Dam)</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={`${selectedAnimal?.animalTag || ''} (${selectedAnimal?.name || ''})`}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বাবার আইডি (Father / Sire)</label>
+                  <input
+                    type="text"
+                    value={newbornSireTag}
+                    onChange={(e) => setNewbornSireTag(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95"
+              >
+                + সদ্যজাত {isCattle ? 'বাছুরের' : 'ছাগলছানার'} নতুন ID তৈরি করুন
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB E: বংশলতিকা ও পরিবার বৃক্ষ (Interactive Family Tree)
+         ===================================================================== */}
+      {activeSubTab === 'E_FAMILY_TREE' && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <GitBranch className="h-5 w-5 text-emerald-600" />
+                E. বংশলতিকা ও সন্তানদের তালিকা (Interactive Family Tree — মা, বাবা ও বাচ্চাদের সম্পর্ক)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                কোন মা {isCattle ? 'গাভী' : 'ছাগলের'} কয়টি বাচ্চা হয়েছে, কোন বাচ্চা কখন জন্মেছে এবং তাদের বর্তমান অবস্থা কী—সবকিছু Family Tree আকারে দেখুন।
+              </p>
+            </div>
+          </div>
+
+          {selectedAnimal && (
+            <div className="space-y-6">
+              {/* Generation 1: Parents of Selected Animal */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  ১ম প্রজন্ম — পিতা-মাতা (Parents / Lineage of {selectedAnimal.animalTag})
+                </div>
+                <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {selectedAnimal.parentTag || 'খামারের মূল ফাউন্ডেশন ব্রিড'}
+                </div>
+              </div>
+
+              {/* Generation 2: Selected Parent Animal */}
+              <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    নির্বাচিত পশু (Selected Animal)
+                  </span>
+                  <div className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    <span className="font-mono">{selectedAnimal.animalTag}</span> — {selectedAnimal.name}
+                  </div>
+                  <div className="text-xs text-slate-600 dark:text-slate-300">
+                    জাত: {selectedAnimal.breed} · বয়স: {selectedAnimal.ageMonths} মাস · ওজন:{' '}
+                    {selectedAnimal.currentWeightKg} কেজি · অবস্থা: {selectedAnimal.healthStatus}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {selectedAnimal.breedingAndOffspringNotes}
+                  </div>
+                </div>
+                <div className="text-right font-mono">
+                  <div className="text-xs text-slate-500">সন্তান সংখ্যা (Registered Offspring)</div>
+                  <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                    {getOffspringOf(selectedAnimal.animalTag).length} টি
+                  </div>
+                </div>
+              </div>
+
+              {/* Generation 3: Offspring / Kids Cards */}
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  পরবর্তী প্রজন্ম — {selectedAnimal.animalTag}-এর বাচ্চাগুলোর আলাদা প্রোফাইল (Offspring / Kids):
+                </div>
+
+                {getOffspringOf(selectedAnimal.animalTag).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center text-xs text-slate-500">
+                    এই পশুটির অধীনে এখনো আলাদা বাচ্চা নিবন্ধিত হয়নি। উপরের <strong>&ldquo;ধাপ D: চিকিৎসা, প্রজনন ও বাচ্চা&rdquo;</strong> ট্যাবে গিয়ে ১ ক্লিকে বাচ্চার নতুন ID যোগ করতে পারেন।
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {getOffspringOf(selectedAnimal.animalTag).map((kid) => (
+                      <div
+                        key={kid.id}
+                        onClick={() => setSelectedAnimalId(kid.id)}
+                        className="cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-emerald-500 transition-all space-y-2 shadow-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                            {kid.animalTag}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">
+                            {kid.status}
+                          </span>
+                        </div>
+                        <div className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                          {kid.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          লিঙ্গ: {kid.gender === 'Female' ? 'মাদি' : 'মর্দা'} · বর্তমান ওজন:{' '}
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {kid.currentWeightKg} কেজি
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-mono text-slate-500">
+                          জন্মের তারিখ: {kid.purchaseDate}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                          {kid.parentTag}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB F: পশু বিক্রির হিসাব ও চূড়ান্ত আজীবন লাভ-ক্ষতি (Sale & Lifetime Profit)
+         ===================================================================== */}
+      {activeSubTab === 'F_SALE_PROFIT' && selectedAnimal && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: Exact Financial Report Card as requested in User Prompt */}
+          <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-4 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-mono font-bold uppercase text-emerald-600">
+                  Individual Animal Financial Statement
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  {selectedAnimal.animalTag} ({selectedAnimal.name}) — সম্পূর্ণ আর্থিক ও লাভ-ক্ষতি হিসাব
+                </h3>
+              </div>
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
+                    <th className="py-3 px-4">আর্থিক বিবরণ (Financial Breakdown)</th>
+                    <th className="py-3 px-4 text-right">টাকার পরিমাণ (BDT)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  <tr>
+                    <td className="py-3 px-4 font-semibold">১. ক্রয়মূল্য (Purchase Price)</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold">
+                      {formatBDT(animPurchasePrice)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 font-semibold">
+                      ২. খাবারের মোট খরচ (Allocated Feed Cost)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono">
+                      {formatBDT(animFeedCost)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 font-semibold">
+                      ৩. চিকিৎসা, ভ্যাকসিন ও অন্যান্য বরাদ্দ খরচ (Vet & Care Cost)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono">
+                      {formatBDT(animVetCost)}
+                    </td>
+                  </tr>
+                  <tr className="bg-amber-50/60 dark:bg-amber-950/20 font-bold">
+                    <td className="py-3 px-4">
+                      মোট বিনিয়োগ (Total Investment = কেনা + খাবার + চিকিৎসা)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-amber-700 dark:text-amber-400">
+                      {formatBDT(animTotalInvestment)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 font-semibold">
+                      ৪. পশু বিক্রয়মূল্য / বর্তমান বাজারমূল্য (Animal Sale Value)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                      {formatBDT(animSaleOrMarketVal)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 font-bold">
+                      পশু বিক্রি থেকে প্রকৃত লাভ (Sale Price − Total Investment)
+                    </td>
+                    <td
+                      className={`py-3 px-4 text-right font-mono font-bold ${
+                        animDirectSaleProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
+                      }`}
+                    >
+                      {formatBDT(animDirectSaleProfit)}
+                    </td>
+                  </tr>
+                  {animMilkRevenue > 0 && (
+                    <tr>
+                      <td className="py-3 px-4 font-semibold text-emerald-700 dark:text-emerald-400">
+                        ৫. দুধ বিক্রির মোট আয় ({selectedAnimal.totalMilkLiters} লিটার দুধ)
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        + {formatBDT(animMilkRevenue)}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
+                    <td className="py-3.5 px-4 text-slate-900 dark:text-slate-100">
+                      সর্বমোট আজীবন প্রকৃত লাভ (Total Lifetime Net Profit)
+                    </td>
+                    <td
+                      className={`py-3.5 px-4 text-right font-mono text-base ${
+                        animLifetimeTotalProfit >= 0
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-red-600'
+                      }`}
+                    >
+                      {formatBDT(animLifetimeTotalProfit)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Right: Record Animal Sale or Update Valuation Form */}
+          <div className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              {selectedAnimal.animalTag} বিক্রির হিসাব লিখুন (Record Animal Sale)
+            </h3>
+            <p className="text-xs text-slate-500">
+              ধরুন, আপনি {selectedAnimal.animalTag} {formatBDT(animPurchasePrice)}-এ কিনেছিলেন এবং{' '}
+              {formatBDT(animAllocatedCost)} খরচ করেছেন। এখন বিক্রয়মূল্য দিলে সিস্টেম নিজে প্রকৃত লাভ হিসাব করবে।
+            </p>
+
+            <form onSubmit={handleRecordAnimalSaleF} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">বিক্রয়মূল্য (Sale Price ৳) *</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={fSalePrice}
+                  onChange={(e) => setFSalePrice(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">ক্রেতার নাম (Buyer Name)</label>
+                  <input
+                    type="text"
+                    value={fBuyerName}
+                    onChange={(e) => setFBuyerName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বিক্রির তারিখ</label>
+                  <input
+                    type="date"
+                    value={fSaleDate}
+                    onChange={(e) => setFSaleDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">পেমেন্ট মাধ্যম</label>
+                  <select
+                    value={fPaymentMethod}
+                    onChange={(e) => setFPaymentMethod(e.target.value as any)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                  >
+                    <option value="Cash">Cash (নগদ)</option>
+                    <option value="Bank">Bank (ব্যাংক)</option>
+                    <option value="Mobile Payment">Mobile Payment (বিকাশ/নগদ)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">বকেয়া টাকা (Due ৳)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={fDueAmount}
+                    onChange={(e) => setFDueAmount(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={fMarkAsSold}
+                  onChange={(e) => setFMarkAsSold(e.target.checked)}
+                />
+                <span>চূড়ান্তভাবে বিক্রি সম্পন্ন হয়েছে এবং ক্যাশ/ব্যাংক খতিয়ানে জমা করুন</span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              >
+                বিক্রির হিসাব ও লাভ-ক্ষতি আপডেট করুন
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
