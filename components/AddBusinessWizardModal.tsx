@@ -125,7 +125,7 @@ export default function AddBusinessWizardModal({
         nameBn: nameBn.trim() || name.trim(),
         category: category.trim() || 'Agro Enterprise',
         templateType: mode === 'template' ? selectedTemplate : ('custom' as BusinessTemplateType),
-        description: description.trim() || 'Dynamic business unit managed via KrishiVumi ERP.',
+        description: description.trim() || 'Dynamic business unit managed via RegardsAgro ERP.',
         iconName,
         location: location.trim() || 'Dhaka, Bangladesh',
         contactPhone: contactPhone.trim() || '+880 1700-000000',

@@ -122,7 +122,7 @@ export default function AuthModal({
                   {isSetupMode
                     ? bn
                       ? 'সিস্টেমে এখনো কোনো সুপার অ্যাডমিন নেই। প্রথম ও একমাত্র সুপার অ্যাডমিন অ্যাকাউন্ট তৈরি করে ডাটাবেজ চালু করুন।'
-                      : 'Create the sole Super Admin account to initialize KrishiVumi Enterprise. Once created, public signup locks automatically.'
+                      : 'Create the sole Super Admin account to initialize RegardsAgro Enterprise. Once created, public signup locks automatically.'
                     : bn
                     ? 'আপনার সুপার অ্যাডমিন অথবা প্রদত্ত কর্মচারী ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।'
                     : 'Enter your authorized Super Admin, Manager, or Staff credentials.'}
@@ -195,7 +195,7 @@ export default function AuthModal({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@krishivumi.bd"
+                  placeholder="admin@regardsagro.bd"
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 pl-9 pr-3 py-2.5 font-mono text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-600"
                 />
               </div>

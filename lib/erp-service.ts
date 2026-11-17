@@ -87,6 +87,14 @@ export async function updateDynamicBusinessStatus(
   await callErpAction('updateDynamicBusinessStatus', { business, newStatus, actorEmail });
 }
 
+export async function assignBusinessManager(
+  businessId: string,
+  managerName: string,
+  managerPhone?: string
+): Promise<void> {
+  await callErpAction('assignBusinessManager', { businessId, managerName, managerPhone });
+}
+
 export async function postDoubleEntryTransaction(
   input: Omit<ErpJournalEntry, 'id' | 'status' | 'reversedByEntryId' | 'ownerId'>,
   accounts: ErpAccount[],

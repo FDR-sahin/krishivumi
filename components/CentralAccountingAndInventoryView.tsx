@@ -79,6 +79,7 @@ import MonthFilterBar, {
   MONTHS_12,
   formatMonthFilterLabel,
 } from './MonthFilterBar';
+import { getPayrollCycleInfo, getEnterprisePayrollSummary } from '@/lib/payroll-utils';
 
 interface GranularPermissionsState {
   canView: boolean;
@@ -230,6 +231,7 @@ interface CentralAccountingAndInventoryViewProps {
   onChangeRoleSimulation: (role: UserRole, assignedBiz: string) => void;
   monthFilter?: MonthFilterValue;
   onChangeMonthFilter?: (next: MonthFilterValue) => void;
+  lang?: 'en' | 'bn';
 }
 
 export default function CentralAccountingAndInventoryView({
@@ -254,6 +256,7 @@ export default function CentralAccountingAndInventoryView({
   onChangeRoleSimulation,
   monthFilter: controlledMonthFilter,
   onChangeMonthFilter,
+  lang = 'bn',
 }: CentralAccountingAndInventoryViewProps) {
   const fullBusinessList = allBusinesses && allBusinesses.length > 0 ? allBusinesses : businesses;
   const [selectedBizId, setSelectedBizId] = useState<string>('ALL');
@@ -361,6 +364,16 @@ export default function CentralAccountingAndInventoryView({
   const [salaryDaysWorked, setSalaryDaysWorked] = useState<number>(30);
   const [salaryBonus, setSalaryBonus] = useState<number>(0);
   const [salaryDeduction, setSalaryDeduction] = useState<number>(0);
+
+  // Business Manager Salary Disbursal State (Disbursed by General Manager / Super Admin)
+  const [mgrPayTarget, setMgrPayTarget] = useState<ErpUser | null>(null);
+  const [mgrPayAmount, setMgrPayAmount] = useState<number>(35000);
+  const [mgrPayWalletId, setMgrPayWalletId] = useState<string>('');
+  const [mgrPayDate, setMgrPayDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [mgrPayBonus, setMgrPayBonus] = useState<number>(0);
+  const [mgrPayDeduction, setMgrPayDeduction] = useState<number>(0);
+  const [mgrPayNote, setMgrPayNote] = useState<string>('');
+  const [isSettlingMgr, setIsSettlingMgr] = useState<boolean>(false);
 
   // Executive Report Modal State (Super Manager & Super Admin)
   const [showExecutiveReportModal, setShowExecutiveReportModal] = useState(false);
@@ -1253,6 +1266,101 @@ export default function CentralAccountingAndInventoryView({
       setErrorMsg(err instanceof Error ? err.message : 'পেমেন্ট সম্পন্ন করতে সমস্যা হয়েছে।');
     } finally {
       setIsSettlingStk(false);
+    }
+  };
+
+  const handleSettleManagerSalary = async () => {
+    if (!mgrPayTarget) return;
+    const finalAmount = Math.max(0, Number(mgrPayAmount) + Number(mgrPayBonus) - Number(mgrPayDeduction));
+    if (finalAmount <= 0) {
+      setErrorMsg('বেতনের পরিমাণ শূন্য হতে পারে না।');
+      return;
+    }
+    const targetWalletId = mgrPayWalletId || treasuryWallets[0]?.id || accounts[0]?.id;
+    if (!targetWalletId) {
+      setErrorMsg('অনুগ্রহ করে বেতন পরিশোধের ক্যাশ ভল্ট বা ব্যাংক একাউন্ট নির্বাচন করুন।');
+      return;
+    }
+
+    setIsSettlingMgr(true);
+    setErrorMsg(null);
+    try {
+      const expenseAcc =
+        accounts.find(
+          (a) =>
+            a.accountType === 'expense' &&
+            (a.code === '5010' || a.name.includes('বেতন') || a.name.toLowerCase().includes('payroll'))
+        ) || accounts.find((a) => a.accountType === 'expense');
+
+      if (!expenseAcc) {
+        throw new Error('বেতন খরচের লেজার একাউন্ট পাওয়া যায়নি।');
+      }
+
+      const assignedBiz = mgrPayTarget.assignedBusinesses || 'ALL';
+      const bizId =
+        assignedBiz !== 'ALL' && assignedBiz.length > 0
+          ? assignedBiz.split(',')[0].trim()
+          : (businesses[0]?.id || 'biz-poultry');
+
+      const refNo = `MGR-PAY-${Date.now().toString().slice(-6)}`;
+      const formulaParts: string[] = [];
+      if (mgrPayBonus > 0) formulaParts.push(`বোনাস: +৳${mgrPayBonus}`);
+      if (mgrPayDeduction > 0) formulaParts.push(`কর্তন: -৳${mgrPayDeduction}`);
+      const formulaText = formulaParts.length > 0 ? ` [${formulaParts.join(', ')}]` : '';
+      const finalNote = mgrPayNote
+        ? `${mgrPayNote}${formulaText}`
+        : `${formatMonthFilterLabel(activeMonthFilter, true)} বিজনেস ম্যানেজার রিম্যুনারেশন${formulaText}`;
+
+      const walletAcc = treasuryWallets.find((w) => w.id === targetWalletId) || accounts.find((a) => a.id === targetWalletId);
+
+      await postDoubleEntryTransaction(
+        {
+          businessId: bizId,
+          businessName: assignedBiz === 'ALL' ? 'RegardsAgro Enterprise' : `বিভাগীয় প্রধান — ${assignedBiz}`,
+          debitAccountId: expenseAcc.id,
+          debitAccountName: expenseAcc.name,
+          creditAccountId: targetWalletId,
+          creditAccountName: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
+          amount: finalAmount,
+          date: mgrPayDate,
+          description: `বিজনেস ম্যানেজার বেতন প্রদান — ${mgrPayTarget.displayName} (${finalNote})`,
+          referenceNo: refNo,
+          transactionType: 'payroll',
+          category: 'payroll',
+          dueAmount: 0,
+          counterpartyName: mgrPayTarget.displayName,
+          paymentStatus: 'paid',
+        },
+        accounts,
+        ownerId,
+        actorEmail
+      );
+
+      // Generate official Manager Payslip
+      setActiveSlip({
+        type: 'salary_payslip',
+        slipNo: refNo,
+        date: mgrPayDate,
+        businessName: assignedBiz === 'ALL' ? 'RegardsAgro Enterprise' : `বিভাগীয় প্রধান — ${assignedBiz}`,
+        recipientName: mgrPayTarget.displayName,
+        designation: 'বিজনেস ম্যানেজার (Division Manager)',
+        recipientPhone: mgrPayTarget.phone || '+880 1711-000000',
+        appointedBy: 'জেনারেল ম্যানেজার ও সুপার অ্যাডমিন',
+        amount: finalAmount,
+        paymentMethod: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
+        note: finalNote,
+        totalAmount: finalAmount,
+        enteredBy: actorEmail,
+      });
+
+      setMgrPayTarget(null);
+      showNotice(
+        `${mgrPayTarget.displayName}-কে ${formatBDT(finalAmount)} বেতন সফলভাবে পরিশোধ করা হয়েছে এবং অফিসিয়াল ভাউচার তৈরি হয়েছে!`
+      );
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'ম্যানেজার বেতন পরিশোধ ব্যর্থ হয়েছে।');
+    } finally {
+      setIsSettlingMgr(false);
     }
   };
 
@@ -2716,6 +2824,214 @@ export default function CentralAccountingAndInventoryView({
             );
           })()}
 
+          {/* EXECUTIVE SECTION: 5 DIVISION MANAGERS REMUNERATION & DISBURSEMENT */}
+          <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-cyan-500/5 dark:from-emerald-950/20 dark:via-teal-950/20 dark:to-transparent p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <Briefcase className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>বিভাগীয় বিজনেস ম্যানেজারদের পে-রোল ও পারিশ্রমিক (Division Managers Remuneration)</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      জিএম ও অ্যাডমিন কর্তৃত্ব
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    জেনারেল ম্যানেজার (Super Manager) ও সুপার অ্যাডমিন সরাসরি ৫টি ব্যবসার ম্যানেজারদের মাসিক বেতন অনুমোদন ও ক্যাশ/ব্যাংক থেকে পরিশোধ করবেন।
+                  </p>
+                </div>
+              </div>
+
+              {(userRole === 'super_admin' || userRole === 'super_manager') && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                    ✓ আপনি ম্যানেজার বেতন পরিশোধের পূর্ণ ক্ষমতাপ্রাপ্ত
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {fullBusinessList.map((biz) => {
+                const mgrUser = erpUsers.find(
+                  (u) =>
+                    u.role === 'business_manager' &&
+                    (u.assignedBusinesses === 'ALL' || u.assignedBusinesses?.includes(biz.id))
+                );
+                const mgrName = mgrUser?.displayName || biz.managerName || 'মোঃ রফিকুল ইসলাম';
+                const mgrPhone = mgrUser?.phone || (biz as unknown as { managerPhone?: string }).managerPhone || '+880 1711-000000';
+                const mgrSalary = mgrUser?.monthlySalary || 35000;
+
+                const paidThisPeriod = monthlyPostedJournals
+                  .filter(
+                    (j) =>
+                      j.transactionType === 'payroll' &&
+                      (j.counterpartyName === mgrName || (mgrUser && j.counterpartyName === mgrUser.displayName))
+                  )
+                  .reduce((sum, j) => sum + j.amount, 0);
+
+                const cycleInfo = getPayrollCycleInfo(
+                  (mgrUser as unknown as { createdAt?: string })?.createdAt || '2026-01-01',
+                  mgrSalary,
+                  paidThisPeriod
+                );
+
+                const isTrk =
+                  biz.templateType === 'transport' ||
+                  biz.name?.toLowerCase().includes('transport') ||
+                  biz.nameBn?.includes('ট্রাক');
+                const icon =
+                  biz.templateType === 'poultry'
+                    ? '🐔'
+                    : biz.templateType === 'cattle'
+                    ? '🐄'
+                    : biz.templateType === 'goat'
+                    ? '🐐'
+                    : biz.templateType === 'fish'
+                    ? '🐟'
+                    : '🚚';
+
+                return (
+                  <div
+                    key={biz.id}
+                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-2xs hover:border-emerald-400 transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg shrink-0">
+                          {icon}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-white">
+                            {biz.nameBn || biz.name}
+                          </div>
+                          <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <span>{mgrName}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">({isTrk ? 'লজিস্টিক প্রধান' : 'ইন-চার্জ'})</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400">{mgrPhone}</div>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-[10px] text-slate-400">মাসিক বেতন</div>
+                        <div className="font-mono font-black text-slate-900 dark:text-white text-sm">
+                          {formatBDT(mgrSalary)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cycle Status Badge */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+                      <div>
+                        {paidThisPeriod >= cycleInfo.payableForCurrentMonth && cycleInfo.payableForCurrentMonth > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            ✓ {cycleInfo.currentMonthNameBn} পরিশোধিত ({formatBDT(paidThisPeriod)})
+                          </span>
+                        ) : paidThisPeriod > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            আংশিক প্রদত্ত (বাকি {formatBDT(cycleInfo.payableForCurrentMonth - paidThisPeriod)})
+                          </span>
+                        ) : cycleInfo.cycleStatus === 'due_for_payout' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse">
+                            🔔 বেতন প্রদানের সময় হয়েছে
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                            {cycleInfo.currentMonthNameBn} কার্যকাল চলমান
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Pay / Slip Button */}
+                      <div className="flex items-center gap-1.5">
+                        {paidThisPeriod > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const latestPayroll = monthlyPostedJournals.find(
+                                (j) =>
+                                  j.transactionType === 'payroll' &&
+                                  (j.counterpartyName === mgrName || (mgrUser && j.counterpartyName === mgrUser.displayName))
+                              );
+                              setActiveSlip({
+                                type: 'salary_payslip',
+                                slipNo: latestPayroll?.referenceNo || `MGR-SLIP-${Date.now().toString().slice(-4)}`,
+                                date: latestPayroll?.date || new Date().toISOString().split('T')[0],
+                                businessName: biz.nameBn || biz.name,
+                                recipientName: mgrName,
+                                designation: 'বিজনেস ম্যানেজার (Division In-Charge)',
+                                amount: paidThisPeriod,
+                                paymentMethod: latestPayroll?.creditAccountName || 'ক্যাশ / ব্যাংক একাউন্ট',
+                                note: `ম্যানেজার বেতন পরিশোধ (${formatMonthFilterLabel(activeMonthFilter, true)})`,
+                                recipientPhone: mgrPhone,
+                                appointedBy: 'জেনারেল ম্যানেজার ও সুপার অ্যাডমিন',
+                                enteredBy: actorEmail,
+                              });
+                            }}
+                            className="p-1.5 rounded-lg border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 text-xs font-semibold cursor-pointer"
+                            title="ম্যানেজার পে-স্লিপ প্রিন্ট করুন"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+
+                        {(userRole === 'super_admin' || userRole === 'super_manager') ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const defaultUser: ErpUser = mgrUser || {
+                                id: `mgr-${biz.id}`,
+                                uid: `uid-mgr-${biz.id}`,
+                                email: `${biz.templateType}.mgr@regardsagro.bd`,
+                                displayName: mgrName,
+                                phone: mgrPhone,
+                                role: 'business_manager',
+                                status: 'active',
+                                assignedBusinesses: biz.id,
+                                monthlySalary: mgrSalary,
+                                permissionsJson: '{}',
+                                mfaEnabled: false,
+                                lastLoginAt: new Date().toISOString(),
+                                ownerId,
+                              };
+                              setMgrPayTarget(defaultUser);
+                              setMgrPayAmount(Math.max(1, cycleInfo.payableForCurrentMonth - paidThisPeriod));
+                              setMgrPayBonus(0);
+                              setMgrPayDeduction(0);
+                              setMgrPayWalletId(treasuryWallets[0]?.id || accounts[0]?.id || '');
+                            }}
+                            className={`px-3 py-1 text-xs font-bold rounded-xl text-white transition-all shadow-xs cursor-pointer ${
+                              paidThisPeriod >= cycleInfo.payableForCurrentMonth
+                                ? 'bg-slate-700 hover:bg-slate-800'
+                                : cycleInfo.cycleStatus === 'due_for_payout'
+                                ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
+                                : 'bg-emerald-600 hover:bg-emerald-700'
+                            }`}
+                          >
+                            {paidThisPeriod >= cycleInfo.payableForCurrentMonth
+                              ? 'বোনাস দিন'
+                              : paidThisPeriod > 0
+                              ? 'বাকি বেতন দিন'
+                              : cycleInfo.cycleStatus === 'due_for_payout'
+                              ? '🔔 ম্যানেজারকে বেতন দিন'
+                              : 'বেতন পরিশোধ'}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">
+                            জিএম / অ্যাডমিন অনুমোদিত
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* VIEW MODE 1: 5 BUSINESS UNITS GROUPED DIRECTORY BOARD */}
           {stkViewMode === 'grouped' && (
             <div className="space-y-4">
@@ -2846,52 +3162,80 @@ export default function CentralAccountingAndInventoryView({
                                         </div>
                                       </div>
 
-                                      <div className="text-right">
-                                        <div className="font-mono font-bold text-slate-900 dark:text-white">
-                                          {formatBDT(stk.monthlySalaryOrCreditLimit)}
-                                        </div>
-                                        <div className="mt-0.5">
-                                          {paidThisPeriod >= stk.monthlySalaryOrCreditLimit ? (
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                              ✓ পরিশোধিত
-                                            </span>
-                                          ) : paidThisPeriod > 0 ? (
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                                              আংশিক
-                                            </span>
-                                          ) : (
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
-                                              বাকি
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
+                                      {(() => {
+                                        const cycleInfo = getPayrollCycleInfo(
+                                          stk.joiningDate || stk.salaryEffectiveFrom || stk.appointedAt,
+                                          stk.monthlySalaryOrCreditLimit,
+                                          paidThisPeriod
+                                        );
+                                        return (
+                                          <div className="text-right">
+                                            <div className="font-mono font-bold text-slate-900 dark:text-white">
+                                              {formatBDT(stk.monthlySalaryOrCreditLimit)}
+                                            </div>
+                                            <div className="mt-0.5">
+                                              {paidThisPeriod >= cycleInfo.payableForCurrentMonth && cycleInfo.payableForCurrentMonth > 0 ? (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                                  ✓ পরিশোধিত
+                                                </span>
+                                              ) : paidThisPeriod > 0 ? (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                                  আংশিক
+                                                </span>
+                                              ) : cycleInfo.cycleStatus === 'due_for_payout' ? (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse">
+                                                  🔔 প্রদেয়
+                                                </span>
+                                              ) : (
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                                                  চলমান
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
 
                                     {/* Action Buttons for Card */}
                                     <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
-                                      {paidThisPeriod >= stk.monthlySalaryOrCreditLimit ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openStkPayModal(stk, 5000)}
-                                          className="px-2 py-1 text-[11px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 cursor-pointer"
-                                        >
-                                          বোনাস দিন
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            openStkPayModal(
-                                              stk,
-                                              Math.max(1, stk.monthlySalaryOrCreditLimit - paidThisPeriod)
-                                            )
-                                          }
-                                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-2xs"
-                                        >
-                                          {paidThisPeriod > 0 ? 'বাকি বেতন দিন' : 'বেতন দিন'}
-                                        </button>
-                                      )}
+                                      {(() => {
+                                        const cycleInfo = getPayrollCycleInfo(
+                                          stk.joiningDate || stk.salaryEffectiveFrom || stk.appointedAt,
+                                          stk.monthlySalaryOrCreditLimit,
+                                          paidThisPeriod
+                                        );
+                                        return paidThisPeriod >= cycleInfo.payableForCurrentMonth && cycleInfo.payableForCurrentMonth > 0 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => openStkPayModal(stk, 5000)}
+                                            className="px-2 py-1 text-[11px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 cursor-pointer"
+                                          >
+                                            বোনাস দিন
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              openStkPayModal(
+                                                stk,
+                                                Math.max(1, cycleInfo.payableForCurrentMonth - paidThisPeriod)
+                                              )
+                                            }
+                                            className={`px-2.5 py-1 text-[11px] font-bold rounded-lg text-white cursor-pointer shadow-2xs ${
+                                              cycleInfo.cycleStatus === 'due_for_payout'
+                                                ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
+                                                : 'bg-emerald-600 hover:bg-emerald-700'
+                                            }`}
+                                          >
+                                            {paidThisPeriod > 0
+                                              ? 'বাকি দিন'
+                                              : cycleInfo.cycleStatus === 'due_for_payout'
+                                              ? '🔔 বেতন দিন'
+                                              : 'বেতন / অগ্রিম'}
+                                          </button>
+                                        );
+                                      })()}
 
                                       {paidThisPeriod > 0 && (
                                         <button
@@ -3119,33 +3463,75 @@ export default function CentralAccountingAndInventoryView({
                             </td>
                             <td className="py-3.5 px-4 text-right font-mono tabular-nums">
                               {s.stakeholderType === 'employee' ? (
-                                s.status === 'terminated' ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold">
-                                    চাকরি শেষ
-                                  </span>
-                                ) : paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
-                                  <div className="space-y-0.5">
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
-                                      ✓ পরিশোধিত: {formatBDT(paidThisPeriod)}
-                                    </span>
-                                    <div className="text-[10px] text-slate-400">
-                                      বকেয়া: ৳0 ({formatMonthFilterLabel(activeMonthFilter, true)})
+                                (() => {
+                                  const cycleInfo = getPayrollCycleInfo(
+                                    s.joiningDate || s.salaryEffectiveFrom || s.appointedAt,
+                                    s.monthlySalaryOrCreditLimit,
+                                    paidThisPeriod
+                                  );
+
+                                  if (s.status === 'terminated') {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold">
+                                        চাকরি শেষ
+                                      </span>
+                                    );
+                                  }
+
+                                  if (paidThisPeriod >= cycleInfo.payableForCurrentMonth && cycleInfo.payableForCurrentMonth > 0) {
+                                    return (
+                                      <div className="space-y-0.5">
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
+                                          ✓ পরিশোধিত: {formatBDT(paidThisPeriod)}
+                                        </span>
+                                        <div className="text-[10px] text-slate-400">
+                                          বকেয়া: ৳0 ({cycleInfo.currentMonthNameBn})
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (paidThisPeriod > 0) {
+                                    return (
+                                      <div className="space-y-0.5">
+                                        <div className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                          প্রদত্ত: {formatBDT(paidThisPeriod)}
+                                        </div>
+                                        <div className="text-amber-600 dark:text-amber-400 font-bold">
+                                          বাকি: {formatBDT(Math.max(0, cycleInfo.payableForCurrentMonth - paidThisPeriod))}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (cycleInfo.cycleStatus === 'due_for_payout') {
+                                    return (
+                                      <div className="space-y-0.5">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-[11px] animate-pulse">
+                                          🔔 প্রদেয় বেতন: {formatBDT(cycleInfo.payableForCurrentMonth)}
+                                        </span>
+                                        {cycleInfo.isProrated && (
+                                          <div className="text-[10px] text-amber-600">
+                                            হাজিরা: {cycleInfo.daysWorkedInCurrentMonth} দিন (আনুপাতিক)
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div className="space-y-0.5">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-300 font-semibold text-[11px]">
+                                        {cycleInfo.isJoinedCurrentMonth
+                                          ? `চলমান: ${cycleInfo.daysWorkedInCurrentMonth} দিন (আনুপাতিক ${formatBDT(cycleInfo.payableForCurrentMonth)})`
+                                          : `মাসের কার্যকাল চলমান (${formatBDT(cycleInfo.payableForCurrentMonth)})`}
+                                      </span>
+                                      <div className="text-[10px] text-slate-400">
+                                        মাস শেষে ৩ দিন পূর্বে প্রদেয় হবে
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : paidThisPeriod > 0 ? (
-                                  <div className="space-y-0.5">
-                                    <div className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                      প্রদত্ত: {formatBDT(paidThisPeriod)}
-                                    </div>
-                                    <div className="text-amber-600 dark:text-amber-400 font-bold">
-                                      বাকি: {formatBDT(Math.max(0, s.monthlySalaryOrCreditLimit - paidThisPeriod))}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px]">
-                                    বেতন বাকি: {formatBDT(s.monthlySalaryOrCreditLimit)}
-                                  </span>
-                                )
+                                  );
+                                })()
                               ) : s.stakeholderType === 'customer' ? (
                                 s.outstandingBalance > 0 ? (
                                   <span className="text-amber-600 dark:text-amber-400 font-bold">
@@ -3170,30 +3556,44 @@ export default function CentralAccountingAndInventoryView({
                               <div className="inline-flex items-center justify-end gap-1.5 flex-wrap">
                                 {s.stakeholderType === 'employee' ? (
                                   <>
-                                    {s.status !== 'terminated' && (
-                                      paidThisPeriod >= s.monthlySalaryOrCreditLimit ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openStkPayModal(s, 5000)}
-                                          className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap cursor-pointer"
-                                        >
-                                          বোনাস দিন
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            openStkPayModal(
-                                              s,
-                                              Math.max(1, s.monthlySalaryOrCreditLimit - paidThisPeriod)
-                                            )
-                                          }
-                                          className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap shadow-xs cursor-pointer"
-                                        >
-                                          {paidThisPeriod > 0 ? 'বাকি বেতন দিন' : 'বেতন দিন'}
-                                        </button>
-                                      )
-                                    )}
+                                    {s.status !== 'terminated' &&
+                                      (() => {
+                                        const cycleInfo = getPayrollCycleInfo(
+                                          s.joiningDate || s.salaryEffectiveFrom || s.appointedAt,
+                                          s.monthlySalaryOrCreditLimit,
+                                          paidThisPeriod
+                                        );
+                                        return paidThisPeriod >= cycleInfo.payableForCurrentMonth && cycleInfo.payableForCurrentMonth > 0 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => openStkPayModal(s, 5000)}
+                                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap cursor-pointer"
+                                          >
+                                            বোনাস দিন
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              openStkPayModal(
+                                                s,
+                                                Math.max(1, cycleInfo.payableForCurrentMonth - paidThisPeriod)
+                                              )
+                                            }
+                                            className={`px-2.5 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap shadow-xs cursor-pointer ${
+                                              cycleInfo.cycleStatus === 'due_for_payout'
+                                                ? 'bg-amber-600 text-white hover:bg-amber-700 animate-pulse'
+                                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                            }`}
+                                          >
+                                            {paidThisPeriod > 0
+                                              ? 'বাকি বেতন দিন'
+                                              : cycleInfo.cycleStatus === 'due_for_payout'
+                                              ? '🔔 বেতন দিন'
+                                              : 'অগ্রিম / বেতন দিন'}
+                                          </button>
+                                        );
+                                      })()}
 
                                     {paidThisPeriod > 0 && (
                                       <button
@@ -5766,6 +6166,170 @@ export default function CentralAccountingAndInventoryView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Business Manager Salary Disbursement Modal */}
+      {mgrPayTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-emerald-600" />
+                  <span>বিজনেস ম্যানেজার বেতন অনুমোদন ও প্রদান (Manager Remuneration)</span>
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {mgrPayTarget.displayName} · বিভাগীয় প্রধান ({mgrPayTarget.assignedBusinesses || 'RegardsAgro'})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMgrPayTarget(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
+                    <span>{mgrPayTarget.displayName}</span>
+                    <span className="font-mono text-[10px] text-slate-500">[{mgrPayTarget.role}]</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                    মোবাইল: <strong>{mgrPayTarget.phone || '+880 1711-000000'}</strong> · অনুমোদক: <strong>{userRole === 'super_admin' ? 'সুপার অ্যাডমিন (মালিক)' : 'জেনারেল ম্যানেজার (Super Manager)'}</strong>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-slate-500">মাসিক নির্ধারিত রিম্যুনারেশন</div>
+                  <div className="font-mono font-bold text-emerald-700 dark:text-emerald-300 text-sm">
+                    {formatBDT(mgrPayTarget.monthlySalary || 35000)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Base Salary Input */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    মাসিক মূল বেতন (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={mgrPayAmount}
+                    onChange={(e) => setMgrPayAmount(Number(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
+                    + পারফরম্যান্স বোনাস (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={mgrPayBonus}
+                    onChange={(e) => setMgrPayBonus(Number(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold text-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-rose-700 dark:text-rose-400 mb-1">
+                    - অগ্রিম / জরিমানা কর্তন
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={mgrPayDeduction}
+                    onChange={(e) => setMgrPayDeduction(Number(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold text-rose-600"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated Total Payout Banner */}
+              <div className="p-3.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] text-slate-500">মোট প্রদেয় বেতন (ভাউচার অ্যামাউন্ট)</div>
+                  <div className="text-lg font-black font-mono text-emerald-700 dark:text-emerald-300">
+                    {formatBDT(Math.max(0, mgrPayAmount + mgrPayBonus - mgrPayDeduction))}
+                  </div>
+                </div>
+                <div className="text-[11px] text-right text-slate-500">
+                  মূল: ৳{mgrPayAmount} {mgrPayBonus > 0 ? `+ ৳${mgrPayBonus}` : ''} {mgrPayDeduction > 0 ? `- ৳${mgrPayDeduction}` : ''}
+                </div>
+              </div>
+
+              {/* Wallet & Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    পেমেন্ট মেথড / ক্যাশ ভল্ট বা ব্যাংক
+                  </label>
+                  <select
+                    value={mgrPayWalletId || treasuryWallets[0]?.id || ''}
+                    onChange={(e) => setMgrPayWalletId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-semibold"
+                  >
+                    {treasuryWallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} (ব্যালেন্স: {formatBDT(w.balance)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    পরিশোধের তারিখ
+                  </label>
+                  <input
+                    type="date"
+                    value={mgrPayDate}
+                    onChange={(e) => setMgrPayDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Remarks */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  ভাউচার বিবরণ / রিমার্কস
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: চলতি মাসের সন্তোষজনক খামার পরিচালনার বেতন অনুমোদন"
+                  value={mgrPayNote}
+                  onChange={(e) => setMgrPayNote(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setMgrPayTarget(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSettleManagerSalary}
+                  disabled={isSettlingMgr || (mgrPayAmount + mgrPayBonus - mgrPayDeduction) <= 0}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-600/30"
+                >
+                  {isSettlingMgr
+                    ? 'প্রসেসিং হচ্ছে...'
+                    : `${formatBDT(Math.max(0, mgrPayAmount + mgrPayBonus - mgrPayDeduction))} ভাউচার অনুমোদন ও বেতন দিন`}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

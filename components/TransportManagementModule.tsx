@@ -36,6 +36,7 @@ interface TransportManagementModuleProps {
   ownerId: string;
   actorEmail: string;
   onNotify: (msg: string) => void;
+  lang?: 'en' | 'bn';
 }
 
 type TransportSubTab =
@@ -50,7 +51,9 @@ export default function TransportManagementModule({
   ownerId,
   actorEmail,
   onNotify,
+  lang = 'bn',
 }: TransportManagementModuleProps) {
+  const bn = lang === 'bn';
   const [activeSubTab, setActiveSubTab] = useState<TransportSubTab>('PROFILE_OVERVIEW');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOpId, setSelectedOpId] = useState<string>(ops[0]?.id || '');
@@ -484,18 +487,18 @@ export default function TransportManagementModule({
                       : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
                   }`}
                 >
-                  {tab.step}
+                  {bn ? `ধাপ ${tab.step}` : `Step ${tab.step}`}
                 </span>
                 <Icon className="h-4 w-4 opacity-85" />
               </div>
               <div>
-                <div className="text-xs font-bold leading-tight">{tab.titleBn}</div>
+                <div className="text-xs font-bold leading-tight">{bn ? tab.titleBn : tab.titleEn}</div>
                 <div
                   className={`text-[10px] mt-0.5 ${
                     active ? 'text-emerald-100' : 'text-slate-400'
                   }`}
                 >
-                  {tab.titleEn}
+                  {bn ? tab.titleEn : tab.titleBn}
                 </div>
               </div>
             </button>
@@ -528,14 +531,14 @@ export default function TransportManagementModule({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                    <th className="py-2.5 px-4 w-2/5">বিষয় (Field)</th>
-                    <th className="py-2.5 px-4">তথ্য (Information)</th>
+                    <th className="py-2.5 px-4 w-2/5">{bn ? "বিষয় (Field)" : "Metric / Field"}</th>
+                    <th className="py-2.5 px-4">{bn ? "তথ্য (Information)" : "Vehicle Records"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      Vehicle ID (গাড়ির আইডি)
+                      {bn ? 'গাড়ির আইডি (Vehicle ID)' : 'Vehicle ID'}
                     </td>
                     <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                       {selectedOp.tripOrVehicleCode}
@@ -551,35 +554,35 @@ export default function TransportManagementModule({
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      গাড়ির ধরন ও কেনার দাম
+                      {bn ? 'গাড়ির ধরন ও কেনার দাম' : 'Vehicle Type & Purchase Price'}
                     </td>
                     <td className="py-2.5 px-4 font-semibold">{selectedOp.vehicleType}</td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      চালক (Driver Name)
+                      {bn ? 'চালক (Driver Name)' : 'Designated Driver'}
                     </td>
                     <td className="py-2.5 px-4 font-bold">{selectedOp.driverName}</td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      ফিটনেস ও ট্যাক্স টোকেনের মেয়াদ
+                      {bn ? 'ফিটনেস ও ট্যাক্স টোকেনের মেয়াদ' : 'Fitness & Tax Token Expiry'}
                     </td>
                     <td className="py-2.5 px-4 font-mono">
-                      ফিটনেস: {selectedOp.fitnessExpiry} | ট্যাক্স টোকেন: {selectedOp.taxTokenExpiry}
+                      {bn ? 'ফিটনেস: ' : 'Fitness: '}{selectedOp.fitnessExpiry} | {bn ? 'ট্যাক্স টোকেন: ' : 'Tax Token: '}{selectedOp.taxTokenExpiry}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      ইন্স্যুরেন্স ও পরবর্তী সার্ভিসিং
+                      {bn ? 'ইন্স্যুরেন্স ও পরবর্তী সার্ভিসিং' : 'Insurance & Next Servicing'}
                     </td>
                     <td className="py-2.5 px-4 font-mono">
-                      ইন্স্যুরেন্স: {selectedOp.insuranceExpiry} | সার্ভিসিং: {selectedOp.nextServiceDate}
+                      {bn ? 'ইন্স্যুরেন্স: ' : 'Insurance: '}{selectedOp.insuranceExpiry} | {bn ? 'সার্ভিসিং: ' : 'Service: '}{selectedOp.nextServiceDate}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      রক্ষণাবেক্ষণ নোট
+                      {bn ? 'রক্ষণাবেক্ষণ নোট' : 'Maintenance & Status Notes'}
                     </td>
                     <td className="py-2.5 px-4">{selectedOp.maintenanceDetails}</td>
                   </tr>
@@ -596,7 +599,7 @@ export default function TransportManagementModule({
                   {selectedOp.tripOrVehicleCode} – Trip Report
                 </h3>
                 <p className="text-xs text-slate-500">
-                  তারিখ: {selectedOp.date} · ক্রেতা: {selectedOp.customerName}
+                  {bn ? 'তারিখ: ' : 'Date: '}{selectedOp.date} · {bn ? 'পার্টি: ' : 'Client: '}{selectedOp.customerName}
                 </p>
               </div>
               <span className="px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
@@ -606,13 +609,13 @@ export default function TransportManagementModule({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-                <div className="text-[11px] text-slate-500">রুট (Route)</div>
+                <div className="text-[11px] text-slate-500">{bn ? "রুট (Route)" : "Freight Route"}</div>
                 <div className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-                  {selectedOp.origin} → {selectedOp.destination} ({selectedOp.distanceKm} কি.মি.)
+                  {selectedOp.origin} → {selectedOp.destination} ({selectedOp.distanceKm} {bn ? 'কি.মি.' : 'KM'})
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                <div className="text-[11px] text-slate-500">ট্রিপ ভাড়া (Trip Revenue)</div>
+                <div className="text-[11px] text-slate-500">{bn ? "ট্রিপ ভাড়া (Trip Revenue)" : "Freight Revenue"}</div>
                 <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
                   {formatBDT(selTripRevenue)}
                 </div>
@@ -623,43 +626,43 @@ export default function TransportManagementModule({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                    <th className="py-2.5 px-4">খরচ (Expense Head)</th>
-                    <th className="py-2.5 px-4 text-right">টাকা (BDT)</th>
+                    <th className="py-2.5 px-4">{bn ? "খরচ (Expense Head)" : "Trip Expense Head"}</th>
+                    <th className="py-2.5 px-4 text-right">{bn ? "টাকা (BDT)" : "Amount (BDT)"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
-                    <td className="py-2.5 px-4 font-semibold">ডিজেল (Diesel / Fuel Cost)</td>
+                    <td className="py-2.5 px-4 font-semibold">{bn ? "ডিজেল (Diesel / Fuel Cost)" : "Diesel Fuel Cost"}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(selDiesel)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4 font-semibold">টোল (Bridge & Highway Toll)</td>
+                    <td className="py-2.5 px-4 font-semibold">{bn ? "টোল (Bridge & Highway Toll)" : "Bridge & Highway Tolls"}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(selToll)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4 font-semibold">চালকের ভাতা (Driver Allowance)</td>
+                    <td className="py-2.5 px-4 font-semibold">{bn ? "চালকের ভাতা (Driver Allowance)" : "Driver & Helper Allowance"}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(selAllowance)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4 font-semibold">অন্যান্য ও রক্ষণাবেক্ষণ (Other)</td>
+                    <td className="py-2.5 px-4 font-semibold">{bn ? "অন্যান্য ও রক্ষণাবেক্ষণ (Other)" : "Other Trip & Maintenance"}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(selOtherMaint)}
                     </td>
                   </tr>
                   <tr className="bg-amber-50/70 dark:bg-amber-950/20 font-bold">
-                    <td className="py-2.5 px-4">মোট খরচ (Total Trip Expense)</td>
+                    <td className="py-2.5 px-4">{bn ? "মোট খরচ (Total Trip Expense)" : "Total Trip Operating Cost"}</td>
                     <td className="py-2.5 px-4 text-right font-mono text-amber-700 dark:text-amber-400">
                       {formatBDT(selTotalTripCost)}
                     </td>
                   </tr>
                   <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
-                    <td className="py-3 px-4">ট্রিপের লাভ (Net Trip Profit)</td>
+                    <td className="py-3 px-4">{bn ? "ট্রিপের লাভ (Net Trip Profit)" : "Net Trip Profit Margin"}</td>
                     <td
                       className={`py-3 px-4 text-right font-mono text-base ${
                         selTripProfit >= 0
@@ -684,7 +687,7 @@ export default function TransportManagementModule({
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 max-w-4xl space-y-4">
           <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Plus className="h-4 w-4 text-emerald-600" />
-            A. নতুন ট্রিপ ও গাড়ির ভাড়ার হিসাব লিখুন (Trip Management)
+            {bn ? 'A. নতুন ট্রিপ ও গাড়ির ভাড়ার হিসাব লিখুন (Trip Management)' : 'A. Record Highway Freight Trip & Revenue'}
           </h3>
 
           <form onSubmit={handleCreateTripA} className="space-y-4 text-xs">
@@ -712,7 +715,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">গাড়ির ধরন</label>
+                <label className="block font-semibold mb-1">{bn ? 'গাড়ির ধরন' : 'Vehicle Category / Body Type'}</label>
                 <input
                   type="text"
                   value={aVehicleType}
@@ -721,7 +724,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">চালকের নাম (Driver) *</label>
+                <label className="block font-semibold mb-1">{bn ? 'চালকের নাম (Driver) *' : 'Driver Name *'}</label>
                 <input
                   type="text"
                   required
@@ -734,7 +737,7 @@ export default function TransportManagementModule({
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block font-semibold mb-1">ট্রিপের তারিখ</label>
+                <label className="block font-semibold mb-1">{bn ? 'ট্রিপের তারিখ' : 'Trip Date'}</label>
                 <input
                   type="date"
                   value={aTripDate}
@@ -743,7 +746,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">কোথা থেকে (Origin) *</label>
+                <label className="block font-semibold mb-1">{bn ? 'কোথা থেকে (Origin) *' : 'Origin *'}</label>
                 <input
                   type="text"
                   required
@@ -753,7 +756,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">কোথায় যাবে (Destination) *</label>
+                <label className="block font-semibold mb-1">{bn ? 'কোথায় যাবে (Destination) *' : 'Destination *'}</label>
                 <input
                   type="text"
                   required
@@ -763,7 +766,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">যাত্রার দূরত্ব (কি.মি.)</label>
+                <label className="block font-semibold mb-1">{bn ? 'যাত্রার দূরত্ব (কি.মি.)' : 'Trip Distance (KM)'}</label>
                 <input
                   type="number"
                   min={1}
@@ -776,7 +779,7 @@ export default function TransportManagementModule({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold mb-1">কোন পণ্য বহন করছে? (Cargo)</label>
+                <label className="block font-semibold mb-1">{bn ? 'কোন পণ্য বহন করছে? (Cargo)' : 'Cargo Description'}</label>
                 <input
                   type="text"
                   value={aCargoDetails}
@@ -785,7 +788,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">ক্রেতা / পার্টির নাম</label>
+                <label className="block font-semibold mb-1">{bn ? 'ক্রেতা / পার্টির নাম' : 'Freight Client / Shipper'}</label>
                 <input
                   type="text"
                   value={aCustomerName}
@@ -794,14 +797,14 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">ট্রিপ শেষ হয়েছে কি না?</label>
+                <label className="block font-semibold mb-1">{bn ? 'ট্রিপ শেষ হয়েছে কি না?' : 'Trip Completion Status'}</label>
                 <select
                   value={aTripStatus}
                   onChange={(e) => setATripStatus(e.target.value as any)}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-bold"
                 >
-                  <option value="completed">হ্যাঁ — Completed (সম্পন্ন)</option>
-                  <option value="active">চলমান (On Route / Active)</option>
+                  <option value="completed">{bn ? "হ্যাঁ — Completed (সম্পন্ন)" : "Completed"}</option>
+                  <option value="active">{bn ? "চলমান (On Route / Active)" : "In Transit / Active"}</option>
                 </select>
               </div>
             </div>
@@ -809,7 +812,7 @@ export default function TransportManagementModule({
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
               <div>
                 <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                  ট্রিপ ভাড়া (৳) *
+                  {bn ? 'ট্রিপ ভাড়া (৳) *' : 'Freight Revenue (৳) *'}
                 </label>
                 <input
                   type="number"
@@ -820,7 +823,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">ডিজেল খরচ (৳)</label>
+                <label className="block font-semibold mb-1">{bn ? 'ডিজেল খরচ (৳)' : 'Diesel Fuel Cost (৳)'}</label>
                 <input
                   type="number"
                   value={aDieselCost}
@@ -829,7 +832,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">টোল খরচ (৳)</label>
+                <label className="block font-semibold mb-1">{bn ? 'টোল খরচ (৳)' : 'Highway & Bridge Toll (৳)'}</label>
                 <input
                   type="number"
                   value={aTollCost}
@@ -838,7 +841,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">চালকের ভাতা (৳)</label>
+                <label className="block font-semibold mb-1">{bn ? 'চালকের ভাতা (৳)' : 'Driver Allowance (৳)'}</label>
                 <input
                   type="number"
                   value={aDriverAllowance}
@@ -847,7 +850,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">অন্যান্য খরচ (৳)</label>
+                <label className="block font-semibold mb-1">{bn ? 'অন্যান্য খরচ (৳)' : 'Other Incidentals (৳)'}</label>
                 <input
                   type="number"
                   value={aOtherTripCost}
@@ -856,7 +859,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">বকেয়া (Due ৳)</label>
+                <label className="block font-semibold mb-1">{bn ? 'বকেয়া (Due ৳)' : 'Freight Due (৳)'}</label>
                 <input
                   type="number"
                   min={0}
@@ -869,17 +872,17 @@ export default function TransportManagementModule({
 
             <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 grid grid-cols-3 gap-3 text-center">
               <div>
-                <div className="text-[11px] text-slate-500">মোট ভাড়া</div>
+                <div className="text-[11px] text-slate-500">{bn ? "মোট ভাড়া" : "Freight Revenue"}</div>
                 <div className="text-sm font-mono font-bold">{formatBDT(aTripRevenue)}</div>
               </div>
               <div>
-                <div className="text-[11px] text-slate-500">মোট খরচ</div>
+                <div className="text-[11px] text-slate-500">{bn ? "মোট খরচ" : "Total Trip Expense"}</div>
                 <div className="text-sm font-mono font-bold text-amber-600">
                   {formatBDT(formTotalTripExpense)}
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-slate-500">ট্রিপের নিট লাভ</div>
+                <div className="text-[11px] text-slate-500">{bn ? "ট্রিপের নিট লাভ" : "Net Margin"}</div>
                 <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400">
                   {formatBDT(formNetTripProfit)}
                 </div>
@@ -891,7 +894,7 @@ export default function TransportManagementModule({
               disabled={isSubmitting}
               className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
             >
-              + নতুন ট্রিপ ও লাভ-ক্ষতি সেভ করুন
+              {bn ? '+ নতুন ট্রিপ ও লাভ-ক্ষতি সেভ করুন' : '+ Save Freight Trip & Ledger Entry'}
             </button>
           </form>
         </div>
@@ -906,7 +909,7 @@ export default function TransportManagementModule({
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Wrench className="h-4 w-4 text-emerald-600" />
-                B. গাড়ির সার্ভিসিং, রক্ষণাবেক্ষণ ও কাগজপত্রের মেয়াদ রিমাইন্ডার ({selectedOp.tripOrVehicleCode})
+                {bn ? `B. গাড়ির সার্ভিসিং, রক্ষণাবেক্ষণ ও কাগজপত্রের মেয়াদ রিমাইন্ডার (${selectedOp.tripOrVehicleCode})` : `B. Vehicle Maintenance, Servicing & Document Reminders (${selectedOp.tripOrVehicleCode})`}
               </h3>
               <p className="text-xs text-slate-500">
                 ইঞ্জিন অয়েল, টায়ার, মেরামত খরচ, ড্রাইভারের বেতন, গাড়ি কতদিন বন্ধ ছিল এবং ফিটনেস/ট্যাক্স টোকেন/ইন্স্যুরেন্স মেয়াদের রিমাইন্ডার।
@@ -918,7 +921,7 @@ export default function TransportManagementModule({
           <form onSubmit={handleRecordMaintenanceB} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold mb-1">১. ইঞ্জিন অয়েল পরিবর্তন</label>
+                <label className="block font-semibold mb-1">{bn ? '১. ইঞ্জিন অয়েল পরিবর্তন' : '1. Engine Oil Change'}</label>
                 <input
                   type="text"
                   value={bEngineOilChange}
@@ -927,7 +930,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">২. টায়ার পরিবর্তন / চেকআপ</label>
+                <label className="block font-semibold mb-1">{bn ? '২. টায়ার পরিবর্তন / চেকআপ' : '2. Tyre Replacement / Inspection'}</label>
                 <input
                   type="text"
                   value={bTyreChange}
@@ -936,7 +939,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">৩. গাড়ির সার্ভিসিং বিবরণ</label>
+                <label className="block font-semibold mb-1">{bn ? '৩. গাড়ির সার্ভিসিং বিবরণ' : '3. Workshop Service Details'}</label>
                 <input
                   type="text"
                   value={bServiceDetails}
@@ -948,7 +951,7 @@ export default function TransportManagementModule({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold mb-1">৪. মেরামতের খরচ (Maintenance ৳)</label>
+                <label className="block font-semibold mb-1">{bn ? '৪. মেরামতের খরচ (Maintenance ৳)' : '4. Maintenance Cost (৳)'}</label>
                 <input
                   type="number"
                   min={0}
@@ -958,7 +961,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">৮. ড্রাইভারের মাসিক বেতন (৳)</label>
+                <label className="block font-semibold mb-1">{bn ? '৮. ড্রাইভারের মাসিক বেতন (৳)' : '8. Driver Monthly Salary (৳)'}</label>
                 <input
                   type="number"
                   min={0}
@@ -969,7 +972,7 @@ export default function TransportManagementModule({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-red-600">
-                  ৯. গাড়ি কতদিন বন্ধ ছিল? (Downtime Days)
+                  {bn ? '৯. গাড়ি কতদিন বন্ধ ছিল? (Downtime Days)' : '9. Fleet Downtime (Days)'}
                 </label>
                 <input
                   type="number"
@@ -984,7 +987,7 @@ export default function TransportManagementModule({
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block font-semibold mb-1 text-amber-600">
-                  ৫. ফিটনেসের মেয়াদ (Fitness Expiry)
+                  {bn ? '৫. ফিটনেসের মেয়াদ (Fitness Expiry)' : '5. BRTA Fitness Certificate Expiry'}
                 </label>
                 <input
                   type="date"
@@ -995,7 +998,7 @@ export default function TransportManagementModule({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-amber-600">
-                  ৬. ট্যাক্স টোকেনের মেয়াদ (Tax Token)
+                  {bn ? '৬. ট্যাক্স টোকেনের মেয়াদ (Tax Token)' : '6. Tax Token Expiry Date'}
                 </label>
                 <input
                   type="date"
@@ -1006,7 +1009,7 @@ export default function TransportManagementModule({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-amber-600">
-                  ৭. ইন্স্যুরেন্সের মেয়াদ (Insurance)
+                  {bn ? '৭. ইন্স্যুরেন্সের মেয়াদ (Insurance)' : '7. Commercial Insurance Expiry'}
                 </label>
                 <input
                   type="date"
@@ -1016,7 +1019,7 @@ export default function TransportManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">পরবর্তী সার্ভিসিং তারিখ</label>
+                <label className="block font-semibold mb-1">{bn ? 'পরবর্তী সার্ভিসিং তারিখ' : 'Next Workshop Scheduled Service'}</label>
                 <input
                   type="date"
                   value={bNextServiceDate}

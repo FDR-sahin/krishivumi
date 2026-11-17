@@ -16,6 +16,13 @@ import {
   TrendingDown,
   Wallet,
   PackageCheck,
+  Users,
+  UserPlus,
+  Calendar,
+  X,
+  Briefcase,
+  UserCheck,
+  Award,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -27,6 +34,8 @@ import {
   ErpInventoryItem,
   ErpAccount,
   ErpAuditLog,
+  ErpStakeholder,
+  ErpUser,
   formatBDT,
 } from '@/lib/erp-types';
 import {
@@ -36,6 +45,8 @@ import {
   createFishCycleRecord,
   createTransportOpRecord,
   postDoubleEntryTransaction,
+  createStakeholderRecord,
+  assignBusinessManager,
 } from '@/lib/erp-service';
 import PoultryManagementModule from './PoultryManagementModule';
 import LivestockManagementModule from './LivestockManagementModule';
@@ -53,12 +64,15 @@ interface SpecializedModulesViewProps {
   inventoryItems: ErpInventoryItem[];
   accounts: ErpAccount[];
   auditLogs?: ErpAuditLog[];
+  stakeholders?: ErpStakeholder[];
+  erpUsers?: ErpUser[];
   ownerId: string;
   actorEmail: string;
   userRole: string;
   onBackToDashboard: () => void;
   monthFilter?: MonthFilterValue;
   onChangeMonthFilter?: (next: MonthFilterValue) => void;
+  lang?: 'en' | 'bn';
 }
 
 export default function SpecializedModulesView({
@@ -71,12 +85,17 @@ export default function SpecializedModulesView({
   inventoryItems,
   accounts,
   auditLogs = [],
+  stakeholders = [],
+  erpUsers = [],
   ownerId,
   actorEmail,
+  userRole,
   onBackToDashboard,
   monthFilter: controlledMonthFilter,
   onChangeMonthFilter,
+  lang = 'bn',
 }: SpecializedModulesViewProps) {
+  const bn = lang === 'bn';
   const [localMonthFilter, setLocalMonthFilter] = useState<MonthFilterValue>({
     year: 'ALL',
     month: 'ALL',
@@ -136,8 +155,8 @@ export default function SpecializedModulesView({
   const [pChickenType, setPChickenType] = useState<
     'Broiler' | 'Layer' | 'Sonali' | 'Deshi' | 'Breeder'
   >('Broiler');
-  const [pShed, setPShed] = useState('শেড নং - ৩ (Shed-3)');
-  const [pSupplier, setPSupplier] = useState('কাজী হ্যাচারি লিমিটেড');
+  const [pShed, setPShed] = useState('Shed-03');
+  const [pSupplier, setPSupplier] = useState('Prime Hatcheries Ltd.');
   const [pInitQty, setPInitQty] = useState(2000);
   const [pPurchaseCost, setPPurchaseCost] = useState(110000);
   const [pFeedCost, setPFeedCost] = useState(185000);
@@ -151,7 +170,7 @@ export default function SpecializedModulesView({
   );
   const [lName, setLName] = useState('');
   const [lBreed, setLBreed] = useState(
-    tpl === 'goat' ? 'ব্ল্যাক বেঙ্গল (Black Bengal)' : 'হলস্টেইন ফ্রিজিয়ান (Friesian Cross)'
+    tpl === 'goat' ? 'Black Bengal' : 'Holstein Friesian Cross'
   );
   const [lGender, setLGender] = useState<'Female' | 'Male'>('Female');
   const [lAge, setLAge] = useState(24);
@@ -161,15 +180,15 @@ export default function SpecializedModulesView({
   const [lMilkLiters, setLMilkLiters] = useState(tpl === 'goat' ? 0 : 3200);
   const [lMilkRev, setLMilkRev] = useState(tpl === 'goat' ? 0 : 256000);
   const [lParentTag, setLParentTag] = useState(
-    tpl === 'goat' ? 'বাবা: GOAT-0002 | মা: GOAT-0001' : 'খামারের মূল জাত'
+    tpl === 'goat' ? 'Sire: GOAT-0002 | Dam: GOAT-0001' : 'Core Purebred Lineage'
   );
 
   // Fish Form State
   const [fCycleCode, setFCycleCode] = useState(`POND-0${bizFish.length + 1}-2026`);
   const [fPondId, setFPondId] = useState(`POND-0${bizFish.length + 1}`);
-  const [fPondName, setFPondName] = useState(`পুকুর নং - ০${bizFish.length + 1}`);
+  const [fPondName, setFPondName] = useState(`Pond-0${bizFish.length + 1}`);
   const [fArea, setFArea] = useState(120);
-  const [fSpecies, setFSpecies] = useState('রুই, কাতলা ও তেলাপিয়া');
+  const [fSpecies, setFSpecies] = useState('Rui, Katla & Tilapia');
   const [fInitQty, setFInitQty] = useState(25000);
   const [fFingerlingCost, setFFingerlingCost] = useState(85000);
   const [fFeedCost, setFFeedCost] = useState(210000);
@@ -178,19 +197,226 @@ export default function SpecializedModulesView({
   // Transport Form State
   const [tCode, setTCode] = useState(`TRIP-10${bizTransport.length + 1}`);
   const [tRegNo, setTRegNo] = useState('Dhaka Metro-Ta-16-9210');
-  const [tVehicleType, setTVehicleType] = useState('৭ টন কাভার্ড ভ্যান');
-  const [tDriver, setTDriver] = useState('মোঃ শফিকুল ইসলাম');
-  const [tOrigin, setTOrigin] = useState('গাজীপুর খামার');
-  const [tDest, setTDest] = useState('ঢাকা কারওয়ান বাজার');
+  const [tVehicleType, setTVehicleType] = useState('7-Ton Covered Van');
+  const [tDriver, setTDriver] = useState('Md. Shafiqul Islam');
+  const [tOrigin, setTOrigin] = useState('Gazipur Agro Hub');
+  const [tDest, setTDest] = useState('Dhaka Wholesale Hub');
   const [tDistance, setTDistance] = useState(180);
   const [tFuel, setTFuel] = useState(9500);
   const [tToll, setTToll] = useState(1800);
   const [tAllowance, setTAllowance] = useState(2000);
   const [tRev, setTRev] = useState(38000);
 
+  // Business-Specific Staff & Team Telemetry
+  const bizStaff = (stakeholders || []).filter(
+    (s) =>
+      s.stakeholderType === 'employee' &&
+      (s.businessId === activeBusiness.id ||
+        (tpl === 'poultry' &&
+          (s.businessId?.includes('biz-poultry') ||
+            s.businessName?.toLowerCase().includes('poultry'))) ||
+        (tpl === 'cattle' &&
+          (s.businessId?.includes('biz-cattle') ||
+            s.businessName?.toLowerCase().includes('cattle') ||
+            s.businessName?.includes('গরু'))) ||
+        (tpl === 'goat' &&
+          (s.businessId?.includes('biz-goat') ||
+            s.businessName?.toLowerCase().includes('goat') ||
+            s.businessName?.includes('ছাগল'))) ||
+        (tpl === 'fish' &&
+          (s.businessId?.includes('biz-fish') ||
+            s.businessName?.toLowerCase().includes('fish') ||
+            s.businessName?.includes('মাছ'))) ||
+        (tpl === 'transport' &&
+          (s.businessId?.includes('biz-trans') ||
+            s.businessName?.toLowerCase().includes('transport') ||
+            s.businessName?.includes('ট্রাক'))))
+  );
+
+  const totalStaffSalary = bizStaff.reduce(
+    (sum, s) => sum + (s.monthlySalaryOrCreditLimit || 0),
+    0
+  );
+
+  const assignedManagerUser = (erpUsers || []).find(
+    (u) =>
+      (u.role === 'business_manager' || u.role === 'super_manager') &&
+      (u.assignedBusinesses === 'ALL' || u.assignedBusinesses?.includes(activeBusiness.id))
+  );
+  const currentManagerName =
+    activeBusiness.managerName || assignedManagerUser?.displayName || 'Md. Sahin Miah (মালিক)';
+  const currentManagerPhone =
+    activeBusiness.contactPhone || assignedManagerUser?.phone || '+880 1711-000000';
+
+  // Business-Specific Staff Recruitment Modal State
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [stfName, setStfName] = useState('');
+  const [stfPhone, setStfPhone] = useState('+880 1711-000000');
+  const [stfDesignation, setStfDesignation] = useState('');
+  const [stfSalary, setStfSalary] = useState<number>(20000);
+  const [stfJoiningDate, setStfJoiningDate] = useState<string>(
+    () => new Date().toISOString().split('T')[0]
+  );
+  const [stfAddress, setStfAddress] = useState(activeBusiness.location || 'Gazipur, Bangladesh');
+  const [isSavingStaff, setIsSavingStaff] = useState(false);
+
+  // Appoint / Change Manager Modal State
+  const [showAppointMgrModal, setShowAppointMgrModal] = useState(false);
+  const [newMgrName, setNewMgrName] = useState(activeBusiness.managerName || '');
+  const [newMgrPhone, setNewMgrPhone] = useState(activeBusiness.contactPhone || '');
+  const [isSavingMgr, setIsSavingMgr] = useState(false);
+
+  // Quick Salary Payment Modal State
+  const [salaryTarget, setSalaryTarget] = useState<ErpStakeholder | null>(null);
+  const [salaryPaymentAmount, setSalaryPaymentAmount] = useState<number>(0);
+  const [salaryWalletId, setSalaryWalletId] = useState<string>('');
+  const [salaryMonthLabel, setSalaryMonthLabel] = useState<string>(() =>
+    new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  );
+  const [isPayingSalary, setIsPayingSalary] = useState(false);
+
   const notify = (msg: string) => {
     setStatusMessage(msg);
     setTimeout(() => setStatusMessage(null), 4500);
+  };
+
+  const handleOpenAddStaff = () => {
+    setStfName('');
+    setStfPhone('+880 1711-000000');
+    setStfJoiningDate(new Date().toISOString().split('T')[0]);
+    setStfAddress(activeBusiness.location || 'Gazipur, Bangladesh');
+
+    if (tpl === 'cattle') {
+      setStfDesignation(bn ? 'দুগ্ধ দোহন ও পশু পরিচর্যা কর্মী' : 'Milking & Cattle Caretaker');
+      setStfSalary(20000);
+    } else if (tpl === 'poultry') {
+      setStfDesignation(bn ? 'পোল্ট্রি শেড সহকারী' : 'Poultry Shed Assistant');
+      setStfSalary(22000);
+    } else if (tpl === 'goat') {
+      setStfDesignation(bn ? 'ছাগল প্রজনন ও যত্নকর্মী' : 'Goat Breeding & Feed Keeper');
+      setStfSalary(18000);
+    } else if (tpl === 'fish') {
+      setStfDesignation(bn ? 'পুকুর ও মাছের খাদ্য ইনচার্জ' : 'Pond & Feed Lead');
+      setStfSalary(22000);
+    } else if (tpl === 'transport') {
+      setStfDesignation(bn ? 'হেভি ট্রাক ড্রাইভার' : 'Heavy Truck Driver');
+      setStfSalary(28000);
+    } else {
+      setStfDesignation(bn ? 'খামার কর্মী' : 'Farm Assistant');
+      setStfSalary(20000);
+    }
+    setShowAddStaffModal(true);
+  };
+
+  const handleSaveStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stfName.trim()) return;
+    setIsSavingStaff(true);
+    try {
+      await createStakeholderRecord(
+        {
+          stakeholderType: 'employee',
+          code: `EMP-${Math.floor(100 + Math.random() * 899)}`,
+          name: stfName.trim(),
+          phone: stfPhone.trim(),
+          email: `${stfName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff'}@regardsagro.bd`,
+          address: stfAddress.trim(),
+          businessId: activeBusiness.id,
+          businessName: activeBusiness.nameBn || activeBusiness.name,
+          designationOrCategory: stfDesignation.trim(),
+          monthlySalaryOrCreditLimit: Number(stfSalary) || 0,
+          outstandingBalance: 0,
+          status: 'active',
+          appointedBy: actorEmail,
+          appointedByRole: userRole as any,
+          appointedAt: new Date().toISOString(),
+          joiningDate: stfJoiningDate,
+          salaryEffectiveFrom: stfJoiningDate,
+        },
+        ownerId,
+        actorEmail
+      );
+      setShowAddStaffModal(false);
+      notify(
+        bn
+          ? `কর্মী "${stfName}" সফলভাবে ${activeBusiness.nameBn || activeBusiness.name}-এ যুক্ত হয়েছে!`
+          : `Staff "${stfName}" successfully hired for ${activeBusiness.name}!`
+      );
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'কর্মী যুক্ত করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSavingStaff(false);
+    }
+  };
+
+  const handleAppointManager = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMgrName.trim()) return;
+    setIsSavingMgr(true);
+    try {
+      await assignBusinessManager(activeBusiness.id, newMgrName.trim(), newMgrPhone.trim());
+      activeBusiness.managerName = newMgrName.trim();
+      if (newMgrPhone.trim()) activeBusiness.contactPhone = newMgrPhone.trim();
+      setShowAppointMgrModal(false);
+      notify(
+        bn
+          ? `"${newMgrName}"-কে ${activeBusiness.nameBn || activeBusiness.name}-এর নতুন ইন-চার্জ ম্যানেজার নিয়োগ দেওয়া হয়েছে!`
+          : `Appointed "${newMgrName}" as manager for ${activeBusiness.name}!`
+      );
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'ম্যানেজার নিয়োগ করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSavingMgr(false);
+    }
+  };
+
+  const handleDisburseSalary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!salaryTarget || salaryPaymentAmount <= 0) return;
+    setIsPayingSalary(true);
+    try {
+      const payingWallet =
+        accounts.find((a) => a.id === salaryWalletId) ||
+        accounts.find((a) => a.subType === 'cash') ||
+        accounts.find((a) => a.subType === 'bank') ||
+        accounts[0];
+      const payrollAccount =
+        accounts.find((a) => a.subType === 'payroll' || a.accountType === 'expense') ||
+        accounts[0];
+
+      await postDoubleEntryTransaction(
+        {
+          referenceNo: `PAY-${Date.now().toString().slice(-6)}`,
+          date: new Date().toISOString().split('T')[0],
+          businessId: activeBusiness.id,
+          businessName: activeBusiness.nameBn || activeBusiness.name,
+          transactionType: 'payroll',
+          category: 'বেতন ও পারিশ্রমিক (Payroll)',
+          description: `${salaryTarget.name} (${salaryTarget.designationOrCategory})-এর ${salaryMonthLabel} মাসের বেতন পরিশোধ`,
+          debitAccountId: payrollAccount.id,
+          debitAccountName: payrollAccount.name,
+          creditAccountId: payingWallet.id,
+          creditAccountName: payingWallet.name,
+          amount: Number(salaryPaymentAmount),
+          paymentStatus: 'paid',
+          dueAmount: 0,
+          counterpartyName: salaryTarget.name,
+        },
+        accounts,
+        ownerId,
+        actorEmail
+      );
+      setSalaryTarget(null);
+      notify(
+        bn
+          ? `${salaryTarget.name}-এর বেতন বাবদ ${formatBDT(salaryPaymentAmount)} সফলভাবে পরিশোধ হয়েছে!`
+          : `Disbursed ${formatBDT(salaryPaymentAmount)} payroll to ${salaryTarget.name}!`
+      );
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'বেতন পরিশোধ করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsPayingSalary(false);
+    }
   };
 
   // Financial Summary for this business
@@ -385,9 +611,23 @@ export default function SpecializedModulesView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Thematic Agribusiness Watermark (Jolchap) Background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.055] dark:opacity-[0.035] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50"
+        style={{
+          backgroundImage: `url(${
+            tpl === 'cattle' || tpl === 'goat'
+              ? '/images/agro_precision_livestock.jpg'
+              : tpl === 'poultry' || tpl === 'transport'
+              ? '/images/agro_enterprise_hero.jpg'
+              : '/images/agro_dashboard_watermark.webp'
+          })`,
+        }}
+      />
       {/* 12-Month Period Filter for this Business Workspace */}
-      <MonthFilterBar value={activeMonthFilter} onChange={setMonthFilter} bn={true} />
+      <MonthFilterBar value={activeMonthFilter} onChange={setMonthFilter} bn={bn} />
 
       {/* Top Business Header with Simple Action Buttons */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5">
@@ -399,14 +639,15 @@ export default function SpecializedModulesView({
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              মূল ড্যাশবোর্ডে ফিরে যান (Back to All Businesses)
+              {bn ? 'মূল ড্যাশবোর্ডে ফিরে যান' : 'Back to Dashboard'}
             </button>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 pt-1">
               {activeBusiness.nameBn ? `${activeBusiness.nameBn} — ${activeBusiness.name}` : activeBusiness.name}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              ঠিকানা: {activeBusiness.location} · ম্যানেজার: {activeBusiness.managerName} · ফোন:{' '}
-              {activeBusiness.contactPhone}
+              {bn
+                ? `ঠিকানা: ${activeBusiness.location} · ম্যানেজার: ${activeBusiness.managerName} · ফোন: ${activeBusiness.contactPhone}`
+                : `Location: ${activeBusiness.location} · Manager: ${activeBusiness.managerName} · Phone: ${activeBusiness.contactPhone}`}
             </p>
           </div>
 
@@ -433,7 +674,7 @@ export default function SpecializedModulesView({
               className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-xs"
             >
               <Plus className="h-4 w-4" />
-              + বিক্রি / আয় লিখুন (Add Sale)
+              {bn ? '+ বিক্রি / আয় লিখুন' : '+ Record Sale'}
             </button>
 
             <button
@@ -457,7 +698,7 @@ export default function SpecializedModulesView({
               className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors shadow-xs"
             >
               <Plus className="h-4 w-4" />
-              + খরচ লিখুন (Add Expense)
+              {bn ? '+ খরচ লিখুন' : '+ Record Expense'}
             </button>
 
             <button
@@ -467,16 +708,16 @@ export default function SpecializedModulesView({
             >
               <Plus className="h-4 w-4" />
               {tpl === 'poultry'
-                ? '+ নতুন মুরগির ব্যাচ (New Batch)'
+                ? (bn ? '+ নতুন মুরগির ব্যাচ (New Batch)' : '+ New Poultry Batch')
                 : tpl === 'cattle'
-                ? '+ নতুন গরু যুক্ত করুন (Add Cattle)'
+                ? (bn ? '+ নতুন গরু যুক্ত করুন (Add Cattle)' : '+ Register Cattle')
                 : tpl === 'goat'
-                ? '+ নতুন ছাগল যুক্ত করুন (Add Goat)'
+                ? (bn ? '+ নতুন ছাগল যুক্ত করুন (Add Goat)' : '+ Register Goat')
                 : tpl === 'fish'
-                ? '+ নতুন পুকুর/মাছের চক্র (New Pond)'
+                ? (bn ? '+ নতুন পুকুর/মাছের চক্র (New Pond)' : '+ New Pond Cycle')
                 : tpl === 'transport'
-                ? '+ নতুন ট্রিপ লিখুন (Add Trip)'
-                : '+ নতুন এন্ট্রি (New Record)'}
+                ? (bn ? '+ নতুন ট্রিপ লিখুন (Add Trip)' : '+ Record Fleet Trip')
+                : (bn ? '+ নতুন এন্ট্রি (New Record)' : '+ New Record')}
             </button>
           </div>
         </div>
@@ -486,20 +727,32 @@ export default function SpecializedModulesView({
           <HelpCircle className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold text-slate-900 dark:text-slate-100">
-              এই পেজে কী করবেন (How to use this page):{' '}
+              {bn ? 'এই পেজে কী করবেন (Operational Guide): ' : 'Operations Guide for this Unit: '}
             </span>
             {tpl === 'poultry' &&
-              'এখানে আপনার প্রতিটি শেডের মুরগির ব্যাচ আলাদাভাবে ট্র্যাক করা হয়। নিচের টেবিল থেকে ১ ক্লিকে প্রতিদিনের খাবার (Feed), মারা যাওয়া মুরগি (Mortality), এবং মুরগি বিক্রি আপডেট করতে পারবেন। কোন ব্যাচে কত লাভ বা লস হচ্ছে সিস্টেম নিজে থেকেই হিসাব করে দেখাবে।'}
+              (bn
+                ? 'এখানে আপনার প্রতিটি শেডের মুরগির ব্যাচ আলাদাভাবে ট্র্যাক করা হয়। নিচের টেবিল থেকে ১ ক্লিকে প্রতিদিনের খাবার (Feed), মারা যাওয়া মুরগি (Mortality), এবং মুরগি বিক্রি আপডেট করতে পারবেন। কোন ব্যাচে কত লাভ বা লস হচ্ছে সিস্টেম নিজে থেকেই হিসাব করে দেখাবে।'
+                : 'Track individual shed batches across day-old chick procurement, daily mortality, feed inventory, vaccines, multi-grade bird sales, and automated batch lifetime P&L.')}
             {tpl === 'cattle' &&
-              'এখানে প্রতিটি গরুর আলাদা আইডি (যেমন CAT-0001) অনুযায়ী ওজন, প্রতিদিনের দুধ উৎপাদন, টিকা (Vaccine), এবং গরুটির পেছনে মোট কত খরচ ও কত লাভ হয়েছে তা এক নজরে দেখতে ও আপডেট করতে পারবেন।'}
+              (bn
+                ? 'এখানে প্রতিটি গরুর আলাদা আইডি (যেমন CAT-0001) অনুযায়ী ওজন, প্রতিদিনের দুধ উৎপাদন, টিকা (Vaccine), এবং গরুটির পেছনে মোট কত খরচ ও কত লাভ হয়েছে তা এক নজরে দেখতে ও আপডেট করতে পারবেন।'
+                : 'Monitor individual cattle by unique Tag ID, tracking weight gain, daily morning/evening milk production, veterinary vaccines, and individual lifetime profit.')}
             {tpl === 'goat' &&
-              'এখানে প্রতিটি ছাগলের আলাদা আইডি (GOAT-0001), বংশতালিকা (বাবা/মা), বাচ্চা (Kids) উৎপাদন, ওজন, এবং ছাগলটির আজীবন লাভ-ক্ষতি হিসাব রাখা হয়।'}
+              (bn
+                ? 'এখানে প্রতিটি ছাগলের আলাদা আইডি (GOAT-0001), বংশতালিকা (বাবা/মা), বাচ্চা (Kids) উৎপাদন, ওজন, এবং ছাগলটির আজীবন লাভ-ক্ষতি হিসাব রাখা হয়।'
+                : 'Manage individual goats by Tag ID, sire/dam pedigree family trees, kid births, health logs, and cumulative profitability.')}
             {tpl === 'fish' &&
-              'এখানে প্রতিটি পুকুরের আয়তন, পোনা ছাড়ার সংখ্যা, পানির মান (pH/Oxygen), খাবারের খরচ এবং মাছ বিক্রির পর পুকুরভিত্তিক নিট লাভ-ক্ষতি দেখা যায়।'}
+              (bn
+                ? 'এখানে প্রতিটি পুকুরের আয়তন, পোনা ছাড়ার সংখ্যা, পানির মান (pH/Oxygen), খাবারের খরচ এবং মাছ বিক্রির পর পুকুরভিত্তিক নিট লাভ-ক্ষতি দেখা যায়।'
+                : 'Log pond water surface area, fingerling stocking density, water quality (pH, DO), feed consumption, multi-species harvest sales, and net profit per pond.')}
             {tpl === 'transport' &&
-              'এখানে প্রতিটি ট্রাকের নাম্বার প্লেট, ড্রাইভার, ট্রিপের ভাড়া, ডিজেল ও টোল খরচ বাদ দিয়ে প্রতি ট্রিপে কত টাকা নিট লাভ থাকছে এবং ফিটনেস/ট্যাক্স টোকেনের মেয়াদ কবে শেষ হবে তা দেখা যায়।'}
+              (bn
+                ? 'এখানে প্রতিটি ট্রাকের নাম্বার প্লেট, ড্রাইভার, ট্রিপের ভাড়া, ডিজেল ও টোল খরচ বাদ দিয়ে প্রতি ট্রিপে কত টাকা নিট লাভ থাকছে এবং ফিটনেস/ট্যাক্স টোকেনের মেয়াদ কবে শেষ হবে তা দেখা যায়।'
+                : 'Track fleet commercial vehicles, inter-district freight routes, diesel fuel & toll deductions, driver allowances, net margins per trip, and BRTA document expiry dates.')}
             {tpl === 'custom' &&
-              'এটি আপনার তৈরি করা কাস্টম ব্যবসা। উপরের "+ বিক্রি / আয় লিখুন" এবং "+ খরচ লিখুন" বাটনে ক্লিক করে প্রতিদিনের লেনদেন লিখলে নিচে স্বয়ংক্রিয়ভাবে লাভ-ক্ষতি ও খতিয়ান তৈরি হবে।'}
+              (bn
+                ? 'এটি আপনার তৈরি করা কাস্টম ব্যবসা। উপরের "+ বিক্রি / আয় লিখুন" এবং "+ খরচ লিখুন" বাটনে ক্লিক করে প্রতিদিনের লেনদেন লিখলে নিচে স্বয়ংক্রিয়ভাবে লাভ-ক্ষতি ও খতিয়ান তৈরি হবে।'
+                : 'Custom agro enterprise unit. Click "+ Record Sale" or "+ Record Expense" to log daily transactions and generate real-time ledgers.')}
           </div>
         </div>
       </div>
@@ -513,35 +766,35 @@ export default function SpecializedModulesView({
 
       {/* 4 Simple Summary Cards for This Business */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>মোট বিক্রি ও আয় (Total Sales/Income)</span>
+            <span>{bn ? 'মোট বিক্রি ও আয় (Total Sales/Income)' : 'Total Sales & Revenue'}</span>
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100">
             {formatBDT(bizRevenue)}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            মোট {bizJournals.filter((j) => j.transactionType === 'sale' || j.transactionType === 'income').length} টি বিক্রয় ভাউচার থেকে
+            {bn ? `মোট ${bizJournals.filter((j) => j.transactionType === 'sale' || j.transactionType === 'income').length} টি বিক্রয় ভাউচার থেকে` : `From ${bizJournals.filter((j) => j.transactionType === 'sale' || j.transactionType === 'income').length} sales entries`}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>মোট খরচ (Total Expenses)</span>
+            <span>{bn ? 'মোট খরচ (Total Expenses)' : 'Total Operating Expenses'}</span>
             <TrendingDown className="h-4 w-4 text-amber-600" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100">
             {formatBDT(bizExpense)}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            খাবার, ওষুধ, কর্মচারী ও অন্যান্য খরচ
+            {bn ? 'খাবার, ওষুধ, কর্মচারী ও অন্যান্য খরচ' : 'Feed, vet, labor & utility expenses'}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>নিট লাভ / ক্ষতি (Net Profit / Loss)</span>
+            <span>{bn ? 'নিট লাভ / ক্ষতি (Net Profit / Loss)' : 'Net Profit / Loss'}</span>
             <Wallet className="h-4 w-4 text-emerald-600" />
           </div>
           <div
@@ -554,23 +807,590 @@ export default function SpecializedModulesView({
             {formatBDT(bizNetProfit)}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            {bizNetProfit >= 0 ? 'ব্যবসা লাভজনক অবস্থায় আছে' : 'খরচ আয়ের চেয়ে বেশি হয়েছে'}
+            {bizNetProfit >= 0 ? (bn ? 'ব্যবসা লাভজনক অবস্থায় আছে' : 'Profitable operating status') : (bn ? 'খরচ আয়ের চেয়ে বেশি হয়েছে' : 'Operating deficit recorded')}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>গোডাউন স্টক (Inventory Items)</span>
+            <span>{bn ? 'গোডাউন স্টক (Inventory Items)' : 'Warehouse Inventory Items'}</span>
             <PackageCheck className="h-4 w-4 text-slate-600" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-100">
-            {bizInventory.length} টি পণ্য
+            {bizInventory.length} {bn ? 'টি পণ্য' : 'Items'}
           </div>
           <div className="mt-1 text-xs text-slate-500 truncate">
-            {activeBusiness.customFieldsSpec || 'সক্রিয় মডিউল চালু আছে'}
+            {activeBusiness.customFieldsSpec || (bn ? 'সক্রিয় মডিউল চালু আছে' : 'Active production unit')}
           </div>
         </div>
       </div>
+
+      {/* DEDICATED DIVISION TEAM, MANAGER & STAFF PAYROLL ROSTER */}
+      <section className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs space-y-0">
+        <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/70 dark:bg-slate-800/40">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {bn
+                    ? `${activeBusiness.nameBn || activeBusiness.name} — বিভাগীয় টিম, ম্যানেজার ও কর্মী বহর`
+                    : `${activeBusiness.name} — Team, Manager & Workforce`}
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                  {bizStaff.length} {bn ? 'জন কর্মী' : 'Staff'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {bn
+                  ? 'এই ইউনিটের ইন-চার্জ ম্যানেজার, নিযুক্ত সকল কর্মী, তাদের যোগদানের তারিখ ও মাসিক বেতন হিসাব'
+                  : 'Assigned division manager, workforce headcount, joining dates, and monthly payroll budget'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {(userRole === 'super_admin' || userRole === 'super_manager') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setNewMgrName(activeBusiness.managerName || '');
+                  setNewMgrPhone(activeBusiness.contactPhone || '');
+                  setShowAppointMgrModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-2xs"
+              >
+                <UserCheck className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                <span>{bn ? 'ম্যানেজার পরিবর্তন / নিয়োগ' : 'Appoint Manager'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleOpenAddStaff}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs shadow-emerald-600/20"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>{bn ? '+ নতুন কর্মী নিয়োগ দিন' : '+ Hire New Staff'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Division In-Charge & Workforce Telemetry Cards */}
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900">
+          {/* Card 1: In-Charge Manager */}
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="h-12 w-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-base shrink-0 ring-1 ring-purple-500/20">
+                👔
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-400">
+                  {bn ? 'বিভাগীয় ইন-চার্জ ম্যানেজার' : 'Division In-Charge Manager'}
+                </div>
+                <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate mt-0.5">
+                  {currentManagerName}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                  {currentManagerPhone}
+                </div>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold shrink-0">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{bn ? 'সক্রিয় ইন-চার্জ' : 'Active Lead'}</span>
+            </span>
+          </div>
+
+          {/* Card 2: Workforce & Payroll Budget */}
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="h-12 w-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-base shrink-0 ring-1 ring-blue-500/20">
+                👥
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+                  {bn ? 'মোট কর্মী ও মাসিক পে-রোল' : 'Active Staff & Monthly Payroll'}
+                </div>
+                <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate mt-0.5 font-mono">
+                  {bizStaff.length} {bn ? 'জন কর্মী' : 'Staff'} · {formatBDT(totalStaffSalary)} / {bn ? 'মাস' : 'mo'}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {bn ? 'নিয়মিত হাজিরা ও কর্ম বণ্টন সক্রিয়' : 'Daily active workforce roster'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenAddStaff}
+              className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white text-xs font-bold transition-colors shrink-0"
+            >
+              {bn ? '+ নিয়োগ' : '+ Add'}
+            </button>
+          </div>
+        </div>
+
+        {/* Division Staff Roster Table */}
+        <div className="overflow-x-auto">
+          {bizStaff.length === 0 ? (
+            <div className="p-8 text-center space-y-3">
+              <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                <Users className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {bn
+                    ? `${activeBusiness.nameBn || activeBusiness.name}-এ এখনো কোনো কর্মী যুক্ত করা হয়নি`
+                    : `No staff currently hired for ${activeBusiness.name}`}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  {bn
+                    ? 'আপনার খামারের শেড সহকারী, পরিচর্যাকারী বা ড্রাইভার নিয়োগ করতে উপরের "+ নতুন কর্মী নিয়োগ দিন" বাটনে ক্লিক করুন।'
+                    : 'Click "+ Hire New Staff" above to add caretakers, operators, or drivers for this business unit.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenAddStaff}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-xs"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>{bn ? '+ প্রথম কর্মী নিয়োগ দিন' : '+ Add First Staff Member'}</span>
+              </button>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40 font-semibold">
+                  <th className="py-3 px-4">{bn ? 'কর্মীর কোড ও নাম' : 'Staff Code & Name'}</th>
+                  <th className="py-3 px-4">{bn ? 'পদবি ও ভূমিকা' : 'Designation & Role'}</th>
+                  <th className="py-3 px-4">{bn ? 'মোবাইল নম্বর' : 'Phone'}</th>
+                  <th className="py-3 px-4">{bn ? 'কবে থেকে শুরু হয়েছে' : 'Started / Joining Date'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'মাসিক বেতন' : 'Monthly Salary'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'স্ট্যাটাস ও বেতন' : 'Payroll Status'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {bizStaff.map((stf) => (
+                  <tr key={stf.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs shrink-0 font-mono">
+                          {stf.name.slice(0, 1)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-white">
+                            {stf.name}
+                          </div>
+                          <div className="font-mono text-[10px] text-slate-400">
+                            {stf.code}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                        {stf.designationOrCategory}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                      {stf.phone}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="inline-flex items-center gap-1.5 font-mono text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
+                        <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>{stf.joiningDate || stf.appointedAt?.split('T')[0] || '২০২৫-০১-১৫'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">
+                      {formatBDT(stf.monthlySalaryOrCreditLimit)} / {bn ? 'মাস' : 'mo'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                          {bn ? 'সক্রিয়' : 'Active'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSalaryTarget(stf);
+                            setSalaryPaymentAmount(stf.monthlySalaryOrCreditLimit || 20000);
+                            setSalaryWalletId(
+                              accounts.find((a) => a.subType === 'cash')?.id || accounts[0]?.id || ''
+                            );
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors shadow-2xs whitespace-nowrap"
+                        >
+                          {bn ? '৳ বেতন দিন' : 'Pay Salary'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      {/* MODAL 1: HIRE NEW STAFF FOR THIS BUSINESS */}
+      {showAddStaffModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-emerald-600" />
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                  {bn
+                    ? `${activeBusiness.nameBn || activeBusiness.name}-এ নতুন কর্মী নিয়োগ`
+                    : `Hire New Staff for ${activeBusiness.name}`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddStaffModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStaff} className="space-y-3.5 text-xs">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-2">
+                <span>🏢 {bn ? 'নির্ধারিত ব্যবসা ইউনিট:' : 'Assigned Business Unit:'}</span>
+                <span className="font-extrabold">{activeBusiness.nameBn || activeBusiness.name} ({activeBusiness.code})</span>
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'কর্মীর পূর্ণ নাম *' : 'Employee Full Name *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={stfName}
+                  onChange={(e) => setStfName(e.target.value)}
+                  placeholder={bn ? 'যেমন: মোঃ আব্দুল আলিম' : 'e.g. Md. Abdul Alim'}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    {bn ? 'মোবাইল নম্বর *' : 'Phone Number *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={stfPhone}
+                    onChange={(e) => setStfPhone(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    {bn ? 'কবে থেকে শুরু হয়েছে / যোগদানের তারিখ *' : 'Joining / Started Date *'}
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={stfJoiningDate}
+                    onChange={(e) => setStfJoiningDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'কাজের পদবি ও দায়িত্ব *' : 'Designation & Role *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={stfDesignation}
+                  onChange={(e) => setStfDesignation(e.target.value)}
+                  placeholder={bn ? 'যেমন: শেড সহকারী / পরিচর্যাকারী' : 'e.g. Shed Caretaker'}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Quick role preset buttons */}
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-500 font-semibold">
+                  {bn ? 'দ্রুত পদবি নির্বাচন করুন:' : 'Quick Designation Presets:'}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(tpl === 'cattle'
+                    ? [
+                        bn ? 'দুগ্ধ দোহন ও পশু পরিচর্যা কর্মী' : 'Milking Caretaker',
+                        bn ? 'পশু চিকিৎসা ও টিকাদান সহকারী' : 'Vet & Vaccine Assistant',
+                        bn ? 'ফিড ও চারণ সহকারী' : 'Feed Handler',
+                      ]
+                    : tpl === 'poultry'
+                    ? [
+                        bn ? 'পোল্ট্রি শেড ইনচার্জ' : 'Poultry Shed Lead',
+                        bn ? 'খাদ্য ও টিকাদান কর্মী' : 'Feed & Vaccine Staff',
+                        bn ? 'ডিম প্যাকিং ও ডেলিভারি সহকারী' : 'Egg Packing Assistant',
+                      ]
+                    : tpl === 'goat'
+                    ? [
+                        bn ? 'ছাগল প্রজনন ও যত্নকর্মী' : 'Breeding & Caretaker',
+                        bn ? 'ছাগল শেড ও ফিড সহকারী' : 'Shed Assistant',
+                      ]
+                    : tpl === 'fish'
+                    ? [
+                        bn ? 'পুকুর ও মাছের খাদ্য ইনচার্জ' : 'Pond & Feed Lead',
+                        bn ? 'জাল টানা ও মাছ ধরা সহকারী' : 'Netting Hand',
+                      ]
+                    : tpl === 'transport'
+                    ? [
+                        bn ? 'হেভি ট্রাক ড্রাইভার' : 'Heavy Truck Driver',
+                        bn ? 'ট্রাক হেলপার ও খালাসি' : 'Truck Helper',
+                        bn ? 'ফ্লিট সুপারভাইজার' : 'Fleet Supervisor',
+                      ]
+                    : [bn ? 'খামার সহকারী' : 'Farm Assistant', bn ? 'সুপারভাইজার' : 'Supervisor']
+                  ).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setStfDesignation(preset)}
+                      className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 hover:text-emerald-700 text-[10px] font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    {bn ? 'মাসিক বেতন (BDT) *' : 'Monthly Salary (BDT) *'}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={stfSalary}
+                    onChange={(e) => setStfSalary(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    {bn ? 'ঠিকানা / শেড অবস্থান' : 'Address / Shed Location'}
+                  </label>
+                  <input
+                    type="text"
+                    value={stfAddress}
+                    onChange={(e) => setStfAddress(e.target.value)}
+                    placeholder={bn ? 'যেমন: শেড নং ৩' : 'e.g. Shed 3'}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStaffModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  {bn ? 'বাতিল' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingStaff}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50 transition-colors shadow-xs"
+                >
+                  {isSavingStaff
+                    ? bn
+                      ? 'নিয়োগ সম্পন্ন হচ্ছে...'
+                      : 'Hiring...'
+                    : bn
+                    ? 'কর্মী নিয়োগ নিশ্চিত করুন'
+                    : 'Confirm Staff Recruitment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: APPOINT OR CHANGE BUSINESS MANAGER */}
+      {showAppointMgrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-purple-600" />
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                  {bn
+                    ? `${activeBusiness.nameBn || activeBusiness.name}-এর ইন-চার্জ ম্যানেজার নিয়োগ`
+                    : `Appoint Manager for ${activeBusiness.name}`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAppointMgrModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAppointManager} className="space-y-3.5 text-xs">
+              <p className="text-slate-500 dark:text-slate-400">
+                {bn
+                  ? 'সুপার অ্যাডমিন বা প্রধান জেনারেল ম্যানেজার হিসেবে আপনি যেকোনো ব্যবসার ইন-চার্জ ম্যানেজার পরিবর্তন বা নিয়োগ দিতে পারেন।'
+                  : 'As Owner or General Manager, you can designate an official division lead for this business unit.'}
+              </p>
+
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'ম্যানেজারের পূর্ণ নাম *' : 'Manager Full Name *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newMgrName}
+                  onChange={(e) => setNewMgrName(e.target.value)}
+                  placeholder={bn ? 'যেমন: মোঃ রফিকুল ইসলাম' : 'e.g. Md. Rafiqul Islam'}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'মোবাইল নম্বর' : 'Contact Phone'}
+                </label>
+                <input
+                  type="text"
+                  value={newMgrPhone}
+                  onChange={(e) => setNewMgrPhone(e.target.value)}
+                  placeholder="+880 1711-000000"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAppointMgrModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  {bn ? 'বাতিল' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingMgr}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold disabled:opacity-50 transition-colors shadow-xs"
+                >
+                  {isSavingMgr
+                    ? bn
+                      ? 'নিয়োগ হচ্ছে...'
+                      : 'Saving...'
+                    : bn
+                    ? 'ম্যানেজার নিয়োগ নিশ্চিত করুন'
+                    : 'Confirm Appointment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: QUICK SALARY PAYMENT */}
+      {salaryTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-emerald-600" />
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                  {bn ? `${salaryTarget.name}-এর বেতন পরিশোধ` : `Disburse Payroll to ${salaryTarget.name}`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSalaryTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDisburseSalary} className="space-y-3.5 text-xs">
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 space-y-1">
+                <div className="text-slate-500 font-semibold">{salaryTarget.designationOrCategory}</div>
+                <div className="font-bold text-slate-900 dark:text-white">
+                  {bn ? 'চুক্তিকৃত মাসিক বেতন:' : 'Monthly Agreed Salary:'} {formatBDT(salaryTarget.monthlySalaryOrCreditLimit)}
+                </div>
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'বেতন পরিশোধের পরিমাণ (BDT) *' : 'Payment Amount (BDT) *'}
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={salaryPaymentAmount}
+                  onChange={(e) => setSalaryPaymentAmount(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-black text-emerald-600 dark:text-emerald-400 text-base"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'কোন তহবিল থেকে টাকা পরিশোধ হবে?' : 'Pay From Account *'}
+                </label>
+                <select
+                  value={salaryWalletId}
+                  onChange={(e) => setSalaryWalletId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-semibold text-slate-900 dark:text-white"
+                >
+                  {accounts
+                    .filter((a) => a.subType === 'cash' || a.subType === 'bank')
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.subType === 'cash' ? 'নগদ ক্যাশ' : 'ব্যাংক'} · ব্যালেন্স: {formatBDT(a.balance)})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSalaryTarget(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  {bn ? 'বাতিল' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPayingSalary}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50 transition-colors shadow-xs"
+                >
+                  {isPayingSalary
+                    ? bn
+                      ? 'পরিশোধ হচ্ছে...'
+                      : 'Processing...'
+                    : bn
+                    ? 'বেতন পরিশোধ নিশ্চিত করুন'
+                    : 'Confirm Salary Payout'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* A. DEDICATED 7-STEP POULTRY FARMING ERP MODULE (A to G) */}
       {tpl === 'poultry' && (
@@ -584,6 +1404,7 @@ export default function SpecializedModulesView({
           ownerId={ownerId}
           actorEmail={actorEmail}
           onNotify={notify}
+          lang={lang}
         />
       )}
 
@@ -601,6 +1422,7 @@ export default function SpecializedModulesView({
             ownerId={ownerId}
             actorEmail={actorEmail}
             onNotify={notify}
+            lang={lang}
           />
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
@@ -612,12 +1434,18 @@ export default function SpecializedModulesView({
               )}
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  {tpl === 'cattle'
-                    ? 'প্রতিটি গরুর প্রোফাইল, দুধ উৎপাদন ও আজীবন লাভ-ক্ষতি (Cattle Registry)'
-                    : 'প্রতিটি ছাগলের প্রোফাইল, বংশতালিকা ও লাভ-ক্ষতি (Goat Registry)'}
+                  {bn
+                    ? (tpl === 'cattle'
+                      ? 'প্রতিটি গরুর প্রোফাইল, দুধ উৎপাদন ও আজীবন লাভ-ক্ষতি (Cattle Registry)'
+                      : 'প্রতিটি ছাগলের প্রোফাইল, বংশতালিকা ও লাভ-ক্ষতি (Goat Registry)')
+                    : (tpl === 'cattle'
+                      ? 'Cattle Individual Registry & Lifetime P&L'
+                      : 'Goat Pedigree Registry & Lifetime P&L')}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  প্রতিটি পশুর আলাদা ট্যাগ নাম্বার অনুযায়ী ওজন, দুধ এবং চিকিৎসা খরচ হিসাব রাখা হয়
+                  {bn
+                    ? 'প্রতিটি পশুর আলাদা ট্যাগ নাম্বার অনুযায়ী ওজন, দুধ এবং চিকিৎসা খরচ হিসাব রাখা হয়'
+                    : 'Animal records tracked by individual tag ID, weight growth, vet logs and margins'}
                 </p>
               </div>
             </div>
@@ -627,14 +1455,14 @@ export default function SpecializedModulesView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">পশুর আইডি ও নাম (Tag & Name)</th>
-                  <th className="py-3 px-4">জাত, বয়স ও বংশতালিকা</th>
-                  <th className="py-3 px-4 text-right">বর্তমান ওজন ও স্বাস্থ্য</th>
-                  <th className="py-3 px-4">টিকা ও বাচ্চা প্রজনন তথ্য</th>
-                  <th className="py-3 px-4 text-right">মোট খরচ (কেনা+খাবার+ডাক্তার)</th>
-                  <th className="py-3 px-4 text-right">দুধ বিক্রি ও বাজারমূল্য</th>
-                  <th className="py-3 px-4 text-right">নিট লাভ (Lifetime Profit)</th>
-                  <th className="py-3 px-4 text-right">দ্রুত আপডেট</th>
+                  <th className="py-3 px-4">{bn ? 'পশুর আইডি ও নাম' : 'Tag & Name'}</th>
+                  <th className="py-3 px-4">{bn ? 'জাত ও বয়স' : 'Breed & Age'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'বর্তমান ওজন ও স্বাস্থ্য' : 'Current Weight & Health'}</th>
+                  <th className="py-3 px-4">{bn ? 'টিকা ও প্রজনন' : 'Vaccine & Breeding'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'মোট খরচ' : 'Total Cost'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'দুধ বিক্রি ও বাজারমূল্য' : 'Sales Revenue & Market Val'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'নিট লাভ' : 'Net Lifetime Profit'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'অ্যাকশন' : 'Action'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -665,15 +1493,15 @@ export default function SpecializedModulesView({
                           {animal.breed}
                         </div>
                         <div className="text-slate-500">
-                          {animal.gender === 'Female' ? 'মাদি (Female)' : 'মর্দা (Male)'} · বয়স: {animal.ageMonths} মাস
+                          {animal.gender === 'Female' ? (bn ? 'মাদি (Female)' : 'Female') : (bn ? 'মর্দা (Male)' : 'Male')} · {bn ? `বয়স: ${animal.ageMonths} মাস` : `Age: ${animal.ageMonths} mos`}
                         </div>
                         <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                          বংশ: {animal.parentTag}
+                          {bn ? 'বংশ: ' : 'Lineage: '}{animal.parentTag}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
                         <div className="font-bold text-slate-900 dark:text-slate-100">
-                          {animal.currentWeightKg} কেজি
+                          {animal.currentWeightKg} {bn ? 'কেজি' : 'kg'}
                         </div>
                         <div className="text-slate-500">{animal.healthStatus}</div>
                       </td>
@@ -690,7 +1518,7 @@ export default function SpecializedModulesView({
                           {formatBDT(totalCost)}
                         </div>
                         <div className="text-slate-500">
-                          কেনা: {formatBDT(animal.purchasePrice)} · খাবার: {formatBDT(animal.feedCost)}
+                          {bn ? 'কেনা: ' : 'Cost: '}{formatBDT(animal.purchasePrice)} · {bn ? 'খাবার: ' : 'Feed: '}{formatBDT(animal.feedCost)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -699,11 +1527,11 @@ export default function SpecializedModulesView({
                         </div>
                         {animal.species === 'cattle' ? (
                           <div className="text-slate-500">
-                            দুধ: {animal.totalMilkLiters} লিটার ({formatBDT(animal.milkSalesRevenue)})
+                            {bn ? 'দুধ: ' : 'Milk: '}{animal.totalMilkLiters} {bn ? 'লিটার' : 'L'} ({formatBDT(animal.milkSalesRevenue)})
                           </div>
                         ) : (
                           <div className="text-slate-500">
-                            আনুমানিক মূল্য: {formatBDT(estimatedMarketVal)}
+                            {bn ? 'আনুমানিক মূল্য: ' : 'Est. Val: '}{formatBDT(estimatedMarketVal)}
                           </div>
                         )}
                       </td>
@@ -738,7 +1566,7 @@ export default function SpecializedModulesView({
                               }}
                               className="px-2.5 py-1.5 text-xs font-semibold rounded bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap"
                             >
-                              +১৮ লিটার দুধ যোগ
+                              {bn ? '+১৮ লিটার দুধ যোগ' : '+18L Milk'}
                             </button>
                           )}
                           <button
@@ -758,7 +1586,7 @@ export default function SpecializedModulesView({
                             }}
                             className="px-2.5 py-1.5 text-xs font-semibold rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
                           >
-                            +ওজন ও খাবার যোগ
+                            {bn ? '+ওজন ও খাবার যোগ' : '+Weight & Feed'}
                           </button>
                         </div>
                       </td>
@@ -785,13 +1613,14 @@ export default function SpecializedModulesView({
             ownerId={ownerId}
             actorEmail={actorEmail}
             onNotify={notify}
+            lang={lang}
           />
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
             <div className="flex items-center gap-2.5">
               <Fish className="h-5 w-5 text-emerald-600" />
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                পুকুর ও মাছ চাষের হিসাব (Pond Management & Fish Harvest Profit/Loss)
+                {bn ? 'পুকুর ও মাছ চাষের হিসাব (Pond Management & Fish Harvest)' : 'Pond Management & Fish Harvest P&L'}
               </h2>
             </div>
           </div>
@@ -800,12 +1629,12 @@ export default function SpecializedModulesView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">পুকুরের নাম ও আয়তন</th>
-                  <th className="py-3 px-4">মাছের প্রজাতি ও পোনা সংখ্যা</th>
-                  <th className="py-3 px-4">পানির গুণাগুণ (pH / Oxygen)</th>
-                  <th className="py-3 px-4 text-right">মোট খরচ (পোনা+খাবার+ওষুধ)</th>
-                  <th className="py-3 px-4 text-right">মাছ বিক্রি ও ওজন</th>
-                  <th className="py-3 px-4 text-right">নিট লাভ (Net Profit)</th>
+                  <th className="py-3 px-4">{bn ? 'পুকুরের নাম ও আয়তন' : 'Pond Name & Area'}</th>
+                  <th className="py-3 px-4">{bn ? 'মাছের প্রজাতি ও পোনা' : 'Species & Fingerlings'}</th>
+                  <th className="py-3 px-4">{bn ? 'পানির গুণাগুণ (pH/Oxygen)' : 'Water Quality (pH/DO)'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'মোট খরচ' : 'Total Production Cost'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'মাছ বিক্রি ও ওজন' : 'Harvest Revenue & Weight'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'নিট লাভ' : 'Net Profit'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -820,7 +1649,7 @@ export default function SpecializedModulesView({
                           {fc.pondId} — {fc.pondName}
                         </div>
                         <div className="text-slate-500">
-                          আয়তন: {fc.areaDecimals} শতক · গভীরতা: {fc.depthFeet} ফুট
+                          {bn ? `আয়তন: ${fc.areaDecimals} শতক · গভীরতা: ${fc.depthFeet} ফুট` : `Area: ${fc.areaDecimals} Dec · Depth: ${fc.depthFeet} ft`}
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
@@ -828,7 +1657,7 @@ export default function SpecializedModulesView({
                           {fc.fishSpecies}
                         </div>
                         <div className="font-mono tabular-nums text-slate-500">
-                          পোনা: {fc.initialQuantity.toLocaleString()} টি ({fc.stockingDate})
+                          {bn ? `পোনা: ${fc.initialQuantity.toLocaleString()} টি (${fc.stockingDate})` : `Fingerlings: ${fc.initialQuantity.toLocaleString()} (${fc.stockingDate})`}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-emerald-700 dark:text-emerald-400">
@@ -839,7 +1668,7 @@ export default function SpecializedModulesView({
                           {formatBDT(totalCost)}
                         </div>
                         <div className="text-slate-500">
-                          পোনা: {formatBDT(fc.fingerlingCost)} · খাবার: {formatBDT(fc.feedCost)}
+                          {bn ? 'পোনা: ' : 'Stocking: '}{formatBDT(fc.fingerlingCost)} · {bn ? 'খাবার: ' : 'Feed: '}{formatBDT(fc.feedCost)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -847,7 +1676,7 @@ export default function SpecializedModulesView({
                           {formatBDT(fc.totalSalesRevenue)}
                         </div>
                         <div className="text-slate-500">
-                          মাছের ওজন: {fc.harvestWeightKg.toLocaleString()} কেজি
+                          {bn ? 'মাছের ওজন: ' : 'Harvest Weight: '}{fc.harvestWeightKg.toLocaleString()} {bn ? 'কেজি' : 'kg'}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -883,13 +1712,14 @@ export default function SpecializedModulesView({
             ownerId={ownerId}
             actorEmail={actorEmail}
             onNotify={notify}
+            lang={lang}
           />
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
             <div className="flex items-center gap-2.5">
               <Truck className="h-5 w-5 text-emerald-600" />
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                ট্রাক ও পরিবহন ট্রিপের হিসাব এবং কাগজপত্রের মেয়াদ (Fleet & Trip Profit/Loss)
+                {bn ? 'ট্রাক ও পরিবহন ট্রিপের হিসাব এবং কাগজপত্রের মেয়াদ (Fleet & Trip Profit/Loss)' : 'Fleet Transport Trips & BRTA Documentation'}
               </h2>
             </div>
           </div>
@@ -898,12 +1728,12 @@ export default function SpecializedModulesView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">ট্রিপ আইডি ও গাড়ির নাম্বার</th>
-                  <th className="py-3 px-4">রুট (কোথা থেকে কোথায়) ও মাল</th>
-                  <th className="py-3 px-4">ফিটনেস ও ট্যাক্স টোকেনের মেয়াদ</th>
-                  <th className="py-3 px-4 text-right">মোট খরচ (ডিজেল+টোল+ড্রাইভার)</th>
-                  <th className="py-3 px-4 text-right">ট্রিপের ভাড়া (Revenue)</th>
-                  <th className="py-3 px-4 text-right">ট্রিপে নিট লাভ</th>
+                  <th className="py-3 px-4">{bn ? 'ট্রিপ আইডি ও গাড়ির নাম্বার' : 'Trip ID & Vehicle Reg'}</th>
+                  <th className="py-3 px-4">{bn ? 'রুট (কোথা থেকে কোথায়) ও মাল' : 'Route & Cargo Details'}</th>
+                  <th className="py-3 px-4">{bn ? 'ফিটনেস ও ট্যাক্স টোকেনের মেয়াদ' : 'Fitness & Tax Token Expiry'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'মোট খরচ (ডিজেল+টোল+ড্রাইভার)' : 'Total Cost (Fuel+Toll+Driver)'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'ট্রিপের ভাড়া (Revenue)' : 'Freight Revenue'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'ট্রিপে নিট লাভ' : 'Net Trip Profit'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -920,7 +1750,7 @@ export default function SpecializedModulesView({
                         <div className="font-semibold text-emerald-700 dark:text-emerald-400">
                           {trp.registrationNumber}
                         </div>
-                        <div className="text-slate-500">ড্রাইভার: {trp.driverName}</div>
+                        <div className="text-slate-500">{bn ? 'ড্রাইভার: ' : 'Driver: '}{trp.driverName}</div>
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
@@ -929,10 +1759,10 @@ export default function SpecializedModulesView({
                         <div className="text-slate-500">{trp.cargoDetails}</div>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-[11px]">
-                        <div>ফিটনেস মেয়াদ: {trp.fitnessExpiry}</div>
-                        <div>ট্যাক্স টোকেন: {trp.taxTokenExpiry}</div>
+                        <div>{bn ? 'ফিটনেস মেয়াদ: ' : 'Fitness Expiry: '}{trp.fitnessExpiry}</div>
+                        <div>{bn ? 'ট্যাক্স টোকেন: ' : 'Tax Token: '}{trp.taxTokenExpiry}</div>
                         <div className="text-amber-600 dark:text-amber-400">
-                          পরবর্তী সার্ভিসিং: {trp.nextServiceDate}
+                          {bn ? 'পরবর্তী সার্ভিসিং: ' : 'Next Servicing: '}{trp.nextServiceDate}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -940,7 +1770,7 @@ export default function SpecializedModulesView({
                           {formatBDT(totalTripCost)}
                         </div>
                         <div className="text-slate-500">
-                          ডিজেল: {formatBDT(trp.fuelCost)} · টোল: {formatBDT(trp.tollCost)}
+                          {bn ? 'ডিজেল: ' : 'Diesel: '}{formatBDT(trp.fuelCost)} · {bn ? 'টোল: ' : 'Toll: '}{formatBDT(trp.tollCost)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -949,10 +1779,10 @@ export default function SpecializedModulesView({
                         </div>
                         {trp.outstandingDue > 0 ? (
                           <div className="text-amber-600 dark:text-amber-400">
-                            বাকি আছে: {formatBDT(trp.outstandingDue)}
+                            {bn ? 'বাকি আছে: ' : 'Due: '}{formatBDT(trp.outstandingDue)}
                           </div>
                         ) : (
-                          <div className="text-emerald-600 dark:text-emerald-400">নগদ পরিশোধিত</div>
+                          <div className="text-emerald-600 dark:text-emerald-400">{bn ? "নগদ পরিশোধিত" : "Paid in Full"}</div>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -983,10 +1813,10 @@ export default function SpecializedModulesView({
             <Factory className="h-5 w-5 text-emerald-600" />
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {activeBusiness.nameBn || activeBusiness.name} — সকল কেনা-বেচা ও খরচের খতিয়ান (Business Ledger)
+                {bn ? `${activeBusiness.nameBn || activeBusiness.name} — সকল কেনা-বেচা ও খরচের খতিয়ান (Business Ledger)` : `${activeBusiness.name} — Transaction & Audit Ledger`}
               </h2>
               <p className="text-xs text-slate-500">
-                এই ব্যবসায় যত বিক্রি ও খরচ লেখা হয়েছে তার সম্পূর্ণ তালিকা
+                {bn ? 'এই ব্যবসায় যত বিক্রি ও খরচ লেখা হয়েছে তার সম্পূর্ণ তালিকা' : 'Complete journal of sales, procurement and operational expenditures for this unit'}
               </p>
             </div>
           </div>
@@ -1041,7 +1871,7 @@ export default function SpecializedModulesView({
                           {j.category}
                         </div>
                         <div className="text-slate-500">
-                          {j.description} · পার্টি: {j.counterpartyName}
+                          {j.description} · {bn ? 'পার্টি: ' : 'Party: '}{j.counterpartyName}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold tabular-nums text-slate-900 dark:text-slate-100">
@@ -1050,10 +1880,10 @@ export default function SpecializedModulesView({
                       <td className="py-3 px-4 text-right font-mono tabular-nums">
                         {j.dueAmount > 0 ? (
                           <span className="text-red-600 font-semibold">
-                            বাকি: {formatBDT(j.dueAmount)}
+                            {bn ? 'বাকি: ' : 'Due: '}{formatBDT(j.dueAmount)}
                           </span>
                         ) : (
-                          <span className="text-emerald-600">পরিশোধিত</span>
+                          <span className="text-emerald-600">{bn ? "পরিশোধিত" : "Paid"}</span>
                         )}
                       </td>
                     </tr>
@@ -1072,15 +1902,15 @@ export default function SpecializedModulesView({
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                 {showQuickTxModal === 'sale'
-                  ? `${activeBusiness.nameBn || activeBusiness.name} — নতুন বিক্রি / আয় লিখুন`
-                  : `${activeBusiness.nameBn || activeBusiness.name} — নতুন খরচ লিখুন`}
+                  ? (bn ? `${activeBusiness.nameBn || activeBusiness.name} — নতুন বিক্রি / আয় লিখুন` : `${activeBusiness.name} — Record New Sale / Revenue`)
+                  : (bn ? `${activeBusiness.nameBn || activeBusiness.name} — নতুন খরচ লিখুন` : `${activeBusiness.name} — Record Operational Expense`)}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowQuickTxModal(null)}
-                className="text-xs text-slate-500 hover:text-slate-900"
+                className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
               >
-                বন্ধ করুন
+                {bn ? 'বন্ধ করুন' : 'Close'}
               </button>
             </div>
 
@@ -1088,8 +1918,8 @@ export default function SpecializedModulesView({
               <div>
                 <label className="block mb-1 font-semibold">
                   {showQuickTxModal === 'sale'
-                    ? 'কী বিক্রি করলেন? (Item / Category) *'
-                    : 'কী বাবদ খরচ হলো? (Expense Item) *'}
+                    ? (bn ? 'কী বিক্রি করলেন? (Item / Category) *' : 'Sale Item / Category *')
+                    : (bn ? 'কী বাবদ খরচ হলো? (Expense Item) *' : 'Expense Category / Head *')}
                 </label>
                 <input
                   type="text"
@@ -1102,7 +1932,7 @@ export default function SpecializedModulesView({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block mb-1 font-semibold">মোট টাকার পরিমাণ (BDT) *</label>
+                  <label className="block mb-1 font-semibold">{bn ? 'মোট টাকার পরিমাণ (BDT) *' : 'Total Amount (BDT) *'}</label>
                   <input
                     type="number"
                     required
@@ -1113,7 +1943,7 @@ export default function SpecializedModulesView({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">বাকি থাকলে টাকার পরিমাণ (Due)</label>
+                  <label className="block mb-1 font-semibold">{bn ? 'বাকি থাকলে টাকার পরিমাণ (Due)' : 'Outstanding Due (if any)'}</label>
                   <input
                     type="number"
                     min={0}
@@ -1127,25 +1957,25 @@ export default function SpecializedModulesView({
               <div>
                 <label className="block mb-1 font-semibold">
                   {showQuickTxModal === 'sale'
-                    ? 'ক্রেতা / পাইকারের নাম (Buyer Name)'
-                    : 'সাপ্লায়ার / দোকানের নাম (Vendor Name)'}
+                    ? (bn ? 'ক্রেতা / পাইকারের নাম (Buyer Name)' : 'Customer / Wholesale Buyer Name')
+                    : (bn ? 'সাপ্লায়ার / দোকানের নাম (Vendor Name)' : 'Vendor / Supplier Name')}
                 </label>
                 <input
                   type="text"
                   value={qCounterparty}
                   onChange={(e) => setQCounterparty(e.target.value)}
-                  placeholder="যেমন: বিসমিল্লাহ ট্রেডার্স"
+                  placeholder={bn ? "যেমন: বিসমিল্লাহ ট্রেডার্স" : "e.g. Bismillah Traders"}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                 />
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">বিস্তারিত নোট (ঐচ্ছিক)</label>
+                <label className="block mb-1 font-semibold">{bn ? 'বিস্তারিত নোট (ঐচ্ছিক)' : 'Transaction Notes (Optional)'}</label>
                 <input
                   type="text"
                   value={qDesc}
                   onChange={(e) => setQDesc(e.target.value)}
-                  placeholder="যেমন: নগদ পেমেন্ট"
+                  placeholder={bn ? "যেমন: নগদ পেমেন্ট" : "e.g. Cash payment"}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                 />
               </div>
@@ -1154,15 +1984,15 @@ export default function SpecializedModulesView({
                 <button
                   type="button"
                   onClick={() => setShowQuickTxModal(null)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
+                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
                 >
-                  বাতিল
+                  {bn ? 'বাতিল' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                  className="px-5 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer shadow-xs"
                 >
-                  হিসাব সেভ করুন (Save)
+                  {bn ? 'হিসাব সেভ করুন (Save)' : 'Save Transaction'}
                 </button>
               </div>
             </form>
@@ -1177,21 +2007,21 @@ export default function SpecializedModulesView({
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                 {tpl === 'poultry'
-                  ? 'নতুন মুরগির ব্যাচ যোগ করুন (New Poultry Batch)'
+                  ? (bn ? 'নতুন মুরগির ব্যাচ যোগ করুন (New Poultry Batch)' : 'Create New Poultry Batch')
                   : tpl === 'cattle' || tpl === 'goat'
-                  ? `নতুন ${tpl === 'cattle' ? 'গরু' : 'ছাগল'} রেজিস্ট্রেশন করুন`
+                  ? (bn ? `নতুন ${tpl === 'cattle' ? 'গরু' : 'ছাগল'} রেজিস্ট্রেশন করুন` : `Register New ${tpl === 'cattle' ? 'Cattle' : 'Goat'}`)
                   : tpl === 'fish'
-                  ? 'নতুন পুকুর বা মাছ চাষ চক্র শুরু করুন'
+                  ? (bn ? 'নতুন পুকুর বা মাছ চাষ চক্র শুরু করুন' : 'Start New Pond Fish Cycle')
                   : tpl === 'transport'
-                  ? 'নতুন ট্রাক ট্রিপের হিসাব লিখুন'
-                  : `${activeBusiness.name}-এ নতুন হিসাব লিখুন`}
+                  ? (bn ? 'নতুন ট্রাক ট্রিপের হিসাব লিখুন' : 'Record New Transport Trip')
+                  : (bn ? `${activeBusiness.name}-এ নতুন হিসাব লিখুন` : `Add New Record to ${activeBusiness.name}`)}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="text-xs text-slate-500 hover:text-slate-900"
+                className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
               >
-                বন্ধ করুন
+                {bn ? 'বন্ধ করুন' : 'Close'}
               </button>
             </div>
 
@@ -1199,7 +2029,7 @@ export default function SpecializedModulesView({
               <form onSubmit={handleAddPoultryBatch} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">ব্যাচ নাম্বার (Batch ID)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ব্যাচ নাম্বার (Batch ID)' : 'Batch ID'}</label>
                     <input
                       type="text"
                       required
@@ -1209,22 +2039,22 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">মুরগির জাত (Chicken Type)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'মুরগির জাত (Chicken Type)' : 'Chicken Breed'}</label>
                     <select
                       value={pChickenType}
                       onChange={(e) => setPChickenType(e.target.value as any)}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     >
-                      <option value="Broiler">ব্রয়লার (Broiler)</option>
-                      <option value="Sonali">সোনালী (Sonali)</option>
-                      <option value="Layer">লেয়ার (Layer)</option>
-                      <option value="Deshi">দেশি (Deshi)</option>
+                      <option value="Broiler">{bn ? "ব্রয়লার (Broiler)" : "Broiler"}</option>
+                      <option value="Sonali">{bn ? "সোনালী (Sonali)" : "Sonali"}</option>
+                      <option value="Layer">{bn ? "লেয়ার (Layer)" : "Layer"}</option>
+                      <option value="Deshi">{bn ? "দেশি (Deshi)" : "Deshi"}</option>
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">শেড নাম্বার (Shed No)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'শেড নাম্বার (Shed No)' : 'Shed Number'}</label>
                     <input
                       type="text"
                       value={pShed}
@@ -1233,7 +2063,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">মোট বাচ্চার সংখ্যা (Quantity)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'মোট বাচ্চার সংখ্যা (Quantity)' : 'Chick Quantity'}</label>
                     <input
                       type="number"
                       value={pInitQty}
@@ -1244,7 +2074,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">বাচ্চা কেনার দাম (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'বাচ্চা কেনার দাম (BDT)' : 'Chick Purchase Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={pPurchaseCost}
@@ -1253,7 +2083,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">খাবারের খরচ (Feed Cost BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'খাবারের খরচ (Feed Cost BDT)' : 'Feed Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={pFeedCost}
@@ -1264,7 +2094,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">ওষুধ ও টিকা খরচ</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ওষুধ ও টিকা খরচ' : 'Medicine & Vaccine Cost'}</label>
                     <input
                       type="number"
                       value={pMedCost}
@@ -1273,7 +2103,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">লেবার ও বিদ্যুৎ বিল</label>
+                    <label className="block mb-1 font-medium">{bn ? 'লেবার ও বিদ্যুৎ বিল' : 'Labor & Electricity Bill'}</label>
                     <input
                       type="number"
                       value={pLabourCost}
@@ -1282,7 +2112,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">বিক্রয় মূল্য (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'বিক্রয় মূল্য (BDT)' : 'Sales Revenue (BDT)'}</label>
                     <input
                       type="number"
                       value={pSalesRev}
@@ -1296,7 +2126,7 @@ export default function SpecializedModulesView({
                     type="submit"
                     className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                   >
-                    ব্যাচ সেভ করুন
+                    {bn ? 'ব্যাচ সেভ করুন' : 'Save Batch'}
                   </button>
                 </div>
               </form>
@@ -1306,7 +2136,7 @@ export default function SpecializedModulesView({
               <form onSubmit={handleAddLivestock} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">পশুর ট্যাগ আইডি (Animal ID)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'পশুর ট্যাগ আইডি (Animal ID)' : 'Animal Tag ID'}</label>
                     <input
                       type="text"
                       required
@@ -1316,20 +2146,20 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">পশুর নাম (Animal Name)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'পশুর নাম (Animal Name)' : 'Animal Name'}</label>
                     <input
                       type="text"
                       required
                       value={lName}
                       onChange={(e) => setLName(e.target.value)}
-                      placeholder="যেমন: পদ্মা রানী / সুলতান"
+                      placeholder={bn ? "যেমন: পদ্মা রানী / সুলতান" : "e.g. Padma Rani / Sultan"}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">জাত (Breed)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'জাত (Breed)' : 'Breed'}</label>
                     <input
                       type="text"
                       value={lBreed}
@@ -1338,18 +2168,18 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">লিঙ্গ (Gender)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'লিঙ্গ (Gender)' : 'Gender'}</label>
                     <select
                       value={lGender}
                       onChange={(e) => setLGender(e.target.value as any)}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     >
-                      <option value="Female">মাদি (Female)</option>
-                      <option value="Male">মর্দা / ষাঁড় (Male)</option>
+                      <option value="Female">{bn ? "মাদি (Female)" : "Female"}</option>
+                      <option value="Male">{bn ? "মর্দা / ষাঁড় (Male)" : "Male"}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">ওজন (কেজি)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ওজন (কেজি)' : 'Weight (KG)'}</label>
                     <input
                       type="number"
                       value={lWeight}
@@ -1360,7 +2190,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">কেনা দাম (Purchase BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'কেনা দাম (Purchase BDT)' : 'Purchase Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={lPurchasePrice}
@@ -1369,7 +2199,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">খাবার খরচ (Feed Cost BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'খাবার খরচ (Feed Cost BDT)' : 'Feed Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={lFeedCost}
@@ -1383,7 +2213,7 @@ export default function SpecializedModulesView({
                     type="submit"
                     className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                   >
-                    পশু রেজিস্ট্রেশন সেভ করুন
+                    {bn ? 'পশু রেজিস্ট্রেশন সেভ করুন' : 'Save Livestock Record'}
                   </button>
                 </div>
               </form>
@@ -1393,7 +2223,7 @@ export default function SpecializedModulesView({
               <form onSubmit={handleAddFishCycle} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">পুকুরের নাম (Pond Name)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'পুকুরের নাম (Pond Name)' : 'Pond Name'}</label>
                     <input
                       type="text"
                       value={fPondName}
@@ -1402,7 +2232,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">আয়তন (শতক / Decimals)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'আয়তন (শতক / Decimals)' : 'Surface Area (Decimals)'}</label>
                     <input
                       type="number"
                       value={fArea}
@@ -1413,7 +2243,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">মাছের নাম (Fish Species)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'মাছের নাম (Fish Species)' : 'Fish Species'}</label>
                     <input
                       type="text"
                       value={fSpecies}
@@ -1422,7 +2252,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">পোনা সংখ্যা (Quantity)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'পোনা সংখ্যা (Quantity)' : 'Fingerling Quantity'}</label>
                     <input
                       type="number"
                       value={fInitQty}
@@ -1433,7 +2263,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">পোনা খরচ (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'পোনা খরচ (BDT)' : 'Fingerling Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={fFingerlingCost}
@@ -1465,7 +2295,7 @@ export default function SpecializedModulesView({
                     type="submit"
                     className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                   >
-                    পুকুরের হিসাব সেভ করুন
+                    {bn ? 'পুকুরের হিসাব সেভ করুন' : 'Save Pond Record'}
                   </button>
                 </div>
               </form>
@@ -1475,7 +2305,7 @@ export default function SpecializedModulesView({
               <form onSubmit={handleAddTransportOp} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">ট্রিপ নাম্বার</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ট্রিপ নাম্বার' : 'Trip Number'}</label>
                     <input
                       type="text"
                       value={tCode}
@@ -1484,7 +2314,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">গাড়ির নাম্বার প্লেট</label>
+                    <label className="block mb-1 font-medium">{bn ? 'গাড়ির নাম্বার প্লেট' : 'Vehicle Reg Plate'}</label>
                     <input
                       type="text"
                       value={tRegNo}
@@ -1495,7 +2325,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">কোথা থেকে (Origin)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'কোথা থেকে (Origin)' : 'Origin'}</label>
                     <input
                       type="text"
                       value={tOrigin}
@@ -1504,7 +2334,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">কোথায় যাবে (Destination)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'কোথায় যাবে (Destination)' : 'Destination'}</label>
                     <input
                       type="text"
                       value={tDest}
@@ -1515,7 +2345,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">ডিজেল খরচ (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ডিজেল খরচ (BDT)' : 'Diesel Fuel Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={tFuel}
@@ -1524,7 +2354,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">ব্রিজ টোল (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ব্রিজ টোল (BDT)' : 'Bridge & Toll Cost (BDT)'}</label>
                     <input
                       type="number"
                       value={tToll}
@@ -1533,7 +2363,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">ট্রিপ ভাড়া (Revenue BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'ট্রিপ ভাড়া (Revenue BDT)' : 'Trip Freight Revenue (BDT)'}</label>
                     <input
                       type="number"
                       value={tRev}
@@ -1547,7 +2377,7 @@ export default function SpecializedModulesView({
                     type="submit"
                     className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                   >
-                    ট্রিপ সেভ করুন
+                    {bn ? 'ট্রিপ সেভ করুন' : 'Save Fleet Trip'}
                   </button>
                 </div>
               </form>

@@ -38,6 +38,7 @@ import {
   PanelLeftOpen,
   Coins,
   Banknote,
+  ArrowRight,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -77,10 +78,11 @@ import {
 import AddBusinessWizardModal from '@/components/AddBusinessWizardModal';
 import SpecializedModulesView from '@/components/SpecializedModulesView';
 import CentralAccountingAndInventoryView from '@/components/CentralAccountingAndInventoryView';
-import PublicWebsiteView from '@/components/PublicWebsiteView';
+import EnterpriseLoginGate from '@/components/EnterpriseLoginGate';
 import BrandLogo from '@/components/BrandLogo';
-import AuthModal from '@/components/AuthModal';
 import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from '@/components/MonthFilterBar';
+import ClientWorkflowGuideModal from '@/components/ClientWorkflowGuideModal';
+import { getEnterprisePayrollSummary } from '@/lib/payroll-utils';
 
 type NavSection =
   | 'dashboard'
@@ -89,8 +91,7 @@ type NavSection =
   | 'inventory'
   | 'stakeholders'
   | 'reports'
-  | 'security'
-  | 'public_site';
+  | 'security';
 
 function formatCompactBDT(val: number): string {
   const abs = Math.abs(val);
@@ -106,32 +107,80 @@ function getBusinessAccent(templateType?: string) {
     case 'poultry':
       return {
         bar: 'bg-amber-500',
-        iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20',
+        gradientBar: 'from-amber-500 via-orange-500 to-yellow-400',
+        glowBorder: 'hover:border-amber-500/60 hover:shadow-amber-500/10',
+        iconBg: 'bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs ring-amber-500/20',
+        tagBg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
+        divisionTag: 'POULTRY & BROILER HUB',
+        divisionTagBn: 'পোল্ট্রি ও ব্রয়লার হাব',
+        kpiHighlight: 'text-amber-600 dark:text-amber-400',
+        chips: ['15,000 Bird Cap', 'Tunnel Ventilation', '4-Grade Sales'],
+        chipsBn: ['১৫,০০০ ক্যাপাসিটি', 'টানেল ভেন্টিলেশন', '৪-গ্রেডে বিক্রি'],
       };
     case 'cattle':
       return {
         bar: 'bg-emerald-500',
-        iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20',
+        gradientBar: 'from-emerald-500 via-teal-500 to-green-400',
+        glowBorder: 'hover:border-emerald-500/60 hover:shadow-emerald-500/10',
+        iconBg: 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs ring-emerald-500/20',
+        tagBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
+        divisionTag: 'DAIRY HERD & BEEF FATTENING',
+        divisionTagBn: 'ডেইরি ও ক্যাটল ডিভিশন',
+        kpiHighlight: 'text-emerald-600 dark:text-emerald-400',
+        chips: ['DeLaval 12-Pt Parlour', 'Holstein Dairy', 'Corn Silage'],
+        chipsBn: ['ডিলাভাল পার্লার', 'হলস্টেইন ডেইরি', 'ভুট্টা সাইলেজ'],
       };
     case 'goat':
       return {
-        bar: 'bg-indigo-500',
-        iconBg: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20',
+        bar: 'bg-purple-500',
+        gradientBar: 'from-purple-500 via-indigo-500 to-pink-500',
+        glowBorder: 'hover:border-purple-500/60 hover:shadow-purple-500/10',
+        iconBg: 'bg-gradient-to-br from-purple-500/20 via-indigo-500/15 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-500/30 shadow-xs ring-purple-500/20',
+        tagBg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
+        divisionTag: 'SMALL RUMINANT & PEDIGREE',
+        divisionTagBn: 'ছাগল প্রজনন ও ব্রিডিং হাব',
+        kpiHighlight: 'text-purple-600 dark:text-purple-400',
+        chips: ['Purebred Black Bengal', '4 Slatted Sheds', 'Sire/Dam Pedigree'],
+        chipsBn: ['ব্ল্যাক বেঙ্গল জাত', '৪টি মাচা শেড', 'বংশতালিকা ট্র্যাকিং'],
       };
     case 'fish':
       return {
         bar: 'bg-cyan-500',
-        iconBg: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 ring-cyan-500/20',
+        gradientBar: 'from-cyan-500 via-blue-500 to-teal-400',
+        glowBorder: 'hover:border-cyan-500/60 hover:shadow-cyan-500/10',
+        iconBg: 'bg-gradient-to-br from-cyan-500/20 via-blue-500/15 to-cyan-500/5 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 shadow-xs ring-cyan-500/20',
+        tagBg: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20',
+        divisionTag: 'SCIENTIFIC AQUACULTURE HUB',
+        divisionTagBn: 'মৎস্য হ্যাচারি ও চাষ প্রকল্প',
+        kpiHighlight: 'text-cyan-600 dark:text-cyan-400',
+        chips: ['420 Decimals Water', '16 Paddle Aerators', 'DO & pH Monitor'],
+        chipsBn: ['৪২০ শতক জলাশয়', '১৬টি প্যাডেল এরিয়েটর', 'পানির pH ও অক্সিজেন'],
       };
     case 'transport':
       return {
-        bar: 'bg-sky-500',
-        iconBg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20',
+        bar: 'bg-blue-600',
+        gradientBar: 'from-blue-600 via-sky-500 to-indigo-500',
+        glowBorder: 'hover:border-blue-500/60 hover:shadow-blue-500/10',
+        iconBg: 'bg-gradient-to-br from-blue-500/20 via-sky-500/15 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-xs ring-blue-500/20',
+        tagBg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
+        divisionTag: 'LOGISTICS & FLEET TELEMETRY',
+        divisionTagBn: 'পরিবহন ও আন্তঃজেলা লজিস্টিক',
+        kpiHighlight: 'text-blue-600 dark:text-blue-400',
+        chips: ['8 Commercial Fleet', 'Inter-District Routes', 'Diesel & Tolls'],
+        chipsBn: ['৮টি বাণিজ্যিক গাড়ি', 'আন্তঃজেলা মহাসড়ক রুট', 'জ্বালানি ও টোল হিসাব'],
       };
     default:
       return {
-        bar: 'bg-violet-500',
-        iconBg: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20',
+        bar: 'bg-emerald-600',
+        gradientBar: 'from-emerald-500 via-teal-500 to-cyan-500',
+        glowBorder: 'hover:border-emerald-500/60 hover:shadow-emerald-500/10',
+        iconBg: 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs ring-emerald-500/20',
+        tagBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
+        divisionTag: 'COMMERCIAL AGRO DIVISION',
+        divisionTagBn: 'বাণিজ্যিক কৃষি ইউনিট',
+        kpiHighlight: 'text-emerald-600 dark:text-emerald-400',
+        chips: ['Double-Entry Ledger', 'Direct Farm Billing', 'Active Unit'],
+        chipsBn: ['ডাবল-এন্ট্রি খতিয়ান', 'সরাসরি ইনভয়েস', 'সক্রিয় ব্যবসা'],
       };
   }
 }
@@ -151,6 +200,8 @@ export default function AgroErpApp() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showOnboardingGuide, setShowOnboardingGuide] = useState(false);
+  const [simulatePayrollAlert, setSimulatePayrollAlert] = useState(false);
+  const [dismissedPayrollAlert, setDismissedPayrollAlert] = useState(false);
 
   // Navigation & Active Business
   const [activeNav, setActiveNav] = useState<NavSection>('dashboard');
@@ -381,7 +432,7 @@ export default function AgroErpApp() {
       },
       accounts,
       user.ownerId,
-      user.email || 'admin@krishivumi.bd'
+      user.email || 'admin@regardsagro.bd'
     );
 
     setDashboardQuickTxModal(null);
@@ -587,52 +638,33 @@ export default function AgroErpApp() {
     }
   };
 
-  if (!user || activeNav === 'public_site') {
+  if (!user) {
     return (
-      <div>
-        {authError && (
-          <div className="bg-red-600 text-white text-xs font-medium px-6 py-2.5 flex items-center justify-between">
-            <span>Authentication Notice: {authError}</span>
-            <button type="button" onClick={() => setAuthError(null)} className="underline">
-              Dismiss
-            </button>
-          </div>
-        )}
-        <PublicWebsiteView
-          onAccessErpConsole={() => {
-            if (user) {
-              setActiveNav('dashboard');
-            } else {
-              handleOpenAuthModal();
-            }
-          }}
-          isSigningIn={isSigningIn}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode(!darkMode)}
-          lang={lang}
-          onToggleLang={() => setLang(lang === 'en' ? 'bn' : 'en')}
-        />
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          hasSuperAdmin={hasSuperAdmin}
-          lang={lang}
-          onAuthenticated={(loggedInUser) => {
-            setUser(loggedInUser);
-            setHasSuperAdmin(true);
-            setUserRole(loggedInUser.role);
-            setAssignedBusinessFilter(loggedInUser.assignedBusinesses || 'ALL');
-            setShowAuthModal(false);
-            setActiveNav('dashboard');
-          }}
-        />
-      </div>
+      <EnterpriseLoginGate
+        hasSuperAdmin={hasSuperAdmin}
+        lang={lang}
+        onToggleLang={() => setLang(lang === 'en' ? 'bn' : 'en')}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+        onAuthenticated={(loggedInUser) => {
+          setUser(loggedInUser);
+          setHasSuperAdmin(true);
+          setUserRole(loggedInUser.role);
+          setAssignedBusinessFilter(loggedInUser.assignedBusinesses || 'ALL');
+          setActiveNav('dashboard');
+        }}
+      />
     );
   }
 
   const activeBusinessObj =
     businesses.find((b) => b.id === selectedBusinessId) || businesses[0] || null;
   const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
+
+  const payrollSummary = useMemo(
+    () => getEnterprisePayrollSummary(stakeholders, erpUsers, accessibleBusinesses, new Date(), simulatePayrollAlert),
+    [stakeholders, erpUsers, accessibleBusinesses, simulatePayrollAlert]
+  );
 
   const centralNavItems = [
     {
@@ -677,30 +709,31 @@ export default function AgroErpApp() {
       return bn ? activeBusinessObj.nameBn || activeBusinessObj.name : activeBusinessObj.name;
     }
     const found = centralNavItems.find((n) => n.id === activeNav);
-    return found ? found.label : 'KrishiVumi ERP';
+    return found ? found.label : 'RegardsAgro ERP';
   })();
 
   const renderSidebarContent = (isMobile = false) => {
     const expanded = isMobile ? true : sidebarOpen;
     return (
-      <div className="flex flex-col justify-between h-full">
+      <div className="flex flex-col justify-between h-full bg-[#0B1120] text-slate-100 select-none">
         <div className="p-4 space-y-6 overflow-y-auto">
           {/* Brand Header */}
           <div className="flex items-center justify-between gap-2 px-1">
             {expanded ? (
               <BrandLogo
+                whiteText
                 size="sm"
-                subtitle={bn ? 'মাল্টি-বিজনেস ইআরপি' : 'AGRO-INDUSTRIAL ERP'}
+                subtitle={bn ? 'স্মার্ট এগ্রো ইআরপি' : 'ENTERPRISE AGRO ERP'}
               />
             ) : (
-              <BrandLogo compact size="sm" />
+              <BrandLogo whiteText compact size="sm" />
             )}
 
             {isMobile ? (
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -708,7 +741,7 @@ export default function AgroErpApp() {
               <button
                 type="button"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
                 title={bn ? 'সাইডবার ছোট/বড় করুন' : 'Toggle Sidebar'}
               >
                 {sidebarOpen ? (
@@ -721,11 +754,11 @@ export default function AgroErpApp() {
           </div>
 
           <nav className="space-y-5">
-            {/* Overview */}
+            {/* Overview Section */}
             <div className="space-y-1">
               {expanded && (
-                <div className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  {bn ? 'ওভারভিউ' : 'Overview'}
+                <div className="px-2.5 pb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  {bn ? 'কোর ড্যাশবোর্ড' : 'Overview'}
                 </div>
               )}
               <button
@@ -734,10 +767,10 @@ export default function AgroErpApp() {
                   setActiveNav('dashboard');
                   setMobileDrawerOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all cursor-pointer ${
                   activeNav === 'dashboard'
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/25'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-lg shadow-emerald-950/40 ring-1 ring-white/15'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
                 }`}
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
@@ -747,12 +780,12 @@ export default function AgroErpApp() {
               </button>
             </div>
 
-            {/* Business Units */}
+            {/* Business Units Section */}
             <div className="space-y-1.5">
               {expanded && (
-                <div className="px-2.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  <span>{bn ? 'ব্যবসায়িক ইউনিট' : 'Business Units'}</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                <div className="px-2.5 flex items-center justify-between text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  <span>{bn ? 'ব্যবসায়িক শাখা' : 'Business Units'}</span>
+                  <span className="font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
                     {accessibleBusinesses.filter((b) => b.status !== 'archived').length}
                   </span>
                 </div>
@@ -774,10 +807,10 @@ export default function AgroErpApp() {
                           setActiveNav('business_detail');
                           setMobileDrawerOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold ring-1 ring-inset ring-emerald-500/30'
-                            : 'text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                            ? 'bg-slate-800/90 text-emerald-300 font-bold border border-emerald-500/40 shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800/60 font-medium'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -788,10 +821,10 @@ export default function AgroErpApp() {
                           </div>
                           {expanded && (
                             <div className="text-left min-w-0">
-                              <div className="truncate leading-tight">
+                              <div className="truncate leading-tight font-semibold">
                                 {bn ? biz.nameBn || biz.name : biz.name}
                               </div>
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate">
+                              <div className="text-[10px] text-slate-400 font-mono truncate">
                                 {biz.code}
                               </div>
                             </div>
@@ -800,7 +833,7 @@ export default function AgroErpApp() {
                         {expanded && (
                           <ChevronRight
                             className={`h-3.5 w-3.5 shrink-0 ${
-                              isSelected ? 'text-emerald-600 opacity-100' : 'opacity-40'
+                              isSelected ? 'text-emerald-400 opacity-100' : 'text-slate-500 opacity-40'
                             }`}
                           />
                         )}
@@ -816,7 +849,7 @@ export default function AgroErpApp() {
                     setShowAddBusinessWizard(true);
                     setMobileDrawerOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 border border-dashed border-emerald-300 dark:border-emerald-800 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-dashed border-emerald-500/30 transition-colors cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">
@@ -829,8 +862,8 @@ export default function AgroErpApp() {
             {/* Central ERP Modules */}
             <div className="space-y-1">
               {expanded && (
-                <div className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  {bn ? 'কেন্দ্রীয় নিয়ন্ত্রণ' : 'Finance & Control'}
+                <div className="px-2.5 pb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                  {bn ? 'অর্থ ও সেন্ট্রাল নিয়ন্ত্রণ' : 'Finance & Control'}
                 </div>
               )}
 
@@ -842,10 +875,10 @@ export default function AgroErpApp() {
                     setActiveNav(item.id);
                     setMobileDrawerOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all cursor-pointer ${
                     activeNav === item.id
-                      ? 'bg-emerald-600 text-white font-semibold shadow-sm shadow-emerald-600/25'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                      ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white font-bold shadow-lg shadow-emerald-950/40 ring-1 ring-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
                   }`}
                 >
                   <item.Icon className="h-4 w-4 shrink-0" />
@@ -856,40 +889,68 @@ export default function AgroErpApp() {
           </nav>
         </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-3.5 border-t border-slate-200 dark:border-slate-800 space-y-1.5 bg-slate-50/50 dark:bg-slate-900/50">
-          {expanded && (
+        {/* Sidebar Footer - User Card & Logout */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-950/60 space-y-2">
+          {expanded ? (
+            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-black text-xs shadow-md shadow-emerald-950/40 shrink-0 ring-1 ring-white/10">
+                  {(user.displayName || user.email || 'A').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <div className="text-xs font-bold text-white truncate max-w-[125px]">
+                    {user.displayName || (bn ? 'অ্যাডমিন' : 'Admin')}
+                  </div>
+                  <div className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide truncate">
+                    {userRole === 'super_admin'
+                      ? bn ? '👑 সুপার অ্যাডমিন' : '👑 Super Admin'
+                      : userRole === 'super_manager'
+                      ? bn ? '👔 প্রধান ম্যানেজার' : '👔 COO'
+                      : userRole === 'business_manager'
+                      ? bn ? '💼 শাখা ম্যানেজার' : '💼 Branch Mgr'
+                      : bn ? '👤 কর্মী' : '👤 Staff'}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors cursor-pointer shrink-0"
+                title={bn ? 'লগ আউট করুন' : 'Sign Out'}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => {
-                setActiveNav('public_site');
-                setMobileDrawerOpen(false);
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+              onClick={handleSignOut}
+              className="w-full flex items-center justify-center p-2 rounded-xl text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors cursor-pointer"
+              title={bn ? 'লগ আউট করুন' : 'Sign Out'}
             >
-              <span>{bn ? 'পাবলিক ওয়েবসাইট' : 'Public Website'}</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
+              <LogOut className="h-4 w-4" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            {expanded && <span>{bn ? 'লগ আউট' : 'Sign Out'}</span>}
-          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex bg-[#F8FAFC] dark:bg-[#070B14] text-slate-900 dark:text-slate-100 relative">
+      {/* Subtle Agro Landscape Brand Watermark Overlay */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.035] dark:opacity-[0.025] bg-no-repeat bg-center bg-cover mix-blend-luminosity"
+        style={{
+          backgroundImage: `url('/images/agro_fields_brand.jpg')`,
+        }}
+        aria-hidden="true"
+      />
+
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col shrink-0 border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-200 no-print sticky top-0 h-screen ${
-          sidebarOpen ? 'w-68' : 'w-[74px]'
+        className={`hidden lg:flex flex-col shrink-0 border-r border-slate-800/80 bg-[#0B1120] text-slate-100 transition-all duration-200 no-print sticky top-0 h-screen shadow-2xl ${
+          sidebarOpen ? 'w-72' : 'w-[76px]'
         }`}
       >
         {renderSidebarContent(false)}
@@ -902,14 +963,14 @@ export default function AgroErpApp() {
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
             onClick={() => setMobileDrawerOpen(false)}
           />
-          <aside className="relative z-10 w-72 max-w-[85vw] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-full shadow-2xl">
+          <aside className="relative z-10 w-72 max-w-[85vw] bg-[#0B1120] text-slate-100 border-r border-slate-800 h-full shadow-2xl">
             {renderSidebarContent(true)}
           </aside>
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Sticky Top Enterprise Header */}
         <header className="sticky top-0 z-30 h-16 border-b border-slate-200/90 dark:border-slate-800 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 no-print">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -923,10 +984,17 @@ export default function AgroErpApp() {
             </button>
 
             {/* Current Section Breadcrumb Pill */}
-            <div className="hidden xl:flex items-center gap-2 text-xs shrink-0 pr-2 border-r border-slate-200 dark:border-slate-800">
-              <span className="font-bold text-slate-900 dark:text-white truncate max-w-[180px]">
+            <div className="hidden xl:flex items-center gap-2 text-xs shrink-0 pr-3 border-r border-slate-200 dark:border-slate-800">
+              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">RegardsAgro</span>
+              <span className="text-slate-300 dark:text-slate-600 font-bold">/</span>
+              <span className="font-bold text-slate-800 dark:text-slate-100 truncate max-w-[200px]">
                 {activePageTitle}
               </span>
+            </div>
+
+            <div className="hidden lg:inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{bn ? 'লাইভ ক্লাউড সিঙ্ক' : 'Live Sync'}</span>
             </div>
 
             {/* Global Search */}
@@ -964,16 +1032,31 @@ export default function AgroErpApp() {
               <span>{bn ? 'গাইড' : 'Guide'}</span>
             </button>
 
-            {/* Language Selector */}
-            <button
-              type="button"
-              onClick={() => setLang(lang === 'en' ? 'bn' : 'en')}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 whitespace-nowrap transition-colors"
-              title="Switch Language"
-            >
-              <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{bn ? 'বাংলা' : 'EN'}</span>
-            </button>
+            {/* Segmented Language Selector */}
+            <div className="inline-flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-800/90 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setLang('bn')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  lang === 'bn'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                বাংলা
+              </button>
+              <button
+                type="button"
+                onClick={() => setLang('en')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                EN
+              </button>
+            </div>
 
             {/* Theme Toggle */}
             <button
@@ -1107,161 +1190,380 @@ export default function AgroErpApp() {
             </div>
           )}
 
-          {/* Clean Quick-Start Guide Strip (Dismissible) */}
-          {showOnboardingGuide && activeNav === 'dashboard' && (
-            <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/70 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <HelpCircle className="h-4 w-4 text-emerald-600" />
-                    <span>
-                      {bn ? 'দ্রুত ব্যবহারের নির্দেশিকা' : 'Quick Workspace Guide'}
-                    </span>
-                  </h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    {bn
-                      ? 'প্রতিটি ব্যবসার উৎপাদন, বেচা-কেনা, স্টক এবং লাভ-ক্ষতির হিসাব এক জায়গা থেকে পরিচালনা করুন।'
-                      : 'Manage daily farm operations, treasury entries, inventory movements, and consolidated P&L from one hub.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowOnboardingGuide(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
-                  aria-label="Hide guide"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  {
-                    step: '01',
-                    title: bn ? 'ব্যবসায়িক ইউনিট নির্বাচন করুন' : 'Select or Launch a Business',
-                    desc: bn
-                      ? 'নিচের যেকোনো কার্ডে ক্লিক করে ওই খামার বা পরিবহন ইউনিটের নিজস্ব ওয়ার্কস্পেসে প্রবেশ করুন।'
-                      : 'Click any business card below to open its dedicated batch, livestock, pond, or fleet workspace.',
-                  },
-                  {
-                    step: '02',
-                    title: bn ? 'দৈনিক বিক্রি ও খরচ এন্ট্রি দিন' : 'Post Daily Sales & Expenses',
-                    desc: bn
-                      ? 'কুইক অ্যাকশন বার থেকে ১ ক্লিকে যেকোনো ব্যবসার আয় বা খরচ কেন্দ্রীয় খতিয়ানে যুক্ত করুন।'
-                      : 'Use the Quick Actions bar to record sales, procurement, or expenses directly into the ledger.',
-                  },
-                  {
-                    step: '03',
-                    title: bn ? 'তাৎক্ষণিক লাভ-ক্ষতি ও ক্যাশ দেখুন' : 'Monitor Real-Time P&L',
-                    desc: bn
-                      ? 'প্রতিটি এন্ট্রির সাথে সাথে নিট মুনাফা, ক্যাশ, ব্যাংক ব্যালেন্স এবং বাকি হিসাব স্বয়ংক্রিয়ভাবে আপডেট হয়।'
-                      : 'Consolidated revenue, expenses, cash/bank liquidity, and receivables update automatically.',
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.step}
-                    className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 border border-slate-200/80 dark:border-slate-800 space-y-1.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center h-5 px-1.5 rounded-md bg-emerald-600 text-white font-mono text-[10px] font-bold">
-                        {item.step}
-                      </span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">
-                        {item.title}
+          {/* 3-Day Month-End Automated Payroll Reminder Alert Banner */}
+          {payrollSummary.isThreeDaysBeforeMonthEnd && !dismissedPayrollAlert && (
+            <div className="rounded-3xl border-2 border-amber-400 dark:border-amber-600 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 dark:from-amber-950/40 dark:via-orange-950/25 dark:to-transparent p-5 sm:p-6 shadow-xl shadow-amber-500/5 space-y-4 animate-in fade-in duration-300">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center text-xl shrink-0 shadow-md shadow-amber-500/30">
+                    🔔
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        {bn ? payrollSummary.alertTitleBn : payrollSummary.alertTitleEn}
+                      </h2>
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500 text-white">
+                        {bn ? `আর মাত্র ${payrollSummary.daysRemaining} দিন বাকি` : `${payrollSummary.daysRemaining} Days Left`}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      {item.desc}
+                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mt-1 leading-relaxed max-w-3xl">
+                      {bn ? payrollSummary.alertMessageBn : payrollSummary.alertMessageEn}
                     </p>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setActiveNav('stakeholders')}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>{bn ? 'পে-রোল প্রদান ও ভিউ →' : 'Review & Disburse Payroll →'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedPayrollAlert(true)}
+                    className="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-semibold cursor-pointer"
+                  >
+                    {bn ? 'পরে দেখব' : 'Dismiss'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Division Breakdown Quick Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-amber-300/40 dark:border-amber-700/40">
+                {payrollSummary.divisionBreakdown.map((div) => (
+                  <div
+                    key={div.bizId}
+                    className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-200 dark:border-amber-900/60 text-xs space-y-0.5"
+                  >
+                    <div className="font-bold text-slate-900 dark:text-white truncate">
+                      {bn ? div.bizNameBn : div.bizName}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      {div.staffCount} জন কর্মী · {formatBDT(div.totalBudget)}
+                    </div>
+                    <div className="text-[10px] text-emerald-600 font-semibold truncate">
+                      ম্যানেজার: {formatBDT(div.managerSalary)}
+                    </div>
+                  </div>
                 ))}
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs space-y-0.5 flex flex-col justify-center">
+                  <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase">
+                    {bn ? 'সর্বমোট পে-রোল' : 'Grand Payroll'}
+                  </div>
+                  <div className="font-black font-mono text-emerald-700 dark:text-emerald-400 text-sm">
+                    {formatBDT(payrollSummary.grandTotalMonthlyPayroll)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Comprehensive Client SOP Guide Banner Card */}
+          {activeNav === 'dashboard' && (
+            <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-sm shadow-emerald-600/30 shrink-0">
+                  📖
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>RegardsAgro — {bn ? 'ক্লায়েন্ট অপারেশনাল গাইড (SOP Manual)' : 'Point-to-Point Enterprise SOP Manual'}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      ৯টি চ্যাপ্টার
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                    {bn
+                      ? 'সুপার অ্যাডমিন লগইন, জেনারেল ম্যানেজার ও ৫ জন ম্যানেজার নিয়োগ, কর্মী নিয়োগ ও বেতন হিসাব, স্টক অডিট এবং লাভ-ক্ষতির সম্পূর্ণ নির্দেশিকা।'
+                      : 'Step-by-step master operational guide for owner, General Manager, 5 business managers, staff hiring, and P&L governance.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSimulatePayrollAlert(!simulatePayrollAlert)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    simulatePayrollAlert
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+                  }`}
+                  title="মাসের ৩ দিন আগের বেতন নোটিফিকেশন পরীক্ষা করুন"
+                >
+                  🔔 {simulatePayrollAlert ? (bn ? 'অ্যালার্ট টেস্ট অন' : 'Alert Sim ON') : (bn ? '৩ দিনের নোটিফিকেশন টেস্ট' : 'Test 3-Day Alert')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowOnboardingGuide(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                >
+                  <span>{bn ? 'সম্পূর্ণ গাইড খুলুন 📖' : 'Open SOP Guide 📖'}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
           )}
 
           {/* VIEW 1: MAIN EXECUTIVE DASHBOARD */}
           {activeNav === 'dashboard' && (
-            <div className="space-y-6">
+            <div className="space-y-6 relative">
+              {/* Subtle Atmospheric Agro Watermark (Jolchap) Background */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none fixed inset-0 z-0 opacity-[0.04] dark:opacity-[0.03] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50 pointer-events-none"
+                style={{ backgroundImage: `url('/images/agro_fields_brand.jpg')` }}
+              />
               {/* 12-Month Period Filter Bar */}
               <MonthFilterBar value={monthFilter} onChange={setMonthFilter} bn={bn} />
 
               {/* Executive Command Strip */}
-              <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-2xs flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-                <div className="space-y-1">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    {bn ? 'কেন্দ্রীয় কমান্ড সেন্টার' : 'EXECUTIVE COMMAND CENTER'}
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-6 sm:p-7 shadow-xs backdrop-blur-md">
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        {bn ? 'কেন্দ্রীয় কমান্ড সেন্টার' : 'EXECUTIVE COMMAND CENTER'}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        {user?.displayName || 'Md. Sahin Miah'} ·{' '}
+                        {userRole === 'super_admin'
+                          ? bn
+                            ? 'সুপার অ্যাডমিন (মালিক)'
+                            : 'Super Admin (Owner)'
+                          : userRole}
+                      </span>
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                      RegardsAgro — {bn ? 'সমন্বিত অপারেশন ও দ্রুত নিয়ন্ত্রণ' : 'Consolidated Operations & Fast Control'}
+                    </h1>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+                      {bn
+                        ? '৫টি বিশেষায়িত ব্যবসায়িক বিভাগ (পোল্ট্রি, ডেইরি ক্যাটল, ব্ল্যাক বেঙ্গল গোট, বৈজ্ঞানিক ফিশারি, বাণিজ্যিক পরিবহন)-এর সমন্বিত আর্থিক প্রবাহ ও ফিল্ড মনিটরিং।'
+                        : 'Unified financial telemetry, inventory audit, and field operations across 5 commercial divisions: Poultry, Dairy Cattle, Goat Breeding, Scientific Aquaculture, and Fleet Logistics.'}
+                    </p>
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    {bn ? 'দৈনন্দিন পরিচালনা ও দ্রুত হিসাব' : 'Consolidated Operations & Quick Actions'}
-                  </h1>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {bn
-                      ? 'যেকোনো ব্যবসার বিক্রি, খরচ বা নতুন ইউনিট ১ ক্লিকে পরিচালনা করুন'
-                      : 'Record ledger-balanced transactions, provision new business units, or inspect consolidated P&L.'}
-                  </p>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuickBizId(businesses[0]?.id || '');
-                      setQuickCategory(bn ? 'পণ্য ও খামার বিক্রি' : 'Farm & Product Sales');
-                      setDashboardQuickTxModal('sale');
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm shadow-emerald-600/20 whitespace-nowrap"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>{bn ? 'বিক্রি / আয় যোগ করুন' : 'Record Sale'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuickBizId(businesses[0]?.id || '');
-                      setQuickCategory(bn ? 'খাবার, ওষুধ ও খামার খরচ' : 'Feed, Medicine & Operating Cost');
-                      setDashboardQuickTxModal('expense');
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-colors whitespace-nowrap"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>{bn ? 'খরচ যোগ করুন' : 'Record Expense'}</span>
-                  </button>
-
-                  {userRole === 'super_admin' && (
+                  <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => setShowAddBusinessWizard(true)}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-colors whitespace-nowrap"
+                      onClick={() => {
+                        setQuickBizId(businesses[0]?.id || '');
+                        setQuickCategory(bn ? 'পণ্য ও খামার বিক্রি' : 'Farm & Product Sales');
+                        setDashboardQuickTxModal('sale');
+                      }}
+                      className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-sm shadow-emerald-600/25 active:scale-98 whitespace-nowrap"
                     >
-                      <Building2 className="h-4 w-4" />
-                      <span>{bn ? 'নতুন ব্যবসা খুলুন' : 'New Business'}</span>
+                      <Plus className="h-4 w-4 transition-transform group-hover:rotate-90 duration-200" />
+                      <span>{bn ? 'বিক্রি / আয় এন্ট্রি' : 'Record Sale'}</span>
                     </button>
-                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveNav('reports')}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors whitespace-nowrap"
-                  >
-                    <FileBarChart className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>{bn ? 'লাভ-ক্ষতি রিপোর্ট' : 'P&L Report'}</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickBizId(businesses[0]?.id || '');
+                        setQuickCategory(bn ? 'খাবার, ওষুধ ও খামার খরচ' : 'Feed, Medicine & Operating Cost');
+                        setDashboardQuickTxModal('expense');
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-98 whitespace-nowrap"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>{bn ? 'খরচ এন্ট্রি' : 'Record Expense'}</span>
+                    </button>
+
+                    {userRole === 'super_admin' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddBusinessWizard(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-98 whitespace-nowrap"
+                      >
+                        <Building2 className="h-4 w-4 text-emerald-400" />
+                        <span>{bn ? 'নতুন ইউনিট চালু' : 'New Division'}</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveNav('reports')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all active:scale-98 whitespace-nowrap"
+                    >
+                      <FileBarChart className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>{bn ? 'পূর্ণাঙ্গ লাভ-ক্ষতি রিপোর্ট' : 'Consolidated P&L'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* PRIMARY MASTER EXECUTIVE FINANCIAL KPIs */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      {bn
+                        ? 'সমন্বিত আর্থিক স্থিতি ও ট্রেজারি'
+                        : 'Executive Treasury & Consolidated Performance'}
+                    </h2>
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    {monthFilter.month === 'ALL' && monthFilter.year === 'ALL'
+                      ? bn
+                        ? 'সকল সময়'
+                        : 'All-Time'
+                      : `${monthFilter.year !== 'ALL' ? monthFilter.year : ''} ${monthFilter.month !== 'ALL' ? monthFilter.month : ''}`}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Card 1: Consolidated Revenue */}
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-md transition-all">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {bn ? 'সমন্বিত মোট আয় ও বিক্রি' : 'Consolidated Gross Revenue'}
+                      </span>
+                      <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <TrendingUp className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="mt-3 text-2xl font-black font-mono text-slate-900 dark:text-white tabular-nums">
+                      {userRole === 'employee'
+                        ? bn
+                          ? 'সংরক্ষিত'
+                          : 'Restricted'
+                        : formatBDT(kpiTotals.totalRevenue)}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>{bn ? '৫টি ইউনিটের মোট বিক্রি' : 'Across 5 commercial units'}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">100% Inflow</span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Consolidated Operating Expense */}
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-md transition-all">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-amber-500" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {bn ? 'সমন্বিত পরিচালনা ব্যয়' : 'Consolidated Operating Cost'}
+                      </span>
+                      <div className="h-9 w-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                        <TrendingDown className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="mt-3 text-2xl font-black font-mono text-slate-900 dark:text-white tabular-nums">
+                      {userRole === 'employee'
+                        ? bn
+                          ? 'সংরক্ষিত'
+                          : 'Restricted'
+                        : formatBDT(kpiTotals.totalExpenses)}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>{bn ? 'খাবার, ওষুধ, ডিজেল ও খামার খরচ' : 'Feed, vet, fuel, spares & ops'}</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">Outflow</span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Consolidated Net Margin */}
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-md transition-all">
+                    <div
+                      className={`absolute top-0 left-0 right-0 h-1 ${
+                        kpiTotals.netProfit >= 0
+                          ? 'bg-gradient-to-r from-emerald-500 to-cyan-500'
+                          : 'bg-gradient-to-r from-rose-600 to-amber-600'
+                      }`}
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {bn ? 'সমন্বিত নিট লাভ / মুনাফা' : 'Consolidated Net Profit'}
+                      </span>
+                      <div
+                        className={`h-9 w-9 rounded-xl flex items-center justify-center ${
+                          kpiTotals.netProfit >= 0
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                        }`}
+                      >
+                        <Coins className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div
+                      className={`mt-3 text-2xl font-black font-mono tabular-nums ${
+                        kpiTotals.netProfit >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {userRole === 'employee'
+                        ? bn
+                          ? 'সংরক্ষিত'
+                          : 'Restricted'
+                        : formatBDT(kpiTotals.netProfit)}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {bn ? 'আয় থেকে মোট ব্যয় বাদ দিয়ে' : 'Net bottom-line margin'}
+                      </span>
+                      <span
+                        className={`font-mono font-bold px-1.5 py-0.2 rounded text-[10px] ${
+                          kpiTotals.netProfit >= 0
+                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                            : 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {kpiTotals.totalRevenue > 0
+                          ? `${((kpiTotals.netProfit / kpiTotals.totalRevenue) * 100).toFixed(1)}%`
+                          : '0%'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Liquid Treasury & Cash/Bank */}
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-md transition-all">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-indigo-500" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {bn ? 'লিকুইড ক্যাশ ও ব্যাংক রিজার্ভ' : 'Liquid Treasury (Cash + Bank)'}
+                      </span>
+                      <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <Wallet className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="mt-3 text-2xl font-black font-mono text-slate-900 dark:text-white tabular-nums">
+                      {userRole === 'employee'
+                        ? bn
+                          ? 'সংরক্ষিত'
+                          : 'Restricted'
+                        : formatBDT(kpiTotals.cashBalance + kpiTotals.bankBalance)}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      <span>{bn ? `ক্যাশ: ${formatCompactBDT(kpiTotals.cashBalance)}` : `Cash: ${formatCompactBDT(kpiTotals.cashBalance)}`}</span>
+                      <span>{bn ? `ব্যাংক: ${formatCompactBDT(kpiTotals.bankBalance)}` : `Bank: ${formatCompactBDT(kpiTotals.bankBalance)}`}</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
               {/* SECTION 1: BUSINESS PORTFOLIO GRID */}
               <section className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
                       {bn
-                        ? `চলমান ব্যবসায়িক ইউনিট (${filteredBusinesses.length})`
+                        ? `চলমান ব্যবসায়িক ডিভিশন পোর্টফোলিও (${filteredBusinesses.length})`
                         : `Active Business Portfolio (${filteredBusinesses.length})`}
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {bn
-                        ? 'যেকোনো কার্ডে ক্লিক করে ওই ব্যবসার অপারেশনাল ড্যাশবোর্ডে প্রবেশ করুন'
+                        ? 'প্রতিটি ইউনিটের কার্ডে ক্লিক করে লাইভ অপারেশন, ব্যাচ, পাল ও ট্রিপ কনসোলে প্রবেশ করুন।'
                         : 'Select any business unit to manage batches, livestock tags, ponds, or fleet trips.'}
                     </p>
                   </div>
@@ -1296,7 +1598,7 @@ export default function AgroErpApp() {
                 </div>
 
                 {/* Business Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {paginatedBusinesses.map((biz) => {
                     const metrics = businessMetricsMap[biz.id] || {
                       revenue: 0,
@@ -1312,32 +1614,23 @@ export default function AgroErpApp() {
                           setSelectedBusinessId(biz.id);
                           setActiveNav('business_detail');
                         }}
-                        className="group relative cursor-pointer rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden hover:border-emerald-500/70 hover:shadow-lg hover:shadow-emerald-950/5 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between"
+                        className={`group relative cursor-pointer rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.glowBorder} flex flex-col justify-between`}
                       >
-                        {/* Subtle Top Accent Bar */}
-                        <div className={`h-1 w-full ${accent.bar}`} />
+                        {/* Top Gradient Accent Bar */}
+                        <div className={`h-1.5 w-full bg-gradient-to-r ${accent.gradientBar}`} />
 
-                        <div className="p-5 sm:p-6 space-y-5 flex-1 flex flex-col justify-between">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={`h-11 w-11 rounded-xl flex items-center justify-center ring-1 ring-inset shrink-0 ${accent.iconBg}`}
-                                >
-                                  {renderBusinessIcon(biz.iconName, 'h-5 w-5')}
-                                </div>
-                                <div className="min-w-0">
-                                  <h3 className="text-[15px] font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                                    {bn ? biz.nameBn || biz.name : biz.name}
-                                  </h3>
-                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                                    {biz.location} · <span className="font-mono">{biz.code}</span>
-                                  </div>
-                                </div>
-                              </div>
+                        <div className="p-6 sm:p-7 space-y-5 flex-1 flex flex-col justify-between">
+                          <div className="space-y-3.5">
+                            {/* Division Category Tag & Status Pill */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border ${accent.tagBg}`}
+                              >
+                                {bn ? accent.divisionTagBn : accent.divisionTag}
+                              </span>
 
                               <span
-                                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
                                   biz.status === 'active'
                                     ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
                                     : 'text-amber-700 dark:text-amber-400 bg-amber-500/10'
@@ -1345,48 +1638,103 @@ export default function AgroErpApp() {
                               >
                                 <span
                                   className={`h-1.5 w-1.5 rounded-full ${
-                                    biz.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'
+                                    biz.status === 'active'
+                                      ? 'bg-emerald-500 animate-pulse'
+                                      : 'bg-amber-500'
                                   }`}
                                 />
                                 {biz.status === 'active'
                                   ? bn
-                                    ? 'চালু'
+                                    ? 'সক্রিয়'
                                     : 'Active'
                                   : bn
-                                  ? 'বন্ধ'
+                                  ? 'স্থগিত'
                                   : 'Paused'}
                               </span>
                             </div>
 
+                            {/* Identity Header */}
+                            <div className="flex items-start gap-3.5 pt-1">
+                              <div
+                                className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${accent.iconBg} transition-transform duration-300 group-hover:scale-105`}
+                              >
+                                {renderBusinessIcon(biz.iconName, 'h-6 w-6')}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                                  {bn ? biz.nameBn || biz.name : biz.name}
+                                </h3>
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                  <span>{biz.location}</span>
+                                  <span>•</span>
+                                  <span className="font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold">
+                                    {biz.code}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 mt-1">
+                                  <span className="text-slate-400">👤 {bn ? 'ইন-চার্জ:' : 'Lead:'}</span>
+                                  <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                                    {biz.managerName || 'Md. Sahin Miah'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Description */}
                             <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                               {biz.description}
                             </p>
+
+                            {/* Operational Capability Chips */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {(bn ? accent.chipsBn : accent.chips).map((chip, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] font-semibold"
+                                >
+                                  {chip}
+                                </span>
+                              ))}
+                            </div>
                           </div>
 
-                          <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800/80">
-                            <div className="grid grid-cols-3 gap-3 text-xs">
-                              <div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  {bn ? 'মোট বিক্রি' : 'Revenue'}
+                          {/* 3-Tile Structured Financial Metric Ribbon */}
+                          <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                            <div className="grid grid-cols-3 gap-2">
+                              {/* Tile 1: Sales */}
+                              <div className="p-2.5 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/15">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                  <span>{bn ? 'বিক্রি' : 'Sales'}</span>
                                 </div>
-                                <div className="font-mono font-bold tabular-nums text-slate-900 dark:text-white mt-0.5">
+                                <div className="font-mono font-black tabular-nums text-xs text-slate-900 dark:text-white mt-1 truncate">
                                   {formatBDT(metrics.revenue)}
                                 </div>
                               </div>
-                              <div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  {bn ? 'মোট খরচ' : 'Expense'}
+
+                              {/* Tile 2: Expense */}
+                              <div className="p-2.5 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                  <span>{bn ? 'খরচ' : 'Expense'}</span>
                                 </div>
-                                <div className="font-mono font-bold tabular-nums text-slate-900 dark:text-white mt-0.5">
+                                <div className="font-mono font-black tabular-nums text-xs text-slate-900 dark:text-white mt-1 truncate">
                                   {formatBDT(metrics.expense)}
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  {bn ? 'নিট লাভ' : 'Net Profit'}
+
+                              {/* Tile 3: Margin */}
+                              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${
+                                      metrics.profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
+                                    }`}
+                                  />
+                                  <span>{bn ? 'নিট লাভ' : 'Margin'}</span>
                                 </div>
                                 <div
-                                  className={`font-mono font-extrabold tabular-nums mt-0.5 ${
+                                  className={`font-mono font-black tabular-nums text-xs mt-1 truncate ${
                                     metrics.profit >= 0
                                       ? 'text-emerald-600 dark:text-emerald-400'
                                       : 'text-rose-600 dark:text-rose-400'
@@ -1397,18 +1745,22 @@ export default function AgroErpApp() {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between pt-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                              <span className="inline-flex items-center gap-1.5">
-                                {bn ? 'ওয়ার্কস্পেস খুলুন' : 'Open Workspace'}
+                            {/* Action Footer */}
+                            <div className="flex items-center justify-between pt-1">
+                              {metrics.due > 0 ? (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold border border-amber-500/20">
+                                  {bn ? 'বাকি:' : 'Due:'} {formatCompactBDT(metrics.due)}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                  {bn ? 'লেজার সিঙ্ক সক্রিয়' : 'Ledger in sync'}
+                                </span>
+                              )}
+
+                              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 group-hover:bg-emerald-600 group-hover:text-white text-xs font-bold transition-all shadow-2xs">
+                                <span>{bn ? 'ডিভিশন কনসোল খুলুন' : 'Open Division Console'}</span>
+                                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                               </span>
-                              <div className="flex items-center gap-2">
-                                {metrics.due > 0 && (
-                                  <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono text-[10px]">
-                                    {bn ? 'বাকি:' : 'Due:'} {formatCompactBDT(metrics.due)}
-                                  </span>
-                                )}
-                                <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                              </div>
                             </div>
                           </div>
                         </div>
@@ -1421,24 +1773,27 @@ export default function AgroErpApp() {
                     <button
                       type="button"
                       onClick={() => setShowAddBusinessWizard(true)}
-                      className="group rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-white/60 dark:bg-slate-900/40 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 p-6 transition-all flex flex-col items-center justify-center text-center min-h-[235px] space-y-3"
+                      className="group relative rounded-3xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-white/70 dark:bg-slate-900/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 p-6 sm:p-7 transition-all duration-300 flex flex-col items-center justify-center text-center min-h-[340px] space-y-4 hover:shadow-lg"
                     >
-                      <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors">
-                        <Plus className="h-6 w-6" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-sm font-bold text-slate-900 dark:text-white">
-                          {bn ? 'নতুন ব্যবসা যোগ করুন' : 'Provision New Business'}
+                      <div className="relative">
+                        <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-all duration-300 shadow-sm group-hover:scale-110">
+                          <Plus className="h-7 w-7" />
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
+                        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+                      </div>
+                      <div className="space-y-1.5 max-w-xs">
+                        <div className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {bn ? 'নতুন ব্যবসায়িক বিভাগ যুক্ত করুন' : 'Provision New Division'}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                           {bn
-                            ? 'ডেইরি, ফিড মিল, রাইস ট্রেডিং বা যেকোনো নতুন ব্যবসা ১ ক্লিকে চালু করুন'
-                            : 'Launch Dairy Products, Feed Mills, Rice Trading, or custom operations in seconds.'}
+                            ? 'ডেইরি প্রসেসিং, পোল্ট্রি হ্যাচারি, ফিড মিল, রাইস ট্রেডিং বা নিজস্ব বাণিজ্যিক ইউনিট ১-ক্লিকে ইনস্টল করুন।'
+                            : 'Launch Feed Mills, Dairy Processing, Seed Distribution, or custom agro divisions with dedicated double-entry ledgers.'}
                         </p>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        <span>{bn ? 'উইজার্ড শুরু করুন' : 'Launch Wizard'}</span>
-                        <ChevronRight className="h-3.5 w-3.5" />
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-2xs">
+                        <span>{bn ? 'ডিভিশন সেটআপ উইজার্ড' : 'Division Setup Wizard'}</span>
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                       </span>
                     </button>
                   )}
@@ -1470,115 +1825,65 @@ export default function AgroErpApp() {
                 )}
               </section>
 
-              {/* SECTION 2: 8 EXECUTIVE FINANCIAL KPIs */}
-              <section className="space-y-4">
+              {/* SECTION 2: SECONDARY OPERATIONAL OVERVIEW */}
+              <section className="space-y-3 pt-2">
                 <div>
-                  <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    {bn ? 'সমন্বিত আর্থিক সারসংক্ষেপ' : 'Consolidated Financial Overview'}
+                  <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    {bn ? 'অপারেশনাল ট্রেজারি ও জনবল মনিটরিং' : 'Operational Treasury & Workforce Telemetry'}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {bn
-                      ? 'সবগুলো ব্যবসার মোট বিক্রি, ব্যয়, মুনাফা ও ক্যাশ পজিশন'
-                      : 'Real-time treasury, profit & loss, and operational headcount across active units'}
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
                     {
-                      label: bn ? 'মোট চালু ব্যবসা' : 'Active Businesses',
-                      value: `${kpiTotals.totalBusinesses} ${bn ? 'টি' : 'Units'}`,
-                      sub: bn ? 'কেন্দ্রীয় সিস্টেমে সংযুক্ত' : 'Connected to central ledger',
-                      Icon: Building2,
-                      tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-                    },
-                    {
-                      label: bn ? 'সর্বমোট বিক্রি ও আয়' : 'Total Revenue',
-                      value:
-                        userRole === 'employee'
-                          ? bn
-                            ? 'সংরক্ষিত'
-                            : 'Restricted'
-                          : formatBDT(kpiTotals.totalRevenue),
-                      sub: bn ? 'সব ব্যবসার সমন্বিত আয়' : 'Gross sales across all units',
-                      Icon: TrendingUp,
-                      tone: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
-                    },
-                    {
-                      label: bn ? 'সর্বমোট খরচ' : 'Total Expenses',
-                      value:
-                        userRole === 'employee'
-                          ? bn
-                            ? 'সংরক্ষিত'
-                            : 'Restricted'
-                          : formatBDT(kpiTotals.totalExpenses),
-                      sub: bn ? 'খাবার, ওষুধ, ডিজেল ও বেতন' : 'Feed, vet, fuel & payroll',
-                      Icon: TrendingDown,
-                      tone: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-                    },
-                    {
-                      label: bn ? 'সর্বমোট নিট মুনাফা' : 'Consolidated Net Profit',
-                      value:
-                        userRole === 'employee'
-                          ? bn
-                            ? 'সংরক্ষিত'
-                            : 'Restricted'
-                          : formatBDT(kpiTotals.netProfit),
-                      sub: bn ? 'আয় থেকে সব খরচ বাদ দিয়ে' : 'Net operating margin',
-                      Icon: Coins,
-                      tone:
-                        kpiTotals.netProfit >= 0
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-                      valueColor:
-                        kpiTotals.netProfit >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400',
-                    },
-                    {
-                      label: bn ? 'ক্যাশ তহবিল' : 'Cash in Hand',
+                      label: bn ? 'অফিস ও খামার ক্যাশ তহবিল' : 'Office & Farm Cash Vault',
                       value:
                         userRole === 'employee'
                           ? bn
                             ? 'সংরক্ষিত'
                             : 'Restricted'
                           : formatBDT(kpiTotals.cashBalance),
-                      sub: bn ? 'অফিস ও খামারের নগদ টাকা' : 'Vault & farm petty cash',
+                      sub: bn ? 'দৈনন্দিন নগদ পেটি ক্যাশ' : 'Daily petty cash in hand',
                       Icon: Banknote,
-                      tone: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+                      tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                      bar: 'bg-emerald-500',
                     },
                     {
-                      label: bn ? 'ব্যাংক ব্যালেন্স' : 'Bank Balance',
+                      label: bn ? 'কর্পোরেট ব্যাংক ব্যালেন্স' : 'Corporate Bank Balance',
                       value:
                         userRole === 'employee'
                           ? bn
                             ? 'সংরক্ষিত'
                             : 'Restricted'
                           : formatBDT(kpiTotals.bankBalance),
-                      sub: bn ? 'কর্পোরেট ব্যাংক একাউন্ট' : 'Islami & BRAC Bank accounts',
+                      sub: bn ? 'ইসলামী ও ব্র্যাক ব্যাংক একাউন্ট' : 'Islami & BRAC Bank accounts',
                       Icon: Landmark,
                       tone: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+                      bar: 'bg-indigo-500',
                     },
                     {
-                      label: bn ? 'মোট কর্মচারী' : 'Active Workforce',
+                      label: bn ? 'মোট জনবল ও স্টাফ' : 'Active Workforce',
                       value: `${kpiTotals.totalEmployees} ${bn ? 'জন' : 'Staff'}`,
-                      sub: bn ? 'ম্যানেজার, ডাক্তার ও কর্মী' : 'Managers, vets & farm crew',
+                      sub: bn ? 'ম্যানেজার, ভেট ডাক্তার ও কর্মী' : 'Managers, vets & farm crew',
                       Icon: Users,
                       tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+                      bar: 'bg-violet-500',
                     },
                     {
-                      label: bn ? 'পাওনা / বাকি টাকা' : 'Receivables (Due)',
+                      label: bn ? 'পাওনা / বাকি টাকা (Due)' : 'Receivables (Due)',
                       value: formatBDT(kpiTotals.outstandingReceivables),
-                      sub: bn ? 'পাইকার ও ক্রেতাদের কাছে পাওনা' : 'Pending buyer settlements',
+                      sub: bn ? 'ক্রেতা ও পাইকারদের কাছে পাওনা' : 'Pending buyer settlements',
                       Icon: Clock,
                       tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                      bar: 'bg-amber-500',
                       valueColor: 'text-amber-600 dark:text-amber-400',
                     },
                   ].map((kpi) => (
                     <div
                       key={kpi.label}
-                      className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                      className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/90 p-5 shadow-xs hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
                     >
+                      <div className={`absolute top-0 left-0 right-0 h-1 ${kpi.bar || 'bg-emerald-500'}`} />
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {kpi.label}
@@ -1590,7 +1895,7 @@ export default function AgroErpApp() {
                         </div>
                       </div>
                       <div
-                        className={`mt-3 text-xl sm:text-2xl font-extrabold font-mono tabular-nums ${
+                        className={`mt-3 text-xl sm:text-2xl font-black font-mono tabular-nums ${
                           kpi.valueColor || 'text-slate-900 dark:text-white'
                         }`}
                       >
@@ -1762,12 +2067,15 @@ export default function AgroErpApp() {
               inventoryItems={inventoryItems}
               accounts={accounts}
               auditLogs={auditLogs}
+              stakeholders={stakeholders}
+              erpUsers={erpUsers}
               ownerId={user.ownerId}
-              actorEmail={user.email || 'admin@krishivumi.bd'}
+              actorEmail={user.email || 'admin@regardsagro.bd'}
               userRole={userRole}
               onBackToDashboard={() => setActiveNav('dashboard')}
               monthFilter={monthFilter}
               onChangeMonthFilter={setMonthFilter}
+              lang={lang}
             />
           )}
 
@@ -1797,7 +2105,7 @@ export default function AgroErpApp() {
               fishCycles={fishCycles}
               transportOps={transportOps}
               ownerId={user.ownerId}
-              actorEmail={user.email || 'admin@krishivumi.bd'}
+              actorEmail={user.email || 'admin@regardsagro.bd'}
               userRole={userRole}
               assignedBusinessFilter={assignedBusinessFilter}
               monthFilter={monthFilter}
@@ -1807,6 +2115,7 @@ export default function AgroErpApp() {
                 setUserRole(role);
                 setAssignedBusinessFilter(bizId);
               }}
+              lang={lang}
             />
           )}
         </main>
@@ -1968,12 +2277,19 @@ export default function AgroErpApp() {
         isOpen={showAddBusinessWizard}
         onClose={() => setShowAddBusinessWizard(false)}
         ownerId={user.ownerId}
-        actorEmail={user.email || 'admin@krishivumi.bd'}
+        actorEmail={user.email || 'admin@regardsagro.bd'}
         userRole={userRole}
         onSuccess={(newBizId) => {
           setSelectedBusinessId(newBizId);
           setActiveNav('dashboard');
         }}
+      />
+
+      {/* Comprehensive Client Workflow Guide & SOP Manual Modal */}
+      <ClientWorkflowGuideModal
+        isOpen={showOnboardingGuide}
+        onClose={() => setShowOnboardingGuide(false)}
+        lang={lang}
       />
     </div>
   );

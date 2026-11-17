@@ -43,6 +43,7 @@ interface PoultryManagementModuleProps {
   ownerId: string;
   actorEmail: string;
   onNotify: (msg: string) => void;
+  lang?: 'en' | 'bn';
 }
 
 type PoultrySubTab =
@@ -64,7 +65,9 @@ export default function PoultryManagementModule({
   ownerId,
   actorEmail,
   onNotify,
+  lang = 'bn',
 }: PoultryManagementModuleProps) {
+  const bn = lang === 'bn';
   const [activeSubTab, setActiveSubTab] = useState<PoultrySubTab>('A_BATCH');
   const [batchSearchQuery, setBatchSearchQuery] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<string>(batches[0]?.id || '');
@@ -715,7 +718,7 @@ export default function PoultryManagementModule({
             businessName: activeBusiness.name,
             transactionType: 'sale',
             category: `গ্রেডভিত্তিক মুরগি বিক্রি (${selectedBatch.batchCode})`,
-            description: `${selectedBatch.batchCode}: মোট ${totalGradedBirds}টি মুরগি (${totalGradedKg} কেজি) বিক্রি | ${breakdownStr} | পেমেন্ট: ${fPaymentMethod}`,
+            description: `${selectedBatch.batchCode}: মোট ${totalGradedBirds}টি মুরগি (${totalGradedKg} {bn ? "কেজি" : "KG"}) বিক্রি | ${breakdownStr} | পেমেন্ট: ${fPaymentMethod}`,
             debitAccountId: cashOrBank.id,
             debitAccountName: cashOrBank.name,
             creditAccountId: revAcc.id,
@@ -782,10 +785,14 @@ export default function PoultryManagementModule({
               <span>Poultry Management Module (A to G Complete Lifecycle)</span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              মুরগির বাচ্চা কেনা থেকে শুরু করে গ্রেডভিত্তিক বিক্রি ও চূড়ান্ত লাভ-ক্ষতি ট্র্যাকিং
+              {bn ? 'মুরগির বাচ্চা কেনা থেকে শুরু করে গ্রেডভিত্তিক বিক্রি ও চূড়ান্ত লাভ-ক্ষতি ট্র্যাকিং' : 'Poultry Batch Management: Chick Procurement to Graded Sales & Lifetime P&L'}
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              যেমন ৬ মাস পরেও যদি আপনি <span className="font-mono font-bold">POL-2026-001</span> লিখে সার্চ করেন, এই ব্যাচের সম্পূর্ণ ইতিহাস নিচে দেখতে পাবেন।
+              {bn ? (
+                <>যেমন ৬ মাস পরেও যদি আপনি <span className="font-mono font-bold">POL-2026-001</span> লিখে সার্চ করেন, এই ব্যাচের সম্পূর্ণ ইতিহাস নিচে দেখতে পাবেন।</>
+              ) : (
+                <>Search by Batch ID anytime (e.g. <span className="font-mono font-bold">POL-2026-001</span>) to access complete mortality, feed, and financial audit logs.</>
+              )}
             </p>
           </div>
 
@@ -798,7 +805,7 @@ export default function PoultryManagementModule({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
               >
                 <Plus className="h-3.5 w-3.5" />
-                উদাহরণ ব্যাচ (POL-2026-001) লোড করুন
+                {bn ? 'উদাহরণ ব্যাচ (POL-2026-001) লোড করুন' : 'Load Demo Batch (POL-2026-001)'}
               </button>
             )}
             <div className="relative">
@@ -807,7 +814,7 @@ export default function PoultryManagementModule({
                 type="text"
                 value={batchSearchQuery}
                 onChange={(e) => setBatchSearchQuery(e.target.value)}
-                placeholder="Batch ID সার্চ করুন (যেমন POL-2026-001)..."
+                placeholder={bn ? "Batch ID সার্চ করুন (যেমন POL-2026-001)..." : "Search Batch ID (e.g. POL-2026-001)..."}
                 className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -817,7 +824,7 @@ export default function PoultryManagementModule({
         {/* Batch Selector Cards */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">
-            ব্যাচ সিলেক্ট করুন (Select Batch):
+            {bn ? 'ব্যাচ সিলেক্ট করুন (Select Batch):' : 'Select Batch:'}
           </span>
           {filteredBatches.map((b) => {
             const isSelected = selectedBatch?.id === b.id;
@@ -842,7 +849,7 @@ export default function PoultryManagementModule({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  জীবিত: {alive}টি
+                  {bn ? `জীবিত: ${alive}টি` : `Live: ${alive}`}
                 </span>
               </button>
             );
@@ -926,18 +933,18 @@ export default function PoultryManagementModule({
                       : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
                   }`}
                 >
-                  ধাপ {tab.step}
+                  {bn ? `ধাপ ${tab.step}` : `Step ${tab.step}`}
                 </span>
                 <Icon className="h-4 w-4 opacity-85" />
               </div>
               <div>
-                <div className="text-xs font-bold leading-tight">{tab.titleBn}</div>
+                <div className="text-xs font-bold leading-tight">{bn ? tab.titleBn : tab.titleEn}</div>
                 <div
                   className={`text-[10px] mt-0.5 ${
                     active ? 'text-emerald-100' : 'text-slate-400'
                   }`}
                 >
-                  {tab.titleEn}
+                  {bn ? tab.titleEn : tab.titleBn}
                 </div>
               </div>
             </button>
@@ -954,17 +961,17 @@ export default function PoultryManagementModule({
           <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Plus className="h-4 w-4 text-emerald-600" />
-              A. নতুন মুরগির বাচ্চা কেনা (Create New Poultry Batch)
+              {bn ? 'A. নতুন মুরগির বাচ্চা কেনা (Create New Poultry Batch)' : 'A. Buy Day-Old Chicks & Initialize Batch'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 mb-4">
-              নতুন বাচ্চা কিনলে একটি ইউনিক Batch ID তৈরি হবে এবং মোট ক্রয়মূল্য স্বয়ংক্রিয়ভাবে হিসাব হবে।
+              {bn ? 'নতুন বাচ্চা কিনলে একটি ইউনিক Batch ID তৈরি হবে এবং মোট ক্রয়মূল্য স্বয়ংক্রিয়ভাবে হিসাব হবে।' : 'Creates a unique Batch ID in the double-entry ledger and recalculates initial asset cost.'}
             </p>
 
             <form onSubmit={handleCreateBatchA} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Batch ID (ব্যাচ আইডি) *
+                    {bn ? 'ব্যাচ আইডি (Batch ID) *' : 'Batch ID *'}
                   </label>
                   <input
                     type="text"
@@ -977,7 +984,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    কেনার তারিখ (Purchase Date) *
+                    {bn ? 'কেনার তারিখ (Purchase Date) *' : 'Purchase Date *'}
                   </label>
                   <input
                     type="date"
@@ -992,7 +999,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    মুরগির ধরন (Chicken Type)
+                    {bn ? 'মুরগির ধরন (Chicken Type)' : 'Chicken Breed/Type'}
                   </label>
                   <select
                     value={aChickenType}
@@ -1003,16 +1010,16 @@ export default function PoultryManagementModule({
                     }
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Broiler">Broiler (ব্রয়লার)</option>
-                    <option value="Sonali">Sonali (সোনালী)</option>
-                    <option value="Layer">Layer (লেয়ার - ডিমের মুরগি)</option>
-                    <option value="Deshi">Deshi (দেশি মুরগি)</option>
-                    <option value="Breeder">Breeder (ব্রিডার)</option>
+                    <option value="Broiler">{bn ? "Broiler (ব্রয়লার)" : "Broiler"}</option>
+                    <option value="Sonali">{bn ? "Sonali (সোনালী)" : "Sonali"}</option>
+                    <option value="Layer">{bn ? "Layer (লেয়ার - ডিমের মুরগি)" : "Layer (Egg Production)"}</option>
+                    <option value="Deshi">{bn ? "Deshi (দেশি মুরগি)" : "Deshi / Indigenous"}</option>
+                    <option value="Breeder">{bn ? "Breeder (ব্রিডার)" : "Breeder"}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Farm / Shed (শেড নম্বর) *
+                    {bn ? 'শেড নম্বর (Shed No) *' : 'Farm / Shed Number *'}
                   </label>
                   <input
                     type="text"
@@ -1028,7 +1035,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    বাচ্চার সংখ্যা (Quantity) *
+                    {bn ? 'বাচ্চার সংখ্যা (Quantity) *' : 'Chick Quantity *'}
                   </label>
                   <input
                     type="number"
@@ -1041,7 +1048,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    প্রতি বাচ্চার দাম (৳) *
+                    {bn ? 'প্রতি বাচ্চার দাম (৳) *' : 'Price per Chick (৳) *'}
                   </label>
                   <input
                     type="number"
@@ -1054,7 +1061,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
-                    মোট ক্রয়মূল্য (Auto)
+                    {bn ? 'মোট ক্রয়মূল্য (Auto)' : 'Total Chick Cost (Auto)'}
                   </label>
                   <div className="w-full rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 font-mono font-bold text-emerald-800 dark:text-emerald-300">
                     {formatBDT(aTotalChickCost)}
@@ -1065,7 +1072,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Supplier (হ্যাচারি / সাপ্লায়ার) *
+                    {bn ? 'হ্যাচারি / সাপ্লায়ার (Supplier) *' : 'Hatchery / Chick Supplier *'}
                   </label>
                   <input
                     type="text"
@@ -1078,7 +1085,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    প্রাথমিক অবস্থা (Status)
+                    {bn ? 'প্রাথমিক অবস্থা (Status)' : 'Initial Status'}
                   </label>
                   <select
                     value={aStatus}
@@ -1087,9 +1094,9 @@ export default function PoultryManagementModule({
                     }
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="active">Active (চলমান ব্যাচ)</option>
-                    <option value="harvested">Harvested (বিক্রি সম্পন্ন)</option>
-                    <option value="closed">Closed (বন্ধ)</option>
+                    <option value="active">{bn ? "Active (চলমান ব্যাচ)" : "Active Batch"}</option>
+                    <option value="harvested">{bn ? "Harvested (বিক্রি সম্পন্ন)" : "Harvested"}</option>
+                    <option value="closed">{bn ? "Closed (বন্ধ)" : "Closed"}</option>
                   </select>
                 </div>
               </div>
@@ -1099,7 +1106,7 @@ export default function PoultryManagementModule({
                 disabled={isSubmitting}
                 className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-xs"
               >
-                + নতুন মুরগির ব্যাচ সেভ করুন (Save Batch {aBatchCode})
+                {bn ? `+ নতুন মুরগির ব্যাচ সেভ করুন (Save Batch ${aBatchCode})` : `+ Save New Poultry Batch (${aBatchCode})`}
               </button>
             </form>
           </div>
@@ -1125,8 +1132,8 @@ export default function PoultryManagementModule({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300">
-                      <th className="py-2.5 px-4 w-1/2">বিষয় (Field)</th>
-                      <th className="py-2.5 px-4">তথ্য (Details)</th>
+                      <th className="py-2.5 px-4 w-1/2">{bn ? "বিষয় (Field)" : "Metric / Field"}</th>
+                      <th className="py-2.5 px-4">{bn ? "তথ্য (Details)" : "Value / Details"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1152,15 +1159,15 @@ export default function PoultryManagementModule({
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-medium text-slate-600 dark:text-slate-400">
-                        বাচ্চার সংখ্যা (Initial Quantity)
+                        {bn ? 'বাচ্চার সংখ্যা (Initial Quantity)' : 'Initial Chick Quantity'}
                       </td>
                       <td className="py-2.5 px-4 font-mono font-bold">
-                        {selectedBatch.initialQuantity.toLocaleString()} টি
+                        {selectedBatch.initialQuantity.toLocaleString()} {bn ? 'টি' : 'Birds'}
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-medium text-slate-600 dark:text-slate-400">
-                        প্রতি বাচ্চার দাম (Price per Chick)
+                        {bn ? 'প্রতি বাচ্চার দাম (Price per Chick)' : 'Price per Chick'}
                       </td>
                       <td className="py-2.5 px-4 font-mono">
                         {selectedBatch.initialQuantity > 0
@@ -1174,7 +1181,7 @@ export default function PoultryManagementModule({
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-medium text-slate-600 dark:text-slate-400">
-                        মোট ক্রয়মূল্য (Total Purchase Cost)
+                        {bn ? 'মোট ক্রয়মূল্য (Total Purchase Cost)' : 'Total Chick Cost'}
                       </td>
                       <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                         {formatBDT(selectedBatch.purchaseCost)}
@@ -1182,13 +1189,13 @@ export default function PoultryManagementModule({
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-medium text-slate-600 dark:text-slate-400">
-                        Supplier (সাপ্লায়ার)
+                        {bn ? 'সাপ্লায়ার (Supplier)' : 'Supplier'}
                       </td>
                       <td className="py-2.5 px-4">{selectedBatch.supplierName}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-medium text-slate-600 dark:text-slate-400">
-                        Farm / Shed (শেড)
+                        {bn ? 'শেড (Farm Shed)' : 'Farm / Shed'}
                       </td>
                       <td className="py-2.5 px-4 font-semibold">{selectedBatch.shedNumber}</td>
                     </tr>
@@ -1198,18 +1205,23 @@ export default function PoultryManagementModule({
                       </td>
                       <td className="py-2.5 px-4 font-semibold text-emerald-600">
                         {selectedBatch.status === 'active'
-                          ? 'Active (চলমান)'
+                          ? (bn ? 'Active (চলমান)' : 'Active')
                           : selectedBatch.status === 'harvested'
-                          ? 'Harvested (বিক্রি শেষ)'
-                          : 'Closed'}
+                          ? (bn ? 'Harvested (বিক্রি শেষ)' : 'Harvested')
+                          : (bn ? 'Closed' : 'Closed')}
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="text-xs text-slate-500 py-8 text-center">
-                কোনো ব্যাচ পাওয়া যায়নি। বাম পাশের ফর্ম থেকে নতুন ব্যাচ তৈরি করুন।
+              <div className="text-xs text-slate-500 py-12 text-center space-y-2">
+                <p className="font-semibold text-slate-700 dark:text-slate-300">
+                  {bn ? 'কোনো সক্রিয় ব্যাচ নেই।' : 'No poultry batches created yet.'}
+                </p>
+                <p className="text-slate-400">
+                  {bn ? 'বাম পাশের ফর্ম পূরণ করে আপনার প্রথম মুরগির ব্যাচ তৈরি করুন।' : 'Use the form on the left to initialize your first poultry batch.'}
+                </p>
               </div>
             )}
           </div>
@@ -1231,33 +1243,33 @@ export default function PoultryManagementModule({
                 {batchInitial.toLocaleString()}
               </div>
               <div className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                প্রাথমিক সংখ্যা (Initial Birds)
+                {bn ? 'প্রাথমিক সংখ্যা (Initial Birds)' : 'Initial Birds'}
               </div>
             </div>
 
             <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/40 dark:bg-red-950/20 p-5">
               <div className="flex items-center justify-between text-xs font-semibold text-red-600 dark:text-red-400">
-                <span>মৃত্যুর হার: {batchMortalityRate}%</span>
+                <span>{bn ? `মৃত্যুর হার: ${batchMortalityRate}%` : `Mortality Rate: ${batchMortalityRate}%`}</span>
                 <AlertTriangle className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-bold font-mono tabular-nums text-red-600 dark:text-red-400">
                 {batchDead.toLocaleString()}
               </div>
               <div className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                মৃত মুরগি (Total Dead Birds) · অসুস্থ: {selectedBatch?.sickBirdsCount || 0}টি
+                {bn ? `মৃত মুরগি (Total Dead Birds) · অসুস্থ: ${selectedBatch?.sickBirdsCount || 0}টি` : `Total Dead Birds · Sick: ${selectedBatch?.sickBirdsCount || 0}`}
               </div>
             </div>
 
             <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 p-5">
               <div className="flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                <span>বিক্রিত মুরগি: {batchSold}টি</span>
+                <span>{bn ? `বিক্রিত মুরগি: ${batchSold}টি` : `Sold Birds: ${batchSold}`}</span>
                 <CheckCircle2 className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-bold font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
                 {batchAlive.toLocaleString()}
               </div>
               <div className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                বর্তমানে জীবিত মুরগি (Currently Alive in Shed)
+                {bn ? 'বর্তমানে জীবিত মুরগি (Currently Alive in Shed)' : 'Currently Live in Shed'}
               </div>
             </div>
           </div>
@@ -1266,17 +1278,17 @@ export default function PoultryManagementModule({
             {/* Daily Employee Entry Form */}
             <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                B. প্রতিদিনের মৃত্যু ও অসুস্থ মুরগির হিসাব (Daily Employee Log)
+                {bn ? 'B. প্রতিদিনের মৃত্যু ও অসুস্থ মুরগির হিসাব (Daily Employee Log)' : 'B. Daily Flock Mortality & Health Tracker'}
               </h3>
               <p className="text-xs text-slate-500 mt-1 mb-4">
-                কর্মচারী শুধু আজকের তথ্য লিখবে—সিস্টেম নিজে জীবিত মুরগির সংখ্যা ও মৃত্যুর হার আপডেট করবে।
+                {bn ? 'কর্মচারী শুধু আজকের তথ্য লিখবে—সিস্টেম নিজে জীবিত মুরগির সংখ্যা ও মৃত্যুর হার আপডেট করবে।' : 'Log daily mortality; the system updates live bird counts and shed health logs in real time.'}
               </p>
 
               <form onSubmit={handleRecordMortalityB} className="space-y-3.5 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      তারিখ (Date) *
+                      {bn ? 'তারিখ (Date) *' : 'Entry Date *'}
                     </label>
                     <input
                       type="date"
@@ -1288,7 +1300,7 @@ export default function PoultryManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      কোন ব্যাচ (Selected Batch)
+                      {bn ? 'কোন ব্যাচ (Selected Batch)' : 'Active Batch'}
                     </label>
                     <input
                       type="text"
@@ -1302,7 +1314,7 @@ export default function PoultryManagementModule({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold text-red-600 dark:text-red-400 mb-1">
-                      আজ কতটি মারা গেছে (Dead Today) *
+                      {bn ? 'আজ কতটি মারা গেছে (Dead Today) *' : 'Dead Today (Count) *'}
                     </label>
                     <input
                       type="number"
@@ -1315,7 +1327,7 @@ export default function PoultryManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold text-amber-600 dark:text-amber-400 mb-1">
-                      বর্তমানে অসুস্থ মুরগির সংখ্যা (Sick Birds) *
+                      {bn ? 'বর্তমানে অসুস্থ মুরগির সংখ্যা (Sick Birds) *' : 'Sick / Quarantined Birds *'}
                     </label>
                     <input
                       type="number"
@@ -1330,21 +1342,21 @@ export default function PoultryManagementModule({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    মৃত্যুর কারণ (Cause of Death) *
+                    {bn ? 'মৃত্যুর কারণ (Cause of Death) *' : 'Cause of Death *'}
                   </label>
                   <input
                     type="text"
                     required
                     value={bCause}
                     onChange={(e) => setBCause(e.target.value)}
-                    placeholder="যেমন: হিট স্ট্রোক, ঠান্ডা/CRD, দুর্বল বাচ্চা"
+                    placeholder={bn ? "যেমন: হিট স্ট্রোক, ঠান্ডা/CRD, দুর্বল বাচ্চা" : "e.g. Heat stress, respiratory/CRD, brooding weakness"}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    চিকিৎসা বা করণীয় (Treatment / Action Taken) *
+                    {bn ? 'চিকিৎসা বা করণীয় (Treatment / Action Taken) *' : 'Treatment / Action Taken *'}
                   </label>
                   <input
                     type="text"
@@ -1357,7 +1369,7 @@ export default function PoultryManagementModule({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    দায়িত্বপ্রাপ্ত কর্মচারী (Responsible Employee) *
+                    {bn ? 'দায়িত্বপ্রাপ্ত কর্মচারী (Responsible Employee) *' : 'Responsible Farm Worker *'}
                   </label>
                   <input
                     type="text"
@@ -1373,7 +1385,7 @@ export default function PoultryManagementModule({
                   disabled={isSubmitting || !selectedBatch}
                   className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity"
                 >
-                  আজকের মৃত্যু ও স্বাস্থ্য তথ্য আপডেট করুন
+                  {bn ? 'আজকের মৃত্যু ও স্বাস্থ্য তথ্য আপডেট করুন' : 'Update Daily Mortality & Health Log'}
                 </button>
               </form>
             </div>
@@ -1382,21 +1394,21 @@ export default function PoultryManagementModule({
             <div className="lg:col-span-6 space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  বিশেষ রিপোর্ট: কোন ব্যাচে ও কোন শেডে মৃত্যুর হার কেমন?
+                  {bn ? 'বিশেষ রিপোর্ট: কোন ব্যাচে ও কোন শেডে মৃত্যুর হার কেমন?' : 'Comparative Flock Mortality Report by Shed'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 mb-4">
-                  ব্যাচ ও শেড অনুযায়ী প্রাথমিক সংখ্যা, মৃত মুরগি, জীবিত মুরগি এবং মৃত্যুর হার (%)
+                  {bn ? 'ব্যাচ ও শেড অনুযায়ী প্রাথমিক সংখ্যা, মৃত মুরগি, জীবিত মুরগি এবং মৃত্যুর হার (%)' : 'Initial count, mortality, live population and mortality rate across active sheds'}
                 </p>
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-bold">
-                        <th className="py-2.5 px-3">Batch ID ও Shed</th>
-                        <th className="py-2.5 px-3 text-right">শুরুতে</th>
-                        <th className="py-2.5 px-3 text-right">মৃত</th>
-                        <th className="py-2.5 px-3 text-right">জীবিত</th>
-                        <th className="py-2.5 px-3 text-right">মৃত্যুর হার (%)</th>
+                        <th className="py-2.5 px-3">{bn ? "Batch ID ও Shed" : "Batch ID & Shed"}</th>
+                        <th className="py-2.5 px-3 text-right">{bn ? "শুরুতে" : "Initial"}</th>
+                        <th className="py-2.5 px-3 text-right">{bn ? "মৃত" : "Dead"}</th>
+                        <th className="py-2.5 px-3 text-right">{bn ? "জীবিত" : "Live Count"}</th>
+                        <th className="py-2.5 px-3 text-right">{bn ? "মৃত্যুর হার (%)" : "Mortality Rate"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1447,7 +1459,7 @@ export default function PoultryManagementModule({
               {/* Recent Daily Mortality Log Entries */}
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  সাম্প্রতিক প্রতিদিনের মৃত্যু ও চিকিৎসার লগ (Daily Mortality History)
+                  {bn ? 'সাম্প্রতিক প্রতিদিনের মৃত্যু ও চিকিৎসার লগ (Daily Mortality History)' : 'Daily Mortality & Health Log History'}
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
                   {mortalityLogs.length === 0 ? (
@@ -1481,9 +1493,9 @@ export default function PoultryManagementModule({
           {/* Feed Stock Summary Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <div className="text-xs text-slate-500">গোডাউনে বর্তমান খাবারের বস্তা</div>
+              <div className="text-xs text-slate-500">{bn ? "গোডাউনে বর্তমান খাবারের বস্তা" : "Current Feed Stock in Warehouse"}</div>
               <div className="mt-1 text-2xl font-bold font-mono text-emerald-600">
-                {feedItems.reduce((s, i) => s + i.quantity, 0)} বস্তা
+                {feedItems.reduce((s, i) => s + i.quantity, 0)} {bn ? "বস্তা" : "Bags"}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 প্রতি বস্তা ৫০ কেজি হিসেবে মোট{' '}
@@ -1492,7 +1504,7 @@ export default function PoultryManagementModule({
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
               <div className="text-xs text-slate-500">
-                {selectedBatch?.batchCode}-এ ব্যবহৃত মোট খাবার
+                {selectedBatch?.batchCode} — {bn ? 'ব্যবহৃত মোট খাবার' : 'Total Feed Consumed'}
               </div>
               <div className="mt-1 text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
                 {(
@@ -1510,25 +1522,25 @@ export default function PoultryManagementModule({
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
               <div className="text-xs text-slate-500">
-                {selectedBatch?.batchCode}-এ মোট খাবারের খরচ
+                {selectedBatch?.batchCode} — {bn ? 'মোট খাবারের খরচ' : 'Total Feed Cost'}
               </div>
               <div className="mt-1 text-2xl font-bold font-mono text-amber-600">
                 {formatBDT(selectedBatch?.feedCost || 0)}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                মুরগি প্রতি খাবার খরচ:{' '}
+                {bn ? 'মুরগি প্রতি খাবার খরচ: ' : 'Feed Cost per Bird: '}{' '}
                 {batchInitial > 0
                   ? formatBDT(Math.round((selectedBatch?.feedCost || 0) / batchInitial))
                   : '৳0'}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <div className="text-xs text-slate-500">বর্তমান খাবার স্টকের মূল্য</div>
+              <div className="text-xs text-slate-500">{bn ? "বর্তমান খাবার স্টকের মূল্য" : "Total Feed Inventory Valuation"}</div>
               <div className="mt-1 text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
                 {formatBDT(feedItems.reduce((s, i) => s + i.quantity * i.unitCost, 0))}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
-                অবশিষ্ট খাবারের বাজারমূল্য
+                {bn ? 'অবশিষ্ট খাবারের বাজারমূল্য' : 'Current Market Value'}
               </div>
             </div>
           </div>
@@ -1537,7 +1549,7 @@ export default function PoultryManagementModule({
             {/* Left: Buy Feed Bags into Stock */}
             <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                ১. নতুন খাবারের বস্তা কেনা (Buy Feed into Inventory)
+                {bn ? '১. নতুন খাবারের বস্তা কেনা (Buy Feed into Inventory)' : '1. Purchase Feed into Warehouse Inventory'}
               </h3>
               <p className="text-xs text-slate-500 mt-1 mb-4">
                 যেমন: ৫০ বস্তা খাবার × ২,৫০০ টাকা = ১,২৫,০০০ টাকা স্টকে যুক্ত হবে।
@@ -1547,7 +1559,7 @@ export default function PoultryManagementModule({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      খাবারের ধরন (Feed Stage)
+                      {bn ? 'খাবারের ধরন (Feed Stage)' : 'Feed Stage'}
                     </label>
                     <select
                       value={cFeedType}
@@ -1558,14 +1570,14 @@ export default function PoultryManagementModule({
                       }
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     >
-                      <option value="Starter Feed">Starter Feed (শুরুর খাবার)</option>
-                      <option value="Grower Feed">Grower Feed (বাড়ন্ত খাবার)</option>
-                      <option value="Finisher Feed">Finisher Feed (বিক্রির আগের খাবার)</option>
+                      <option value="Starter Feed">{bn ? "Starter Feed (শুরুর খাবার)" : "Starter Feed (0-14 Days)"}</option>
+                      <option value="Grower Feed">{bn ? "Grower Feed (বাড়ন্ত খাবার)" : "Grower Feed (15-28 Days)"}</option>
+                      <option value="Finisher Feed">{bn ? "Finisher Feed (বিক্রির আগের খাবার)" : "Finisher Feed (29+ Days)"}</option>
                     </select>
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      খাবার কেনার Supplier *
+                      {bn ? 'খাবার কেনার Supplier *' : 'Feed Supplier Mill *'}
                     </label>
                     <input
                       type="text"
@@ -1580,7 +1592,7 @@ export default function PoultryManagementModule({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      কত বস্তা (Bags) *
+                      {bn ? 'কত বস্তা (Bags) *' : 'Bag Quantity *'}
                     </label>
                     <input
                       type="number"
@@ -1593,7 +1605,7 @@ export default function PoultryManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      প্রতি বস্তার দাম (৳) *
+                      {bn ? 'প্রতি বস্তার দাম (৳) *' : 'Price per Bag (৳) *'}
                     </label>
                     <input
                       type="number"
@@ -1606,7 +1618,7 @@ export default function PoultryManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
-                      মোট খরচ (Total)
+                      {bn ? 'মোট খরচ (Total)' : 'Total Cost (Auto)'}
                     </label>
                     <div className="w-full rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 font-mono font-bold text-emerald-800 dark:text-emerald-300">
                       {formatBDT(cBagsCount * cPricePerBag)}
@@ -1616,7 +1628,7 @@ export default function PoultryManagementModule({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    গোডাউন / স্টোর রুম (Warehouse)
+                    {bn ? 'গোডাউন / স্টোর রুম (Warehouse)' : 'Warehouse Location'}
                   </label>
                   <input
                     type="text"
@@ -1631,7 +1643,7 @@ export default function PoultryManagementModule({
                   disabled={isSubmitting}
                   className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors"
                 >
-                  + {cBagsCount} বস্তা খাবার স্টকে যুক্ত করুন
+                  {bn ? `+ ${cBagsCount} বস্তা খাবার স্টকে যুক্ত করুন` : `+ Add ${cBagsCount} Feed Bags to Stock`}
                 </button>
               </form>
             </div>
@@ -1639,7 +1651,7 @@ export default function PoultryManagementModule({
             {/* Right: Daily Feed Consumption Linked to Batch */}
             <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                ২. প্রতিদিন মুরগিকে খাবার দেওয়া (Daily Feed Usage to {selectedBatch?.batchCode})
+                {bn ? `২. প্রতিদিন মুরগিকে খাবার দেওয়া (${selectedBatch?.batchCode})` : `2. Dispense Daily Feed to ${selectedBatch?.batchCode}`}
               </h3>
               <p className="text-xs text-slate-500 mt-1 mb-4">
                 খাবার ব্যবহার করলে গোডাউন স্টক স্বয়ংক্রিয়ভাবে কমে যাবে (যেমন ৫০ - ৩ = ৪৭ বস্তা) এবং খরচ{' '}
@@ -1650,7 +1662,7 @@ export default function PoultryManagementModule({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      ব্যবহারের তারিখ (Date) *
+                      {bn ? 'ব্যবহারের তারিখ (Date) *' : 'Usage Date *'}
                     </label>
                     <input
                       type="date"
@@ -1662,7 +1674,7 @@ export default function PoultryManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      খাবারের পর্যায় (Feed Type)
+                      {bn ? 'খাবারের পর্যায় (Feed Type)' : 'Feed Type'}
                     </label>
                     <select
                       value={cUseFeedStage}
@@ -1671,16 +1683,16 @@ export default function PoultryManagementModule({
                       }
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     >
-                      <option value="starter">Starter Feed (স্টার্টার)</option>
-                      <option value="grower">Grower Feed (গ্রোয়ার)</option>
-                      <option value="finisher">Finisher Feed (ফিনিশার)</option>
+                      <option value="starter">{bn ? "Starter Feed (স্টার্টার)" : "Starter Feed"}</option>
+                      <option value="grower">{bn ? "Grower Feed (গ্রোয়ার)" : "Grower Feed"}</option>
+                      <option value="finisher">{bn ? "Finisher Feed (ফিনিশার)" : "Finisher Feed"}</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    কোন স্টকের বস্তা থেকে দিচ্ছেন (Select Feed Stock)
+                    {bn ? 'কোন স্টকের বস্তা থেকে দিচ্ছেন (Select Feed Stock)' : 'Select Source Feed Warehouse Stock'}
                   </label>
                   <select
                     value={cUseInventoryId}
@@ -1699,7 +1711,7 @@ export default function PoultryManagementModule({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      আজ কয় বস্তা ব্যবহার হয়েছে (Bags Used Today) *
+                      {bn ? 'আজ কয় বস্তা ব্যবহার হয়েছে (Bags Used Today) *' : 'Bags Dispensed Today *'}
                     </label>
                     <input
                       type="number"
@@ -1712,7 +1724,7 @@ export default function PoultryManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      প্রতি বস্তার ওজন (কেজি)
+                      {bn ? 'প্রতি বস্তার ওজন (কেজি)' : 'Weight per Bag (KG)'}
                     </label>
                     <input
                       type="number"
@@ -1729,7 +1741,7 @@ export default function PoultryManagementModule({
                   disabled={isSubmitting || !selectedBatch}
                   className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity"
                 >
-                  খাবার ব্যবহার রেকর্ড করুন ({cUseBags} বস্তা = {cUseBags * cBagWeightKg} কেজি)
+                  {bn ? `খাবার ব্যবহার রেকর্ড করুন (${cUseBags} বস্তা = ${cUseBags * cBagWeightKg} কেজি)` : `Record Feed Usage (${cUseBags} Bags = ${cUseBags * cBagWeightKg} KG)`}
                 </button>
               </form>
             </div>
@@ -1738,17 +1750,17 @@ export default function PoultryManagementModule({
           {/* Current Feed Inventory Table */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
             <div className="px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-800 dark:text-slate-200">
-              খাবারের বর্তমান স্টক ও সাপ্লায়ার তালিকা (Feed Stock & Price History)
+              {bn ? 'খাবারের বর্তমান স্টক ও সাপ্লায়ার তালিকা (Feed Stock & Price History)' : 'Warehouse Feed Stock & Supplier Price History'}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-semibold">
-                    <th className="py-2.5 px-4">খাবারের নাম (Feed Name)</th>
+                    <th className="py-2.5 px-4">{bn ? "খাবারের নাম (Feed Name)" : "Feed Name / SKU"}</th>
                     <th className="py-2.5 px-4">Supplier</th>
-                    <th className="py-2.5 px-4 text-right">প্রতি বস্তার দাম</th>
-                    <th className="py-2.5 px-4 text-right">বর্তমান অবশিষ্ট বস্তা</th>
-                    <th className="py-2.5 px-4 text-right">মোট স্টক মূল্য</th>
+                    <th className="py-2.5 px-4 text-right">{bn ? "প্রতি বস্তার দাম" : "Unit Cost (৳)"}</th>
+                    <th className="py-2.5 px-4 text-right">{bn ? "বর্তমান অবশিষ্ট বস্তা" : "Available Bags"}</th>
+                    <th className="py-2.5 px-4 text-right">{bn ? "মোট স্টক মূল্য" : "Total Valuation"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1784,17 +1796,17 @@ export default function PoultryManagementModule({
           {/* Left: Buy Medicine / Vaccine */}
           <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              ১. ওষুধ ও ভ্যাকসিন ক্রয় (Purchase Medicine & Vaccine)
+              {bn ? '১. ওষুধ ও ভ্যাকসিন ক্রয় (Purchase Medicine & Vaccine)' : '1. Purchase Medicine & Vaccines'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 mb-4">
-              ওষুধের নাম, ক্যাটাগরি, ক্রয়মূল্য এবং মেয়াদ উত্তীর্ণের তারিখ (Expiry Date) সংরক্ষণ করুন।
+              {bn ? 'ওষুধের নাম, ক্যাটাগরি, ক্রয়মূল্য এবং মেয়াদ উত্তীর্ণের তারিখ (Expiry Date) সংরক্ষণ করুন।' : 'Record veterinary medicines, vaccines, doses and expiration dates into clinic stock.'}
             </p>
 
             <form onSubmit={handleBuyMedicineD} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    ওষুধ বা ভ্যাকসিনের নাম *
+                    {bn ? 'ওষুধ বা ভ্যাকসিনের নাম *' : 'Medicine or Vaccine Name *'}
                   </label>
                   <input
                     type="text"
@@ -1807,15 +1819,15 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    ক্যাটাগরি (Category)
+                    {bn ? 'ক্যাটাগরি (Category)' : 'Category'}
                   </label>
                   <select
                     value={dMedCategory}
                     onChange={(e) => setDMedCategory(e.target.value as 'vaccine' | 'medicine')}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="vaccine">Vaccine (টিকা / ভ্যাকসিন)</option>
-                    <option value="medicine">Medicine / Vitamin (ওষুধ ও ভিটামিন)</option>
+                    <option value="vaccine">{bn ? "Vaccine (টিকা / ভ্যাকসিন)" : "Vaccine"}</option>
+                    <option value="medicine">{bn ? "Medicine / Vitamin (ওষুধ ও ভিটামিন)" : "Medicine / Vitamin"}</option>
                   </select>
                 </div>
               </div>
@@ -1823,7 +1835,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    পরিমাণ (Vial/Pack) *
+                    {bn ? 'পরিমাণ (Vial/Pack) *' : 'Quantity (Vial/Pack) *'}
                   </label>
                   <input
                     type="number"
@@ -1836,7 +1848,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    একক দাম (৳) *
+                    {bn ? 'একক দাম (৳) *' : 'Unit Cost (৳) *'}
                   </label>
                   <input
                     type="number"
@@ -1863,7 +1875,7 @@ export default function PoultryManagementModule({
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Supplier (কোম্পানি / ফার্মেসি)
+                  {bn ? 'সাপ্লায়ার (কোম্পানি / ফার্মেসি)' : 'Supplier (Pharma/Dealer)'}
                 </label>
                 <input
                   type="text"
@@ -1878,14 +1890,14 @@ export default function PoultryManagementModule({
                 disabled={isSubmitting}
                 className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors"
               >
-                + ওষুধ/ভ্যাকসিন স্টকে যোগ করুন (মোট {formatBDT(dMedQty * dMedUnitCost)})
+                {bn ? `+ ওষুধ/ভ্যাকসিন স্টকে যোগ করুন (মোট ${formatBDT(dMedQty * dMedUnitCost)})` : `+ Add to Stock (${formatBDT(dMedQty * dMedUnitCost)})`}
               </button>
             </form>
 
             {/* Current Medicine Stock Table */}
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
               <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                ওষুধ ও ভ্যাকসিনের বর্তমান Stock এবং Expiry Date
+                {bn ? 'ওষুধ ও ভ্যাকসিনের বর্তমান Stock এবং Expiry Date' : 'Current Veterinary Stock & Expiry Schedule'}
               </h4>
               <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
                 {medItems.map((m) => (
@@ -1904,7 +1916,7 @@ export default function PoultryManagementModule({
                     </div>
                     <div className="text-right font-mono">
                       <div className="font-bold text-emerald-600">
-                        অবশিষ্ট: {m.quantity} {m.unit}
+                        {bn ? `অবশিষ্ট: ${m.quantity} ${m.unit}` : `In Stock: ${m.quantity} ${m.unit}`}
                       </div>
                       <div className="text-[11px] text-slate-500">@ {formatBDT(m.unitCost)}</div>
                     </div>
@@ -1917,16 +1929,16 @@ export default function PoultryManagementModule({
           {/* Right: Apply Medicine/Vaccine to Selected Batch & Set Reminder */}
           <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              ২. ব্যাচে ওষুধ/ভ্যাকসিন প্রয়োগ ও Reminder ({selectedBatch?.batchCode})
+              {bn ? `২. ব্যাচে ওষুধ/ভ্যাকসিন প্রয়োগ ও Reminder (${selectedBatch?.batchCode})` : `2. Administer Treatment & Schedule Booster Reminder (${selectedBatch?.batchCode})`}
             </h3>
             <p className="text-xs text-slate-500 mt-1 mb-4">
-              যেমন: Vaccine A (২,০০০ টাকা - ১ ব্যাচ), Medicine B (১,৫০০ টাকা - ৩ দিন), Vitamin C (১,০০০ টাকা - ৫ দিন)
+              {bn ? 'যেমন: Vaccine A (২,০০০ টাকা - ১ ব্যাচ), Medicine B (১,৫০০ টাকা - ৩ দিন), Vitamin C (১,০০০ টাকা - ৫ দিন)' : 'Record specific vaccine doses, medication treatment regimens, and schedule automated booster reminders.'}
             </p>
 
             <form onSubmit={handleApplyMedicineD} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  স্টক থেকে ওষুধ সিলেক্ট করুন (অথবা নিচে নাম লিখুন)
+                  {bn ? 'স্টক থেকে ওষুধ সিলেক্ট করুন (অথবা নিচে নাম লিখুন)' : 'Select from Clinic Stock or Enter Custom'}
                 </label>
                 <select
                   value={dApplyMedId}
@@ -1940,7 +1952,7 @@ export default function PoultryManagementModule({
                   }}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                 >
-                  <option value="">-- কাস্টম ওষুধ / ভ্যাকসিন --</option>
+                  <option value="">{bn ? "-- কাস্টম ওষুধ / ভ্যাকসিন --" : "-- Custom Medicine / Vaccine --"}</option>
                   {medItems.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} (অবশিষ্ট: {m.quantity} {m.unit})
@@ -1952,7 +1964,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    ওষুধের নাম (Medicine/Vaccine Name) *
+                    {bn ? 'ওষুধের নাম (Medicine/Vaccine Name) *' : 'Treatment Name *'}
                   </label>
                   <input
                     type="text"
@@ -1964,14 +1976,14 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    ব্যবহারের মেয়াদ / পরিমাণ (Usage) *
+                    {bn ? 'ব্যবহারের মেয়াদ / পরিমাণ (Usage) *' : 'Duration / Dosage *'}
                   </label>
                   <input
                     type="text"
                     required
                     value={dApplyDuration}
                     onChange={(e) => setDApplyDuration(e.target.value)}
-                    placeholder="যেমন: ১ ব্যাচ / ৩ দিন / ৫ দিন"
+                    placeholder={bn ? "যেমন: ১ ব্যাচ / ৩ দিন / ৫ দিন" : "e.g. 1 Batch / 3 Days / 5 Days Course"}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   />
                 </div>
@@ -1980,7 +1992,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    ওষুধের খরচ (টাকা) *
+                    {bn ? 'ওষুধের খরচ (টাকা) *' : 'Medication Cost (৳) *'}
                   </label>
                   <input
                     type="number"
@@ -1993,7 +2005,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
-                    পরবর্তী ভ্যাকসিন দেওয়ার তারিখের Reminder
+                    {bn ? 'পরবর্তী ভ্যাকসিন দেওয়ার তারিখের Reminder' : 'Booster / Next Reminder Date'}
                   </label>
                   <input
                     type="date"
@@ -2006,7 +2018,7 @@ export default function PoultryManagementModule({
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  চিকিৎসার নোট (Treatment Notes) *
+                  {bn ? 'চিকিৎসার নোট (Treatment Notes) *' : 'Veterinary & Treatment Notes *'}
                 </label>
                 <input
                   type="text"
@@ -2022,20 +2034,20 @@ export default function PoultryManagementModule({
                 disabled={isSubmitting || !selectedBatch}
                 className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity"
               >
-                ব্যাচে ওষুধের খরচ ({formatBDT(dApplyCost)}) ও ভ্যাকসিন রিমাইন্ডার সেভ করুন
+                {bn ? `ব্যাচে ওষুধের খরচ (${formatBDT(dApplyCost)}) ও ভ্যাকসিন রিমাইন্ডার সেভ করুন` : `Save Treatment Cost (${formatBDT(dApplyCost)}) & Set Reminder`}
               </button>
             </form>
 
             {selectedBatch && (
               <div className="mt-5 p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
                 <div className="font-bold text-slate-900 dark:text-slate-100">
-                  {selectedBatch.batchCode} — মোট ওষুধ ও ভ্যাকসিন খরচ:{' '}
+                  {selectedBatch.batchCode} — {bn ? 'মোট ওষুধ ও ভ্যাকসিন খরচ: ' : 'Total Medicine & Vaccine Cost: '}
                   <span className="font-mono text-emerald-600">
                     {formatBDT(selectedBatch.medicineCost)}
                   </span>
                 </div>
                 <div className="text-slate-600 dark:text-slate-400">
-                  ভ্যাকসিন ও চিকিৎসা ইতিহাস: {selectedBatch.vaccineScheduleNotes}
+                  {bn ? 'ভ্যাকসিন ও চিকিৎসা ইতিহাস: ' : 'Treatment & Vaccine History: '}{selectedBatch.vaccineScheduleNotes}
                 </div>
               </div>
             )}
@@ -2050,46 +2062,34 @@ export default function PoultryManagementModule({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              E. বিদ্যুৎ, গ্যাস, কর্মচারী ও অন্যান্য খরচ (Utilities, Staff & Shared Shed Allocation)
+              {bn ? 'E. বিদ্যুৎ, গ্যাস, কর্মচারী ও অন্যান্য খরচ (Utilities, Staff & Shared Shed Allocation)' : 'E. Utilities, Labor & Shared Overhead Allocation'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 mb-4">
-              বিদ্যুৎ বিলের মতো যৌথ খরচ একটি নির্দিষ্ট শেডে অথবা একাধিক শেডে কী নিয়মে ভাগ হয়েছে তা সহ সংরক্ষণ করুন।
+              {bn ? 'বিদ্যুৎ বিলের মতো যৌথ খরচ একটি নির্দিষ্ট শেডে অথবা একাধিক শেডে কী নিয়মে ভাগ হয়েছে তা সহ সংরক্ষণ করুন।' : 'Record shared shed expenses with cost-allocation rules (single shed, equal split, or bird-count ratio).'}
             </p>
 
             <form onSubmit={handleRecordOverheadExpenseE} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    খরচের ধরন (Expense Category) *
+                    {bn ? 'খরচের ধরন (Expense Category) *' : 'Expense Category *'}
                   </label>
                   <select
                     value={eExpenseType}
                     onChange={(e) => setEExpenseType(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-semibold"
                   >
-                    <option value="বিদ্যুৎ বিল (Electricity Bill)">
-                      বিদ্যুৎ বিল (Electricity Bill) — যেমন ৫,০০০ টাকা
-                    </option>
-                    <option value="কর্মচারীর বেতন (Staff Salary)">
-                      কর্মচারীর বেতন (Staff Salary) — যেমন ১৫,০০০ টাকা
-                    </option>
-                    <option value="পানি ও গ্যাস বিল (Water & Gas Bill)">
-                      পানি ও গ্যাস বিল (Water & Gas Bill) — যেমন ১,০০০ টাকা
-                    </option>
-                    <option value="পরিবহন খরচ (Transport)">
-                      পরিবহন খরচ (Transport) — যেমন ৩,০০০ টাকা
-                    </option>
-                    <option value="জীবাণুনাশক ও লিটার/তুষ (Disinfectant)">
-                      জীবাণুনাশক ও লিটার/তুষ (Disinfectant) — যেমন ২,০০০ টাকা
-                    </option>
-                    <option value="অন্যান্য খামার খরচ (Other Expense)">
-                      অন্যান্য খামার খরচ (Other Expense) — যেমন ১,০০০ টাকা
-                    </option>
+                    <option value="Electricity Bill">{bn ? "বিদ্যুৎ বিল (Electricity Bill)" : "Electricity Bill"}</option>
+                    <option value="Staff Salary">{bn ? "কর্মচারীর বেতন (Staff Salary)" : "Staff Salary & Wages"}</option>
+                    <option value="Water & Gas Bill">{bn ? "পানি ও গ্যাস বিল (Water & Gas Bill)" : "Water & Gas Bill"}</option>
+                    <option value="Transport">{bn ? "পরিবহন খরচ (Transport)" : "Fleet & Transport"}</option>
+                    <option value="Disinfectant & Litter">{bn ? "জীবাণুনাশক ও লিটার/তুষ (Disinfectant)" : "Disinfectant & Litter"}</option>
+                    <option value="Other Farm Expense">{bn ? "অন্যান্য খামার খরচ (Other Expense)" : "Other Farm Expense"}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    টাকার পরিমাণ (Amount ৳) *
+                    {bn ? 'টাকার পরিমাণ (Amount ৳) *' : 'Amount (৳) *'}
                   </label>
                   <input
                     type="number"
@@ -2105,7 +2105,7 @@ export default function PoultryManagementModule({
               {/* Shared Shed Cost Allocation Rule */}
               <div className="p-3.5 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
                 <label className="block font-bold text-slate-900 dark:text-slate-100">
-                  একাধিক শেডে বা ব্যাচে খরচ ভাগের নিয়ম (Cost Allocation Rule):
+                  {bn ? 'একাধিক শেডে বা ব্যাচে খরচ ভাগের নিয়ম (Cost Allocation Rule):' : 'Cost Allocation Method:'}
                 </label>
                 <select
                   value={eAllocationRule}
@@ -2120,14 +2120,14 @@ export default function PoultryManagementModule({
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-semibold"
                 >
                   <option value="single_batch">
-                    ১. শুধুমাত্র সিলেক্ট করা ব্যাচ/শেডের খরচ ({selectedBatch?.batchCode} -{' '}
+                    {bn ? '১. শুধুমাত্র সিলেক্ট করা ব্যাচ/শেডের খরচ' : '1. Allocate 100% to this active batch'} ({selectedBatch?.batchCode} -{' '}
                     {selectedBatch?.shedNumber})
                   </option>
                   <option value="equal_all_sheds">
-                    ২. সকল চলমান শেডে সমানভাবে ভাগ (Equal Split Across Active Sheds)
+                    {bn ? '২. সকল চলমান শেডে সমানভাবে ভাগ' : '2. Equal split across all active batches'}
                   </option>
                   <option value="proportional_birds">
-                    ৩. শেডের জীবিত মুরগির সংখ্যার অনুপাতে ভাগ (Proportional by Live Bird Count)
+                    {bn ? '৩. শেডের জীবিত মুরগির সংখ্যার অনুপাতে ভাগ' : '3. Proportional split by live bird population'}
                   </option>
                 </select>
               </div>
@@ -2147,7 +2147,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    কে খরচ করেছে (Spent By) *
+                    {bn ? 'কে খরচ করেছে (Spent By) *' : 'Disbursed By *'}
                   </label>
                   <input
                     type="text"
@@ -2159,7 +2159,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    কাকে টাকা দেওয়া হয়েছে (Paid To) *
+                    {bn ? 'কাকে টাকা দেওয়া হয়েছে (Paid To) *' : 'Recipient / Vendor *'}
                   </label>
                   <input
                     type="text"
@@ -2174,7 +2174,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    বিল বা রসিদ রেফারেন্স (Receipt / Bill No)
+                    {bn ? 'বিল বা রসিদ রেফারেন্স (Receipt / Bill No)' : 'Receipt / Voucher Reference'}
                   </label>
                   <input
                     type="text"
@@ -2186,7 +2186,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Payment Method (পেমেন্ট মাধ্যম)
+                    {bn ? 'পেমেন্ট মাধ্যম (Payment Method)' : 'Payment Method'}
                   </label>
                   <select
                     value={ePaymentMethod}
@@ -2195,9 +2195,9 @@ export default function PoultryManagementModule({
                     }
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Cash">Cash (নগদ ক্যাশ)</option>
-                    <option value="Bank">Bank Account (ব্যাংক চেক/ট্রান্সফার)</option>
-                    <option value="Mobile Banking">Mobile Banking (বিকাশ / নগদ)</option>
+                    <option value="Cash">{bn ? "Cash (নগদ ক্যাশ)" : "Cash"}</option>
+                    <option value="Bank">{bn ? "Bank Account (ব্যাংক চেক/ট্রান্সফার)" : "Bank Account"}</option>
+                    <option value="Mobile Banking">{bn ? "Mobile Banking (বিকাশ / নগদ)" : "Mobile Banking"}</option>
                   </select>
                 </div>
               </div>
@@ -2207,7 +2207,7 @@ export default function PoultryManagementModule({
                 disabled={isSubmitting || !selectedBatch}
                 className="w-full py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors"
               >
-                + খরচ রেকর্ড করুন ({eExpenseType} — {formatBDT(eAmount)})
+                {bn ? `+ খরচ রেকর্ড করুন (${eExpenseType} — ${formatBDT(eAmount)})` : `+ Record Expense (${eExpenseType} — ${formatBDT(eAmount)})`}
               </button>
             </form>
           </div>
@@ -2215,31 +2215,31 @@ export default function PoultryManagementModule({
           {/* Right: Summary of Overhead Expenses for Selected Batch */}
           <div className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              {selectedBatch?.batchCode} — অন্যান্য খরচের সারসংক্ষেপ
+              {selectedBatch?.batchCode} — {bn ? 'অন্যান্য খরচের সারসংক্ষেপ' : 'Overhead Expenses Summary'}
             </h3>
             <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                    <th className="py-2.5 px-4">খরচের ধরন</th>
-                    <th className="py-2.5 px-4 text-right">টাকার পরিমাণ</th>
+                    <th className="py-2.5 px-4">{bn ? "খরচের ধরন" : "Expense Head"}</th>
+                    <th className="py-2.5 px-4 text-right">{bn ? "টাকার পরিমাণ" : "Amount (BDT)"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
-                    <td className="py-2.5 px-4">কর্মচারী বেতন, বিদ্যুৎ ও পানি বিল</td>
+                    <td className="py-2.5 px-4">{bn ? "কর্মচারী বেতন, বিদ্যুৎ ও পানি বিল" : "Salaries, Electricity & Water Bills"}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(selectedBatch?.labourAndUtilityCost || 0)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4">পরিবহন, জীবাণুনাশক ও অন্যান্য খরচ</td>
+                    <td className="py-2.5 px-4">{bn ? "পরিবহন, জীবাণুনাশক ও অন্যান্য খরচ" : "Transport, Litter, Disinfectant & Other"}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(selectedBatch?.otherExpense || 0)}
                     </td>
                   </tr>
                   <tr className="bg-slate-50 dark:bg-slate-800/40 font-bold">
-                    <td className="py-2.5 px-4">মোট পরিচালনা ও ইউটিলিটি খরচ</td>
+                    <td className="py-2.5 px-4">{bn ? "মোট পরিচালনা ও ইউটিলিটি খরচ" : "Total Overhead & Utilities"}</td>
                     <td className="py-2.5 px-4 text-right font-mono text-amber-600">
                       {formatBDT(
                         (selectedBatch?.labourAndUtilityCost || 0) +
@@ -2262,16 +2262,16 @@ export default function PoultryManagementModule({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                F. সাইজ ও ওজন অনুযায়ী আলাদা গ্রেডে মুরগি বিক্রির হিসাব ({selectedBatch?.batchCode})
+                {bn ? `F. সাইজ ও ওজন অনুযায়ী আলাদা গ্রেডে মুরগি বিক্রির হিসাব (${selectedBatch?.batchCode})` : `F. Multi-Grade Bird Sales Calculator (${selectedBatch?.batchCode})`}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 সব মুরগির সাইজ এক হয় না—তাই Small, Medium, Large এবং Extra Large গ্রেডের সংখ্যা, ওজন ও প্রতি কেজির দাম আলাদাভাবে হিসাব করুন।
               </p>
             </div>
             <div className="px-4 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs">
-              <span className="text-slate-600 dark:text-slate-400">ব্যাচে বর্তমানে জীবিত মুরগি: </span>
+              <span className="text-slate-600 dark:text-slate-400">{bn ? "ব্যাচে বর্তমানে জীবিত মুরগি: " : "Current Live Birds in Batch: "}</span>
               <span className="font-mono font-bold text-base text-emerald-700 dark:text-emerald-400">
-                {batchAlive} টি
+                {batchAlive} {bn ? "টি" : "Birds"}
               </span>
             </div>
           </div>
@@ -2282,18 +2282,18 @@ export default function PoultryManagementModule({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300">
-                    <th className="py-3 px-4">গ্রেড (Size Grade)</th>
-                    <th className="py-3 px-4">মুরগির সংখ্যা (Birds Count)</th>
-                    <th className="py-3 px-4">মোট ওজন (Total Weight KG)</th>
-                    <th className="py-3 px-4">প্রতি কেজি দাম (Price/KG ৳)</th>
-                    <th className="py-3 px-4 text-right">মোট বিক্রয়মূল্য (Grade Total)</th>
+                    <th className="py-3 px-4">{bn ? "গ্রেড (Size Grade)" : "Size Grade"}</th>
+                    <th className="py-3 px-4">{bn ? "মুরগির সংখ্যা (Birds Count)" : "Bird Count"}</th>
+                    <th className="py-3 px-4">{bn ? "মোট ওজন (Total Weight KG)" : "Total Weight (KG)"}</th>
+                    <th className="py-3 px-4">{bn ? "প্রতি কেজি দাম (Price/KG ৳)" : "Rate / KG (৳)"}</th>
+                    <th className="py-3 px-4 text-right">{bn ? "মোট বিক্রয়মূল্য (Grade Total)" : "Revenue (BDT)"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {/* Small Grade */}
                   <tr>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      Small (ছোট সাইজ)
+                      {bn ? 'Small (ছোট সাইজ)' : 'Small Grade'}
                     </td>
                     <td className="py-3 px-4">
                       <input
@@ -2331,7 +2331,7 @@ export default function PoultryManagementModule({
                   {/* Medium Grade */}
                   <tr>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      Medium (মাঝারি সাইজ)
+                      {bn ? 'Medium (মাঝারি সাইজ)' : 'Medium Grade'}
                     </td>
                     <td className="py-3 px-4">
                       <input
@@ -2369,7 +2369,7 @@ export default function PoultryManagementModule({
                   {/* Large Grade */}
                   <tr>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      Large (বড় সাইজ)
+                      {bn ? 'Large (বড় সাইজ)' : 'Large Grade'}
                     </td>
                     <td className="py-3 px-4">
                       <input
@@ -2407,7 +2407,7 @@ export default function PoultryManagementModule({
                   {/* Extra Large Grade */}
                   <tr>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      Extra Large (এক্সট্রা লার্জ)
+                      {bn ? 'Extra Large (এক্সট্রা লার্জ)' : 'Extra Large Grade'}
                     </td>
                     <td className="py-3 px-4">
                       <input
@@ -2445,16 +2445,16 @@ export default function PoultryManagementModule({
                   {/* Total Summary Row */}
                   <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
                     <td className="py-3.5 px-4 text-emerald-900 dark:text-emerald-200">
-                      সর্বমোট চালান (Total Invoice)
+                      {bn ? 'সর্বমোট চালান (Total Invoice)' : 'Total Invoice Summary'}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-emerald-800 dark:text-emerald-300">
-                      {totalGradedBirds} টি মুরগি
+                      {totalGradedBirds} {bn ? "টি মুরগি" : "Birds"}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-emerald-800 dark:text-emerald-300">
                       {totalGradedKg} কেজি
                     </td>
                     <td className="py-3.5 px-4 font-mono text-emerald-800 dark:text-emerald-300">
-                      গড় ৳{avgGradedPricePerKg}/কেজি
+                      {bn ? `গড় ৳${avgGradedPricePerKg}/কেজি` : `Avg ৳${avgGradedPricePerKg}/KG`}
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono text-base text-emerald-700 dark:text-emerald-400">
                       {formatBDT(totalGradedRevenue)}
@@ -2468,7 +2468,7 @@ export default function PoultryManagementModule({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  ক্রেতার নাম (Buyer Name) *
+                  {bn ? 'ক্রেতার নাম (Buyer Name) *' : 'Wholesale Buyer Name *'}
                 </label>
                 <input
                   type="text"
@@ -2480,7 +2480,7 @@ export default function PoultryManagementModule({
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  বিক্রির তারিখ (Sale Date) *
+                  {bn ? 'বিক্রির তারিখ (Sale Date) *' : 'Sale Date *'}
                 </label>
                 <input
                   type="date"
@@ -2492,7 +2492,7 @@ export default function PoultryManagementModule({
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  পরিবহন খরচ (Transport Cost ৳)
+                  {bn ? 'পরিবহন খরচ (Transport Cost ৳)' : 'Transport Freight Cost (৳)'}
                 </label>
                 <input
                   type="number"
@@ -2504,7 +2504,7 @@ export default function PoultryManagementModule({
               </div>
               <div>
                 <label className="block font-semibold text-amber-600 dark:text-amber-400 mb-1">
-                  বকেয়া টাকা (Due Amount ৳)
+                  {bn ? 'বকেয়া টাকা (Due Amount ৳)' : 'Outstanding Due (৳)'}
                 </label>
                 <input
                   type="number"
@@ -2525,9 +2525,9 @@ export default function PoultryManagementModule({
                   }
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                 >
-                  <option value="Cash">Cash (নগদ টাকা)</option>
-                  <option value="Bank">Bank (ব্যাংক একাউন্ট)</option>
-                  <option value="Mobile Payment">Mobile Payment (বিকাশ/নগদ)</option>
+                  <option value="Cash">{bn ? "Cash (নগদ টাকা)" : "Cash"}</option>
+                  <option value="Bank">{bn ? "Bank (ব্যাংক একাউন্ট)" : "Bank"}</option>
+                  <option value="Mobile Payment">{bn ? "Mobile Payment (বিকাশ/নগদ)" : "Mobile Banking"}</option>
                 </select>
               </div>
             </div>
@@ -2537,7 +2537,7 @@ export default function PoultryManagementModule({
               disabled={isSubmitting || !selectedBatch}
               className="w-full py-3 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors shadow-xs"
             >
-              গ্রেডভিত্তিক বিক্রয় চালান সেভ করুন ({totalGradedBirds}টি মুরগি · {totalGradedKg} কেজি · মোট{' '}
+              {bn ? `গ্রেডভিত্তিক বিক্রয় চালান সেভ করুন (${totalGradedBirds}টি মুরগি · ${totalGradedKg} কেজি · মোট ` : `Save Graded Sales Invoice (${totalGradedBirds} Birds · ${totalGradedKg} KG · Total `}
               {formatBDT(totalGradedRevenue)})
             </button>
           </form>
@@ -2553,7 +2553,7 @@ export default function PoultryManagementModule({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                  G. Poultry Farm চূড়ান্ত লাভ-ক্ষতি প্রতিবেদন
+                  {bn ? 'G. Poultry Farm চূড়ান্ত লাভ-ক্ষতি প্রতিবেদন' : 'G. Comprehensive Poultry Batch Financial Report'}
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
                   Batch {selectedBatch.batchCode} – Financial Report ({selectedBatch.shedNumber})
@@ -2568,7 +2568,7 @@ export default function PoultryManagementModule({
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/30 px-4 py-2.5 text-right">
                   <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-                    মোট আয় (Total Revenue)
+                    {bn ? 'মোট আয় (Total Revenue)' : 'Total Revenue'}
                   </div>
                   <div className="text-lg font-bold font-mono text-emerald-700 dark:text-emerald-400">
                     {formatBDT(selectedBatch.totalSalesRevenue)}
@@ -2576,7 +2576,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/30 px-4 py-2.5 text-right">
                   <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-                    মোট খরচ (Total Cost)
+                    {bn ? 'মোট খরচ (Total Cost)' : 'Total Production Cost'}
                   </div>
                   <div className="text-lg font-bold font-mono text-amber-700 dark:text-amber-400">
                     {formatBDT(batchTotalExpenses)}
@@ -2584,7 +2584,7 @@ export default function PoultryManagementModule({
                 </div>
                 <div className="rounded-lg border border-slate-900 dark:border-emerald-500 bg-slate-900 dark:bg-emerald-600 text-white px-4 py-2.5 text-right">
                   <div className="text-[11px] font-semibold opacity-80">
-                    নিট লাভ (Net Profit)
+                    {bn ? 'নিট লাভ (Net Profit)' : 'Net Profit / Margin'}
                   </div>
                   <div className="text-lg font-bold font-mono">
                     {formatBDT(batchRealizedProfit)}
@@ -2597,20 +2597,20 @@ export default function PoultryManagementModule({
               {/* Expense Breakdown Table (Exact structure from user's prompt) */}
               <div className="lg:col-span-6 space-y-3">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  মোট খরচের বিস্তারিত বিবরণ (Expense Breakdown)
+                  {bn ? 'মোট খরচের বিস্তারিত বিবরণ (Expense Breakdown)' : 'Production Cost Breakdown'}
                 </h4>
                 <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                        <th className="py-3 px-4">খরচের বিবরণ (Expense Head)</th>
-                        <th className="py-3 px-4 text-right">টাকা (Amount BDT)</th>
+                        <th className="py-3 px-4">{bn ? "খরচের বিবরণ (Expense Head)" : "Expense Head"}</th>
+                        <th className="py-3 px-4 text-right">{bn ? "টাকা (Amount BDT)" : "Amount (BDT)"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                       <tr>
                         <td className="py-3 px-4 font-medium">
-                          ১. বাচ্চা ক্রয় ({selectedBatch.initialQuantity}টি বাচ্চা)
+                          {bn ? `১. বাচ্চা ক্রয় (${selectedBatch.initialQuantity}টি বাচ্চা)` : `1. Day-Old Chick Procurement (${selectedBatch.initialQuantity} chicks)`}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold">
                           {formatBDT(selectedBatch.purchaseCost)}
@@ -2629,14 +2629,14 @@ export default function PoultryManagementModule({
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-3 px-4 font-medium">৩. ওষুধ ও ভ্যাকসিন</td>
+                        <td className="py-3 px-4 font-medium">{bn ? "৩. ওষুধ ও ভ্যাকসিন" : "3. Veterinary Medicine & Vaccines"}</td>
                         <td className="py-3 px-4 text-right font-mono font-semibold">
                           {formatBDT(selectedBatch.medicineCost)}
                         </td>
                       </tr>
                       <tr>
                         <td className="py-3 px-4 font-medium">
-                          ৪. কর্মচারী বেতন, বিদ্যুৎ ও পানি বিল
+                          {bn ? '৪. কর্মচারী বেতন, বিদ্যুৎ ও পানি বিল' : '4. Labor, Electricity & Water Overheads'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold">
                           {formatBDT(selectedBatch.labourAndUtilityCost)}
@@ -2644,14 +2644,14 @@ export default function PoultryManagementModule({
                       </tr>
                       <tr>
                         <td className="py-3 px-4 font-medium">
-                          ৫. পরিবহন, জীবাণুনাশক ও অন্যান্য খরচ
+                          {bn ? '৫. পরিবহন, জীবাণুনাশক ও অন্যান্য খরচ' : '5. Transportation, Litter & Disinfectant'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold">
                           {formatBDT(selectedBatch.otherExpense)}
                         </td>
                       </tr>
                       <tr className="bg-slate-100 dark:bg-slate-800 font-bold text-sm">
-                        <td className="py-3 px-4">সর্বমোট খরচ (Total Expense)</td>
+                        <td className="py-3 px-4">{bn ? "সর্বমোট খরচ (Total Expense)" : "Total Operating Expenditure"}</td>
                         <td className="py-3 px-4 text-right font-mono text-amber-600 dark:text-amber-400">
                           {formatBDT(batchTotalExpenses)}
                         </td>
@@ -2664,14 +2664,14 @@ export default function PoultryManagementModule({
               {/* Right: Real-World Adjustments (Unsold Birds, Remaining Feed, Customer Due) */}
               <div className="lg:col-span-6 space-y-3">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  বাস্তব খামারের সমন্বিত হিসাব (অবিক্রীত মুরগি, অবশিষ্ট খাবার ও বকেয়া)
+                  {bn ? 'বাস্তব খামারের সমন্বিত হিসাব (অবিক্রীত মুরগি, অবশিষ্ট খাবার ও বকেয়া)' : 'Farm Balance & Inventory Valuation (Live Birds, Unsold Feed & Receivables)'}
                 </h4>
                 <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                        <th className="py-3 px-4">বিবরণ (Real-World Asset / Metric)</th>
-                        <th className="py-3 px-4 text-right">পরিমাণ / মূল্য</th>
+                        <th className="py-3 px-4">{bn ? "বিবরণ (Real-World Asset / Metric)" : "Metric / Asset Category"}</th>
+                        <th className="py-3 px-4 text-right">{bn ? "পরিমাণ / মূল্য" : "Quantity / Valuation"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -2686,7 +2686,7 @@ export default function PoultryManagementModule({
                       </tr>
                       <tr>
                         <td className="py-3 px-4 font-medium">
-                          ক্রেতার কাছে বকেয়া পাওনা (Receivable Due)
+                          {bn ? 'ক্রেতার কাছে বকেয়া পাওনা (Receivable Due)' : 'Accounts Receivable (Customer Due)'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-semibold text-amber-600">
                           {formatBDT(selectedBatch.outstandingDue)}
@@ -2713,7 +2713,7 @@ export default function PoultryManagementModule({
                       </tr>
                       <tr>
                         <td className="py-3 px-4 font-medium">
-                          গ্রেডভিত্তিক বিক্রির বিবরণ (Grade Breakdown)
+                          {bn ? 'গ্রেডভিত্তিক বিক্রির বিবরণ (Grade Breakdown)' : 'Graded Sales Breakdown'}
                         </td>
                         <td className="py-3 px-4 text-right text-[11px] text-slate-600 dark:text-slate-400">
                           {selectedBatch.gradeBreakdown}
@@ -2721,7 +2721,7 @@ export default function PoultryManagementModule({
                       </tr>
                       <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
                         <td className="py-3 px-4 text-emerald-900 dark:text-emerald-200">
-                          অবিক্রীত মুরগিসহ মোট নিট লাভ (Adjusted Net Profit)
+                          {bn ? 'অবিক্রীত মুরগিসহ মোট নিট লাভ (Adjusted Net Profit)' : 'Adjusted Net Profit (Including Biological Assets)'}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-emerald-700 dark:text-emerald-400">
                           {formatBDT(batchRealizedProfit + batchAlive * 185)}

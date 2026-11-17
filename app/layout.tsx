@@ -34,56 +34,32 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
-const appUrl = process.env.APP_URL || 'https://krishivumi-erp.bd';
+const appUrl = process.env.APP_URL || 'https://regardsagro-erp.bd';
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: 'KrishiVumi Enterprise — Dynamic Multi-Business Agro ERP',
-    template: '%s | KrishiVumi Enterprise Agro ERP',
+    default: 'RegardsAgro Enterprise — Private ERP Console & Portal',
+    template: '%s | RegardsAgro Enterprise ERP',
   },
   description:
-    'Production-grade multi-business agro ERP platform for Poultry, Cattle, Goat, Aquaculture, Transport, Double-Entry Accounting, and Inventory operations in Bangladesh and beyond.',
-  alternates: {
-    canonical: '/',
-  },
-  openGraph: {
-    title: 'KrishiVumi Enterprise — Dynamic Multi-Business Agro ERP',
-    description:
-      'Production-grade multi-business agro ERP platform for Poultry, Cattle, Goat, Aquaculture, Transport, Double-Entry Accounting, and Inventory operations in Bangladesh and beyond.',
-    url: appUrl,
-    siteName: 'KrishiVumi Enterprise',
-    type: 'website',
-    locale: 'en_BD',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'KrishiVumi Enterprise — Dynamic Multi-Business Agro ERP',
-    description:
-      'Production-grade multi-business agro ERP platform for Poultry, Cattle, Goat, Aquaculture, Transport, Double-Entry Accounting, and Inventory operations in Bangladesh and beyond.',
-  },
+    'Confidential and secure internal multi-business agro ERP platform for RegardsAgro. Authorized personnel only.',
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'none',
+      'max-snippet': -1,
+    },
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'KrishiVumi Enterprise Agro ERP',
-    applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web',
-    description:
-      'Enterprise Dynamic Multi-Business Agro ERP system managing Poultry, Cattle, Goat, Fish Farming, Transport Logistics, Double-Entry Accounting, and Inventory in Bangladesh.',
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'BDT',
-    },
-  };
-
   return (
     <html
       lang="en"
@@ -91,10 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+        <meta name="googlebot" content="noindex, nofollow" />
       </head>
       <body
         className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-emerald-600 selection:text-white"

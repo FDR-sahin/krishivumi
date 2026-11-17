@@ -59,17 +59,17 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
   const isFiltered = value.year !== 'ALL' || value.month !== 'ALL';
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3.5 shadow-2xs space-y-3 no-print">
+    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-3 shadow-xs space-y-2.5 no-print transition-all">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs">
-          <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 shadow-2xs">
             <Calendar className="h-3.5 w-3.5" />
           </div>
           <div>
             <span className="font-bold text-slate-900 dark:text-white">
-              {bn ? '১২ মাসের হিসাব ফিল্টার:' : '12-Month Period Filter:'}
+              {bn ? 'আর্থিক সময়কাল ফিল্টার:' : 'Financial Period:'}
             </span>{' '}
-            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 ml-1">
               {formatMonthFilterLabel(value, bn)}
             </span>
           </div>
@@ -79,20 +79,20 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
           <select
             value={value.year}
             onChange={(e) => onChange({ ...value, year: e.target.value })}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-2xs focus:border-emerald-500"
             aria-label="Filter by Year"
           >
             <option value="ALL">{bn ? 'সব বছর (All Years)' : 'All Years'}</option>
-            <option value="2026">2026</option>
-            <option value="2025">2025</option>
-            <option value="2027">2027</option>
+            <option value="2026">Year 2026</option>
+            <option value="2025">Year 2025</option>
+            <option value="2027">Year 2027</option>
           </select>
 
           {isFiltered && (
             <button
               type="button"
               onClick={() => onChange({ year: 'ALL', month: 'ALL' })}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <RotateCcw className="h-3 w-3" />
               <span>{bn ? 'রিসেট' : 'Reset'}</span>
@@ -102,14 +102,14 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
       </div>
 
       {/* 12-Month Quick Pill Strip */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <button
           type="button"
           onClick={() => onChange({ ...value, month: 'ALL' })}
-          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+          className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
             value.month === 'ALL'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              ? 'bg-emerald-600 text-white shadow-xs shadow-emerald-600/30 ring-1 ring-emerald-500'
+              : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
           }`}
         >
           {bn ? 'সব ১২ মাস' : 'All 12M'}
@@ -127,10 +127,10 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
                   month: m.code,
                 })
               }
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                 active
-                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs shadow-emerald-600/30 ring-1 ring-emerald-500'
+                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
               {bn ? m.shortBn : m.shortEn}

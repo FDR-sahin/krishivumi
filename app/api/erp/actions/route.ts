@@ -155,6 +155,44 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      case 'assignBusinessManager': {
+        if (!isSuperAdmin && !isSuperManager) {
+          return NextResponse.json(
+            { ok: false, error: 'RBAC Denied: Only Super Admin and Super Manager can appoint business managers.' },
+            { status: 403 }
+          );
+        }
+        const { businessId, managerName, managerPhone } = payload as {
+          businessId: string;
+          managerName: string;
+          managerPhone?: string;
+        };
+        const biz = await db.collection('businesses').findOne({ _id: businessId as unknown as never, ownerId });
+        if (!biz) {
+          return NextResponse.json({ ok: false, error: 'Business unit not found.' }, { status: 404 });
+        }
+        await db.collection('businesses').updateOne(
+          { _id: businessId as unknown as never, ownerId },
+          {
+            $set: {
+              managerName: cap(managerName, 120),
+              contactPhone: cap(managerPhone || biz.contactPhone, 40),
+              updatedAt: now,
+            },
+          }
+        );
+        await writeAuditLog({
+          action: 'APPOINT_BUSINESS_MANAGER',
+          module: 'Business & Team Management',
+          businessId,
+          details: `Appointed "${managerName}" as manager for "${biz.name}" by ${sessionUser.displayName || sessionUser.email} (${sessionUser.role})`,
+          severity: 'info',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       case 'postDoubleEntryTransaction': {
         if (sessionUser.role === 'employee' && !perms.canPostAccounting) {
           return NextResponse.json(
@@ -795,12 +833,32 @@ export async function POST(req: NextRequest) {
 
       case 'createStakeholderRecord': {
         const input = payload.input as Record<string, unknown>;
-        const bizId = cap(input.businessId, 128);
-        if (bizId !== 'ALL' && !checkBusinessAccess(bizId)) {
+        let bizId = cap(input.businessId, 128);
+
+        // Business Manager can ONLY create staff for their own assigned business!
+        if (isBusinessManager) {
+          bizId = sessionUser.assignedBusinesses;
+          if (!bizId || bizId === 'ALL') {
+            return NextResponse.json(
+              { ok: false, error: 'RBAC Denied: Business manager must have a specific assigned business unit.' },
+              { status: 403 }
+            );
+          }
+          if (input.stakeholderType && input.stakeholderType !== 'employee') {
+            return NextResponse.json(
+              { ok: false, error: 'RBAC Denied: Business managers can only hire/register employees for their own unit.' },
+              { status: 403 }
+            );
+          }
+        } else if (bizId !== 'ALL' && !checkBusinessAccess(bizId)) {
           return NextResponse.json({ ok: false, error: 'RBAC Denied' }, { status: 403 });
         }
+
         const id = cleanId('stk');
         const stkType = String(input.stakeholderType || 'employee');
+        const joiningDate = cap(input.joiningDate || input.appointedAt || now.toISOString().split('T')[0], 32);
+        const salaryEffectiveFrom = cap(input.salaryEffectiveFrom || joiningDate, 32);
+
         await db.collection('stakeholders').insertOne({
           ...input,
           _id: id,
@@ -812,9 +870,13 @@ export async function POST(req: NextRequest) {
           businessId: bizId,
           businessName: cap(input.businessName, 120),
           designationOrCategory: cap(input.designationOrCategory, 100),
+          monthlySalaryOrCreditLimit: Number(input.monthlySalaryOrCreditLimit) || 0,
+          outstandingBalance: Number(input.outstandingBalance) || 0,
           appointedBy: sessionUser.displayName || sessionUser.email,
           appointedByRole: sessionUser.role,
           appointedAt: now.toISOString(),
+          joiningDate,
+          salaryEffectiveFrom,
           status: input.status || 'active',
           ownerId,
           createdAt: now,
@@ -825,7 +887,7 @@ export async function POST(req: NextRequest) {
           action: `CREATE_${stkType.toUpperCase()}`,
           module: 'Stakeholder & HR',
           businessId: bizId,
-          details: `Added ${stkType} ${input.name} (${input.code}) appointed by ${sessionUser.displayName} (${sessionUser.role})`,
+          details: `Added ${stkType} ${input.name} (${input.code}) appointed by ${sessionUser.displayName || sessionUser.email} (${sessionUser.role})`,
           actorEmail,
           ownerId,
         });
@@ -861,6 +923,8 @@ export async function POST(req: NextRequest) {
         if (updates.address !== undefined) safeUpdates.address = cap(updates.address, 240);
         if (updates.designationOrCategory) safeUpdates.designationOrCategory = cap(updates.designationOrCategory, 100);
         if (updates.monthlySalaryOrCreditLimit !== undefined) safeUpdates.monthlySalaryOrCreditLimit = Number(updates.monthlySalaryOrCreditLimit) || 0;
+        if (updates.joiningDate !== undefined) safeUpdates.joiningDate = cap(updates.joiningDate, 32);
+        if (updates.salaryEffectiveFrom !== undefined) safeUpdates.salaryEffectiveFrom = cap(updates.salaryEffectiveFrom, 32);
         if (updates.status) safeUpdates.status = updates.status;
 
         await db

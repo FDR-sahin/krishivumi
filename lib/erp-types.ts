@@ -169,6 +169,8 @@ export interface ErpStakeholder {
   appointedBy?: string;
   appointedByRole?: UserRole;
   appointedAt?: string;
+  joiningDate?: string;
+  salaryEffectiveFrom?: string;
   notes?: string;
   ownerId: string;
 }
