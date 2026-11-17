@@ -615,6 +615,11 @@ export default function AgroErpApp() {
     return Object.values(byDate).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [monthFilteredJournals, bn]);
 
+  const payrollSummary = useMemo(
+    () => getEnterprisePayrollSummary(stakeholders, erpUsers, accessibleBusinesses, new Date(), simulatePayrollAlert),
+    [stakeholders, erpUsers, accessibleBusinesses, simulatePayrollAlert]
+  );
+
   const renderBusinessIcon = (iconName: string, className = 'h-4 w-4') => {
     switch (iconName) {
       case 'Bird':
@@ -660,11 +665,6 @@ export default function AgroErpApp() {
   const activeBusinessObj =
     businesses.find((b) => b.id === selectedBusinessId) || businesses[0] || null;
   const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
-
-  const payrollSummary = useMemo(
-    () => getEnterprisePayrollSummary(stakeholders, erpUsers, accessibleBusinesses, new Date(), simulatePayrollAlert),
-    [stakeholders, erpUsers, accessibleBusinesses, simulatePayrollAlert]
-  );
 
   const centralNavItems = [
     {
