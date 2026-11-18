@@ -53,6 +53,7 @@ import LivestockManagementModule from './LivestockManagementModule';
 import FishManagementModule from './FishManagementModule';
 import TransportManagementModule from './TransportManagementModule';
 import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from './MonthFilterBar';
+import UserProfileCardModal, { UserProfileData } from './UserProfileCardModal';
 
 interface SpecializedModulesViewProps {
   activeBusiness: ErpBusiness;
@@ -258,7 +259,13 @@ export default function SpecializedModulesView({
     () => new Date().toISOString().split('T')[0]
   );
   const [stfAddress, setStfAddress] = useState(activeBusiness.location || 'Gazipur, Bangladesh');
+  const [stfNid, setStfNid] = useState('');
+  const [stfPhotoUrl, setStfPhotoUrl] = useState('');
+  const [stfEmergencyContact, setStfEmergencyContact] = useState('');
   const [isSavingStaff, setIsSavingStaff] = useState(false);
+
+  // Profile Modal State (Clickable profile card)
+  const [viewingProfile, setViewingProfile] = useState<UserProfileData | null>(null);
 
   // Appoint / Change Manager Modal State
   const [showAppointMgrModal, setShowAppointMgrModal] = useState(false);
@@ -285,6 +292,9 @@ export default function SpecializedModulesView({
     setStfPhone('+880 1711-000000');
     setStfJoiningDate(new Date().toISOString().split('T')[0]);
     setStfAddress(activeBusiness.location || 'Gazipur, Bangladesh');
+    setStfNid('');
+    setStfPhotoUrl('');
+    setStfEmergencyContact('');
 
     if (tpl === 'cattle') {
       setStfDesignation(bn ? 'দুগ্ধ দোহন ও পশু পরিচর্যা কর্মী' : 'Milking & Cattle Caretaker');
@@ -332,6 +342,9 @@ export default function SpecializedModulesView({
           appointedAt: new Date().toISOString(),
           joiningDate: stfJoiningDate,
           salaryEffectiveFrom: stfJoiningDate,
+          nidNumber: stfNid.trim(),
+          photoUrl: stfPhotoUrl,
+          emergencyContact: stfEmergencyContact.trim(),
         },
         ownerId,
         actorEmail
@@ -881,16 +894,44 @@ export default function SpecializedModulesView({
         {/* Division In-Charge & Workforce Telemetry Cards */}
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900">
           {/* Card 1: In-Charge Manager */}
-          <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() =>
+              setViewingProfile({
+                id: assignedManagerUser?.id,
+                name: currentManagerName,
+                phone: currentManagerPhone,
+                nidNumber: assignedManagerUser?.nidNumber || '',
+                designation: assignedManagerUser?.designation || `${activeBusiness.nameBn || activeBusiness.name} ইন-চার্জ ম্যানেজার`,
+                role: 'business_manager',
+                businessName: activeBusiness.nameBn || activeBusiness.name,
+                businessId: activeBusiness.id,
+                photoUrl: assignedManagerUser?.photoUrl || '',
+                email: assignedManagerUser?.email || `${activeBusiness.code.toLowerCase()}@regardsagro.bd`,
+                address: activeBusiness.location,
+                status: 'active',
+              })
+            }
+            className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 flex items-center justify-between gap-4 text-left hover:border-purple-400 hover:shadow-xs transition-all cursor-pointer group"
+          >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="h-12 w-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-base shrink-0 ring-1 ring-purple-500/20">
-                👔
-              </div>
+              {assignedManagerUser?.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={assignedManagerUser.photoUrl}
+                  alt={currentManagerName}
+                  className="h-12 w-12 rounded-2xl object-cover shrink-0 ring-2 ring-purple-500/20"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-base shrink-0 ring-1 ring-purple-500/20">
+                  👔
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-400">
                   {bn ? 'বিভাগীয় ইন-চার্জ ম্যানেজার' : 'Division In-Charge Manager'}
                 </div>
-                <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate mt-0.5">
+                <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate mt-0.5 group-hover:text-purple-600 transition-colors">
                   {currentManagerName}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
@@ -898,11 +939,16 @@ export default function SpecializedModulesView({
                 </div>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold shrink-0">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{bn ? 'সক্রিয় ইন-চার্জ' : 'Active Lead'}</span>
-            </span>
-          </div>
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{bn ? 'সক্রিয় ইন-চার্জ' : 'Active Lead'}</span>
+              </span>
+              <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold group-hover:underline">
+                {bn ? 'প্রোফাইল দেখুন ↗' : 'View Profile ↗'}
+              </span>
+            </div>
+          </button>
 
           {/* Card 2: Workforce & Payroll Budget */}
           <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 flex items-center justify-between gap-4">
@@ -976,19 +1022,51 @@ export default function SpecializedModulesView({
                 {bizStaff.map((stf) => (
                   <tr key={stf.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs shrink-0 font-mono">
-                          {stf.name.slice(0, 1)}
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setViewingProfile({
+                            id: stf.id,
+                            name: stf.name,
+                            phone: stf.phone,
+                            nidNumber: stf.nidNumber || '',
+                            designation: stf.designationOrCategory,
+                            role: 'employee',
+                            businessName: stf.businessName || activeBusiness.nameBn || activeBusiness.name,
+                            businessId: stf.businessId,
+                            photoUrl: stf.photoUrl || '',
+                            email: stf.email,
+                            address: stf.address,
+                            emergencyContact: stf.emergencyContact || '',
+                            joiningDate: stf.joiningDate,
+                            monthlySalary: stf.monthlySalaryOrCreditLimit,
+                            status: stf.status,
+                            appointedBy: stf.appointedBy,
+                          })
+                        }
+                        className="flex items-center gap-2.5 text-left group cursor-pointer"
+                      >
+                        {stf.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={stf.photoUrl}
+                            alt={stf.name}
+                            className="h-8 w-8 rounded-xl object-cover shrink-0 ring-1 ring-slate-200 dark:ring-slate-700"
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs shrink-0 font-mono">
+                            {stf.name.slice(0, 1)}
+                          </div>
+                        )}
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-white">
+                          <div className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">
                             {stf.name}
                           </div>
                           <div className="font-mono text-[10px] text-slate-400">
-                            {stf.code}
+                            {stf.code} {stf.nidNumber ? `• NID: ${stf.nidNumber}` : ''}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
@@ -1037,8 +1115,14 @@ export default function SpecializedModulesView({
 
       {/* MODAL 1: HIRE NEW STAFF FOR THIS BUSINESS */}
       {showAddStaffModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+          onClick={() => setShowAddStaffModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-emerald-600" />
@@ -1092,6 +1176,21 @@ export default function SpecializedModulesView({
                 </div>
                 <div>
                   <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    {bn ? 'জাতীয় পরিচয়পত্র নং (NID)' : 'National ID (NID)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={stfNid}
+                    onChange={(e) => setStfNid(e.target.value)}
+                    placeholder={bn ? '১০ বা ১৭ সংখ্যার এনআইডি' : '10 or 17 digit NID'}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
                     {bn ? 'কবে থেকে শুরু হয়েছে / যোগদানের তারিখ *' : 'Joining / Started Date *'}
                   </label>
                   <input
@@ -1100,6 +1199,18 @@ export default function SpecializedModulesView({
                     value={stfJoiningDate}
                     onChange={(e) => setStfJoiningDate(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    {bn ? 'জরুরি যোগাযোগ নম্বর' : 'Emergency Contact'}
+                  </label>
+                  <input
+                    type="text"
+                    value={stfEmergencyContact}
+                    onChange={(e) => setStfEmergencyContact(e.target.value)}
+                    placeholder="+880 1..."
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -1175,8 +1286,12 @@ export default function SpecializedModulesView({
                     type="number"
                     min={0}
                     required
-                    value={stfSalary}
-                    onChange={(e) => setStfSalary(Number(e.target.value))}
+                    placeholder="0"
+                    value={stfSalary === 0 ? '' : stfSalary}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setStfSalary(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold text-slate-900 dark:text-white"
                   />
                 </div>
@@ -1223,8 +1338,14 @@ export default function SpecializedModulesView({
 
       {/* MODAL 2: APPOINT OR CHANGE BUSINESS MANAGER */}
       {showAppointMgrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+          onClick={() => setShowAppointMgrModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <UserCheck className="h-5 w-5 text-purple-600" />
@@ -1306,8 +1427,14 @@ export default function SpecializedModulesView({
 
       {/* MODAL 3: QUICK SALARY PAYMENT */}
       {salaryTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+          onClick={() => setSalaryTarget(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Award className="h-5 w-5 text-emerald-600" />
@@ -1340,8 +1467,12 @@ export default function SpecializedModulesView({
                   type="number"
                   required
                   min={1}
-                  value={salaryPaymentAmount}
-                  onChange={(e) => setSalaryPaymentAmount(Number(e.target.value))}
+                  placeholder="0"
+                  value={salaryPaymentAmount === 0 ? '' : salaryPaymentAmount}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/^0+(?=\d)/, '');
+                    setSalaryPaymentAmount(v === '' ? 0 : Number(v));
+                  }}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-black text-emerald-600 dark:text-emerald-400 text-base"
                 />
               </div>
@@ -1837,16 +1968,23 @@ export default function SpecializedModulesView({
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">ভাউচার ও তারিখ</th>
-                  <th className="py-3 px-4">ধরন (আয় / খরচ)</th>
-                  <th className="py-3 px-4">বিবরণ ও ক্রেতা/সাপ্লায়ার</th>
-                  <th className="py-3 px-4 text-right">টাকার পরিমাণ (BDT)</th>
-                  <th className="py-3 px-4 text-right">বাকি (Due)</th>
+                  <th className="py-3 px-4">{bn ? 'ভাউচার ও তারিখ' : 'Voucher & Date'}</th>
+                  <th className="py-3 px-4">{bn ? 'এন্ট্রি দাতা (Actor)' : 'Officer / Actor'}</th>
+                  <th className="py-3 px-4">{bn ? 'ধরন (আয় / খরচ)' : 'Type'}</th>
+                  <th className="py-3 px-4">{bn ? 'বিবরণ ও ক্রেতা/সাপ্লায়ার' : 'Description & Party'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'টাকার পরিমাণ (BDT)' : 'Amount (BDT)'}</th>
+                  <th className="py-3 px-4 text-right">{bn ? 'বাকি (Due)' : 'Due'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {bizJournals.map((j) => {
                   const isSale = j.transactionType === 'sale' || j.transactionType === 'income';
+                  const actorEmail = j.actorEmail || '';
+                  const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === actorEmail.toLowerCase());
+                  const actorName = j.actorName || matchedUser?.displayName || (actorEmail.split('@')[0]) || 'RegardsAgro Admin';
+                  const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || '';
+                  const actorPost = j.actorDesignation || matchedUser?.designation || (j.actorRole === 'super_admin' ? 'Super Admin' : j.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
+
                   return (
                     <tr key={j.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="py-3 px-4 font-mono">
@@ -1854,6 +1992,48 @@ export default function SpecializedModulesView({
                           {j.referenceNo}
                         </div>
                         <div className="text-slate-500">{j.date}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setViewingProfile({
+                              id: matchedUser?.id,
+                              name: actorName,
+                              email: actorEmail || matchedUser?.email,
+                              phone: matchedUser?.phone || '+880 1711-000000',
+                              nidNumber: matchedUser?.nidNumber || '',
+                              designation: actorPost,
+                              role: j.actorRole || matchedUser?.role || 'super_admin',
+                              businessName: activeBusiness.nameBn || activeBusiness.name,
+                              photoUrl: actorPhoto,
+                              address: matchedUser?.address || activeBusiness.location,
+                              status: 'active',
+                            })
+                          }
+                          className="flex items-center gap-2 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                        >
+                          {actorPhoto ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={actorPhoto}
+                              alt={actorName}
+                              className="h-7 w-7 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-slate-700"
+                            />
+                          ) : (
+                            <div className="h-7 w-7 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0">
+                              {actorName.slice(0, 1).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors truncate max-w-[120px]">
+                              {actorName}
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                              {actorPost}
+                            </div>
+                          </div>
+                        </button>
                       </td>
                       <td className="py-3 px-4">
                         <span
@@ -1897,8 +2077,14 @@ export default function SpecializedModulesView({
 
       {/* Quick Sale / Expense Modal for this Business */}
       {showQuickTxModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowQuickTxModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                 {showQuickTxModal === 'sale'
@@ -1937,8 +2123,12 @@ export default function SpecializedModulesView({
                     type="number"
                     required
                     min={1}
-                    value={qAmount}
-                    onChange={(e) => setQAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={qAmount === 0 ? '' : qAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1947,8 +2137,12 @@ export default function SpecializedModulesView({
                   <input
                     type="number"
                     min={0}
-                    value={qDueAmount}
-                    onChange={(e) => setQDueAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={qDueAmount === 0 ? '' : qDueAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQDueAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                   />
                 </div>
@@ -2002,8 +2196,14 @@ export default function SpecializedModulesView({
 
       {/* Modal for Adding Specialized Operational Record */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                 {tpl === 'poultry'
@@ -2395,6 +2595,14 @@ export default function SpecializedModulesView({
           </div>
         </div>
       )}
+
+      {/* User Profile Card Modal */}
+      <UserProfileCardModal
+        isOpen={Boolean(viewingProfile)}
+        onClose={() => setViewingProfile(null)}
+        profile={viewingProfile}
+        lang={lang}
+      />
     </div>
   );
 }

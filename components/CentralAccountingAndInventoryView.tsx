@@ -80,6 +80,7 @@ import MonthFilterBar, {
   formatMonthFilterLabel,
 } from './MonthFilterBar';
 import { getPayrollCycleInfo, getEnterprisePayrollSummary } from '@/lib/payroll-utils';
+import UserProfileCardModal, { UserProfileData } from './UserProfileCardModal';
 
 interface GranularPermissionsState {
   canView: boolean;
@@ -258,7 +259,16 @@ export default function CentralAccountingAndInventoryView({
   onChangeMonthFilter,
   lang = 'bn',
 }: CentralAccountingAndInventoryViewProps) {
-  const fullBusinessList = allBusinesses && allBusinesses.length > 0 ? allBusinesses : businesses;
+  const fullBusinessList = React.useMemo(() => {
+    const raw = allBusinesses && allBusinesses.length > 0 ? allBusinesses : businesses;
+    const seen = new Set<string>();
+    return raw.filter((b) => {
+      const key = String(b.code || b.templateType || b.name || b.id).trim().toUpperCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [allBusinesses, businesses]);
   const [selectedBizId, setSelectedBizId] = useState<string>('ALL');
   const [localMonthFilter, setLocalMonthFilter] = useState<MonthFilterValue>({
     year: 'ALL',
@@ -442,6 +452,9 @@ export default function CentralAccountingAndInventoryView({
     DEFAULT_ROLE_PERMISSIONS.business_manager
   );
   const [isSavingUser, setIsSavingUser] = useState(false);
+
+  // Profile Modal State (Clickable Actor / User Profile Card)
+  const [viewingProfile, setViewingProfile] = useState<UserProfileData | null>(null);
 
   const showNotice = (msg: string) => {
     setToastMsg(msg);
@@ -1869,6 +1882,7 @@ export default function CentralAccountingAndInventoryView({
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
                     <th className="py-3 px-4">ভাউচার ও তারিখ</th>
                     <th className="py-3 px-4">ব্যবসা</th>
+                    <th className="py-3 px-4">এন্ট্রি দাতা (Actor)</th>
                     <th className="py-3 px-4">বিবরণ</th>
                     <th className="py-3 px-4">টাকা জমা / খরচ খাত (DR)</th>
                     <th className="py-3 px-4">টাকার উৎস / প্রদান খাত (CR)</th>
@@ -1880,7 +1894,7 @@ export default function CentralAccountingAndInventoryView({
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                   {filteredJournals.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-10 text-center text-slate-400">
+                      <td colSpan={9} className="py-10 text-center text-slate-400">
                         এখনো কোনো লেনদেন নেই। উপরের &ldquo;+ ক্যাশ / ব্যাংকে টাকা জমা&rdquo; বা &ldquo;+ আয় / খরচ ভাউচার&rdquo; থেকে শুরু করুন।
                       </td>
                     </tr>
@@ -1900,6 +1914,59 @@ export default function CentralAccountingAndInventoryView({
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                           {j.businessName}
+                        </td>
+                        <td className="py-3 px-4">
+                          {(() => {
+                            const email = j.actorEmail || '';
+                            const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+                            const matchedStk = stakeholders.find((s) => s.email?.toLowerCase() === email.toLowerCase() || s.name === j.actorName);
+                            const actorName = j.actorName || matchedUser?.displayName || matchedStk?.name || (email.split('@')[0]) || 'RegardsAgro Admin';
+                            const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || matchedStk?.photoUrl || '';
+                            const actorPost = j.actorDesignation || matchedUser?.designation || matchedStk?.designationOrCategory || (j.actorRole === 'super_admin' ? 'Super Admin' : j.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setViewingProfile({
+                                    id: matchedUser?.id || matchedStk?.id,
+                                    name: actorName,
+                                    email: email || matchedUser?.email,
+                                    phone: matchedUser?.phone || matchedStk?.phone || '+880 1711-000000',
+                                    nidNumber: matchedUser?.nidNumber || matchedStk?.nidNumber || '',
+                                    designation: actorPost,
+                                    role: j.actorRole || matchedUser?.role || 'super_admin',
+                                    businessName: j.businessName,
+                                    photoUrl: actorPhoto,
+                                    address: matchedUser?.address || matchedStk?.address,
+                                    status: 'active',
+                                  })
+                                }
+                                className="flex items-center gap-2 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                              >
+                                {actorPhoto ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={actorPhoto}
+                                    alt={actorName}
+                                    className="h-7 w-7 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-2xs"
+                                  />
+                                ) : (
+                                  <div className="h-7 w-7 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0">
+                                    {actorName.slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors truncate max-w-[110px]">
+                                    {actorName}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate max-w-[110px]">
+                                    {actorPost}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 px-4 max-w-xs">
                           <div className="font-semibold text-slate-900 dark:text-slate-100">
@@ -4791,7 +4858,7 @@ export default function CentralAccountingAndInventoryView({
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
                     <th className="py-3 px-4">Action</th>
                     <th className="py-3 px-4">Module</th>
-                    <th className="py-3 px-4">Actor Email</th>
+                    <th className="py-3 px-4">কর্মকর্তা / ব্যবহারকারী (Actor)</th>
                     <th className="py-3 px-4">Details</th>
                     <th className="py-3 px-4 text-right">Severity</th>
                   </tr>
@@ -4805,7 +4872,57 @@ export default function CentralAccountingAndInventoryView({
                       <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
                         {log.module}
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-500">{log.actorEmail}</td>
+                      <td className="py-3 px-4">
+                        {(() => {
+                          const email = log.actorEmail || '';
+                          const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+                          const actorName = log.actorName || matchedUser?.displayName || (email.split('@')[0]) || 'RegardsAgro Admin';
+                          const actorPhoto = log.actorPhoto || matchedUser?.photoUrl || '';
+                          const actorPost = log.actorDesignation || matchedUser?.designation || (log.actorRole === 'super_admin' ? 'Super Admin' : log.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setViewingProfile({
+                                  id: matchedUser?.id,
+                                  name: actorName,
+                                  email: email || matchedUser?.email,
+                                  phone: matchedUser?.phone || '+880 1711-000000',
+                                  nidNumber: matchedUser?.nidNumber || '',
+                                  designation: actorPost,
+                                  role: log.actorRole || matchedUser?.role || 'super_admin',
+                                  photoUrl: actorPhoto,
+                                  address: matchedUser?.address,
+                                  status: 'active',
+                                })
+                              }
+                              className="flex items-center gap-2 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                            >
+                              {actorPhoto ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={actorPhoto}
+                                  alt={actorName}
+                                  className="h-6 w-6 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-2xs"
+                                />
+                              ) : (
+                                <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                  {actorName.slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors text-[11px]">
+                                  {actorName}
+                                </div>
+                                <div className="font-mono text-[9px] text-slate-400">
+                                  {email}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })()}
+                      </td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
                         {log.details}
                       </td>
@@ -4821,8 +4938,14 @@ export default function CentralAccountingAndInventoryView({
 
           {/* CREATE / EDIT USER & GRANULAR PERMISSIONS MODAL */}
           {showUserModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
-              <div className="w-full max-w-3xl rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto"
+              onClick={() => setShowUserModal(false)}
+            >
+              <div
+                className="w-full max-w-3xl rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                   <div>
                     <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -5134,8 +5257,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Modal 1: Simple Deposit / Add Money to Cash or Bank */}
       {showDepositModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowDepositModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -5177,8 +5306,12 @@ export default function CentralAccountingAndInventoryView({
                     type="number"
                     required
                     min={1}
-                    value={depAmount}
-                    onChange={(e) => setDepAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={depAmount === 0 ? '' : depAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setDepAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -5229,8 +5362,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Modal 2: Easy From -> To Transfer Modal (No DR/CR confusion!) */}
       {showTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowTransferModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -5290,8 +5429,12 @@ export default function CentralAccountingAndInventoryView({
                   type="number"
                   required
                   min={1}
-                  value={trAmount}
-                  onChange={(e) => setTrAmount(Number(e.target.value))}
+                  placeholder="0"
+                  value={trAmount === 0 ? '' : trAmount}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/^0+(?=\d)/, '');
+                    setTrAmount(v === '' ? 0 : Number(v));
+                  }}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                 />
               </div>
@@ -5338,8 +5481,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Modal 3: Add New Bank / Cash / Mobile Banking Account */}
       {showNewAccountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowNewAccountModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -5388,8 +5537,12 @@ export default function CentralAccountingAndInventoryView({
                   <input
                     type="number"
                     min={0}
-                    value={newAccOpening}
-                    onChange={(e) => setNewAccOpening(Number(e.target.value))}
+                    placeholder="0"
+                    value={newAccOpening === 0 ? '' : newAccOpening}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setNewAccOpening(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -5418,8 +5571,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Modal 4: Reset Demo Balances to ৳0 Confirmation */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-rose-200 dark:border-rose-900 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-rose-200 dark:border-rose-900 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-base font-bold text-rose-600 dark:text-rose-400">
               সব ডেমো ব্যালেন্স ৳০ করে নতুনভাবে শুরু করবেন?
             </h3>
@@ -5449,8 +5608,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Simplified Income / Expense Voucher Modal */}
       {showVoucherModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowVoucherModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -5511,8 +5676,12 @@ export default function CentralAccountingAndInventoryView({
                     type="number"
                     required
                     min={1}
-                    value={vAmount}
-                    onChange={(e) => setVAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={vAmount === 0 ? '' : vAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setVAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -5535,8 +5704,12 @@ export default function CentralAccountingAndInventoryView({
                   <label className="block mb-1 font-semibold">বাকি টাকার পরিমাণ (BDT)</label>
                   <input
                     type="number"
-                    value={vDueAmount}
-                    onChange={(e) => setVDueAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={vDueAmount === 0 ? '' : vDueAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setVDueAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
                   />
                 </div>
@@ -5642,8 +5815,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Custom Stock Movement Modal */}
       {stockMoveItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setStockMoveItem(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -5686,8 +5865,12 @@ export default function CentralAccountingAndInventoryView({
                     type="number"
                     required
                     min={1}
-                    value={smQty}
-                    onChange={(e) => setSmQty(Number(e.target.value))}
+                    placeholder="0"
+                    value={smQty === 0 ? '' : smQty}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setSmQty(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -5787,8 +5970,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Inventory Modal */}
       {showInvModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setShowInvModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Add Inventory Product SKU
@@ -5870,8 +6059,12 @@ export default function CentralAccountingAndInventoryView({
                   <label className="block mb-1 font-medium">Opening Qty</label>
                   <input
                     type="number"
-                    value={invQty}
-                    onChange={(e) => setInvQty(Number(e.target.value))}
+                    placeholder="0"
+                    value={invQty === 0 ? '' : invQty}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setInvQty(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   />
                 </div>
@@ -5879,8 +6072,12 @@ export default function CentralAccountingAndInventoryView({
                   <label className="block mb-1 font-medium">Unit Cost (BDT)</label>
                   <input
                     type="number"
-                    value={invCost}
-                    onChange={(e) => setInvCost(Number(e.target.value))}
+                    placeholder="0"
+                    value={invCost === 0 ? '' : invCost}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setInvCost(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   />
                 </div>
@@ -5909,8 +6106,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Stakeholder Settlement Modal (Pay Salary / Collect Due / Pay Supplier) */}
       {stkPayTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setStkPayTarget(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -5976,9 +6179,11 @@ export default function CentralAccountingAndInventoryView({
                         <input
                           type="number"
                           min={0}
-                          value={salaryBase}
+                          placeholder="0"
+                          value={salaryBase === 0 ? '' : salaryBase}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const v = e.target.value.replace(/^0+(?=\d)/, '');
+                            const val = v === '' ? 0 : Number(v);
                             setSalaryBase(val);
                             const proRated = Math.round((val / (salaryDaysTotal || 30)) * (salaryDaysWorked || 30));
                             setStkPayAmount(Math.max(0, proRated + salaryBonus - salaryDeduction));
@@ -5996,9 +6201,11 @@ export default function CentralAccountingAndInventoryView({
                             type="number"
                             min={1}
                             max={31}
-                            value={salaryDaysWorked}
+                            placeholder="30"
+                            value={salaryDaysWorked === 0 ? '' : salaryDaysWorked}
                             onChange={(e) => {
-                              const val = Number(e.target.value);
+                              const v = e.target.value.replace(/^0+(?=\d)/, '');
+                              const val = v === '' ? 0 : Number(v);
                               setSalaryDaysWorked(val);
                               const proRated = Math.round((salaryBase / (salaryDaysTotal || 30)) * val);
                               setStkPayAmount(Math.max(0, proRated + salaryBonus - salaryDeduction));
@@ -6019,14 +6226,15 @@ export default function CentralAccountingAndInventoryView({
                         <input
                           type="number"
                           min={0}
-                          value={salaryBonus}
+                          placeholder="0"
+                          value={salaryBonus === 0 ? '' : salaryBonus}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const v = e.target.value.replace(/^0+(?=\d)/, '');
+                            const val = v === '' ? 0 : Number(v);
                             setSalaryBonus(val);
                             const proRated = Math.round((salaryBase / (salaryDaysTotal || 30)) * (salaryDaysWorked || 30));
                             setStkPayAmount(Math.max(0, proRated + val - salaryDeduction));
                           }}
-                          placeholder="যেমন: ৩০০০ (ট্রিপ বা ঈদ)"
                           className="w-full rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 px-3 py-2 font-mono font-bold text-emerald-600"
                         />
                         <p className="text-[10px] text-slate-400 mt-0.5">ট্রাক চালকের ট্রিপ ভাতা বা ঈদ বোনাস</p>
@@ -6039,14 +6247,15 @@ export default function CentralAccountingAndInventoryView({
                         <input
                           type="number"
                           min={0}
-                          value={salaryDeduction}
+                          placeholder="0"
+                          value={salaryDeduction === 0 ? '' : salaryDeduction}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const v = e.target.value.replace(/^0+(?=\d)/, '');
+                            const val = v === '' ? 0 : Number(v);
                             setSalaryDeduction(val);
                             const proRated = Math.round((salaryBase / (salaryDaysTotal || 30)) * (salaryDaysWorked || 30));
                             setStkPayAmount(Math.max(0, proRated + salaryBonus - val));
                           }}
-                          placeholder="যেমন: ১০০০ (অগ্রিম নেওয়া)"
                           className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-900 px-3 py-2 font-mono font-bold text-rose-600"
                         />
                         <p className="text-[10px] text-slate-400 mt-0.5">মাসের মাঝে অগ্রিম ক্যাশ নিয়ে থাকলে</p>
@@ -6082,8 +6291,12 @@ export default function CentralAccountingAndInventoryView({
                       type="number"
                       required
                       min={1}
-                      value={stkPayAmount}
-                      onChange={(e) => setStkPayAmount(Number(e.target.value))}
+                      placeholder="0"
+                      value={stkPayAmount === 0 ? '' : stkPayAmount}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setStkPayAmount(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                     />
                   </div>
@@ -6172,8 +6385,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Business Manager Salary Disbursement Modal */}
       {mgrPayTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setMgrPayTarget(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -6221,8 +6440,12 @@ export default function CentralAccountingAndInventoryView({
                   <input
                     type="number"
                     min="0"
-                    value={mgrPayAmount}
-                    onChange={(e) => setMgrPayAmount(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={mgrPayAmount === 0 ? '' : mgrPayAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setMgrPayAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -6233,8 +6456,12 @@ export default function CentralAccountingAndInventoryView({
                   <input
                     type="number"
                     min="0"
-                    value={mgrPayBonus}
-                    onChange={(e) => setMgrPayBonus(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={mgrPayBonus === 0 ? '' : mgrPayBonus}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setMgrPayBonus(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold text-emerald-600"
                   />
                 </div>
@@ -6245,8 +6472,12 @@ export default function CentralAccountingAndInventoryView({
                   <input
                     type="number"
                     min="0"
-                    value={mgrPayDeduction}
-                    onChange={(e) => setMgrPayDeduction(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={mgrPayDeduction === 0 ? '' : mgrPayDeduction}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setMgrPayDeduction(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold text-rose-600"
                   />
                 </div>
@@ -6336,8 +6567,17 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Stakeholder Modal */}
       {showStkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => {
+            setShowStkModal(false);
+            setEditingStakeholder(null);
+          }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -6451,8 +6691,12 @@ export default function CentralAccountingAndInventoryView({
                   <input
                     type="number"
                     min={0}
-                    value={stkSalaryOrLimit}
-                    onChange={(e) => setStkSalaryOrLimit(Number(e.target.value))}
+                    placeholder="0"
+                    value={stkSalaryOrLimit === 0 ? '' : stkSalaryOrLimit}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setStkSalaryOrLimit(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -6539,8 +6783,12 @@ export default function CentralAccountingAndInventoryView({
                   <input
                     type="number"
                     min={0}
-                    value={stkBalance}
-                    onChange={(e) => setStkBalance(Number(e.target.value))}
+                    placeholder="0"
+                    value={stkBalance === 0 ? '' : stkBalance}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setStkBalance(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -6578,8 +6826,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* Terminate Employee Confirmation Modal */}
       {terminatingStakeholder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-red-200 dark:border-red-900 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setTerminatingStakeholder(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-red-200 dark:border-red-900 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center text-red-600 font-bold">
                 <UserX className="h-5 w-5" />
@@ -6663,8 +6917,14 @@ export default function CentralAccountingAndInventoryView({
         ).length;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto">
-            <div className="w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto"
+            onClick={() => setShowExecutiveReportModal(false)}
+          >
+            <div
+              className="w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Report Header */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                 <div className="space-y-1">
@@ -6849,8 +7109,14 @@ export default function CentralAccountingAndInventoryView({
 
       {/* 5. UNIVERSAL OFFICIAL PRINTABLE SLIP / CHALLAN / VOUCHER MODAL */}
       {activeSlip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl space-y-5 text-slate-900 dark:text-slate-100 max-h-[92vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setActiveSlip(null)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl space-y-5 text-slate-900 dark:text-slate-100 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Action Bar (Hidden in Print) */}
             <div className="no-print flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -7085,6 +7351,13 @@ export default function CentralAccountingAndInventoryView({
           </div>
         </div>
       )}
+      {/* Identity Profile Modal for Clicked Staff / Manager / Super Admin */}
+      <UserProfileCardModal
+        isOpen={Boolean(viewingProfile)}
+        onClose={() => setViewingProfile(null)}
+        profile={viewingProfile}
+        lang={lang}
+      />
     </div>
   );
 }

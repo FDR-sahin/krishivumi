@@ -21,6 +21,10 @@ async function writeAuditLog(params: {
   details: string;
   severity?: 'info' | 'warning' | 'critical';
   actorEmail: string;
+  actorName?: string;
+  actorRole?: string;
+  actorPhoto?: string;
+  actorDesignation?: string;
   ownerId: string;
 }) {
   const db = await getDb();
@@ -33,6 +37,10 @@ async function writeAuditLog(params: {
     details: cap(params.details, 500),
     severity: params.severity || 'info',
     actorEmail: cap(params.actorEmail || 'system@krishivumi.bd', 160),
+    actorName: cap(params.actorName || '', 120),
+    actorRole: cap(params.actorRole || '', 40),
+    actorPhoto: cap(params.actorPhoto || '', 200000),
+    actorDesignation: cap(params.actorDesignation || '', 100),
     ownerId: params.ownerId,
     createdAt: new Date(),
   } as unknown as never);
@@ -230,6 +238,11 @@ export async function POST(req: NextRequest) {
           counterpartyName: cap(input.counterpartyName || 'Internal / Direct', 120),
           status: 'posted',
           reversedByEntryId: '',
+          actorEmail: sessionUser.email,
+          actorName: sessionUser.displayName || sessionUser.email,
+          actorRole: sessionUser.role,
+          actorDesignation: sessionUser.designation || (sessionUser.role === 'super_admin' ? 'Super Admin' : sessionUser.role === 'super_manager' ? 'General Manager' : 'Officer'),
+          actorPhoto: sessionUser.photoUrl || '',
           ownerId,
           createdAt: now,
           updatedAt: now,
@@ -877,6 +890,9 @@ export async function POST(req: NextRequest) {
           appointedAt: now.toISOString(),
           joiningDate,
           salaryEffectiveFrom,
+          photoUrl: cap(input.photoUrl || '', 200000),
+          nidNumber: cap(input.nidNumber || '', 50),
+          emergencyContact: cap(input.emergencyContact || '', 60),
           status: input.status || 'active',
           ownerId,
           createdAt: now,
@@ -925,6 +941,9 @@ export async function POST(req: NextRequest) {
         if (updates.monthlySalaryOrCreditLimit !== undefined) safeUpdates.monthlySalaryOrCreditLimit = Number(updates.monthlySalaryOrCreditLimit) || 0;
         if (updates.joiningDate !== undefined) safeUpdates.joiningDate = cap(updates.joiningDate, 32);
         if (updates.salaryEffectiveFrom !== undefined) safeUpdates.salaryEffectiveFrom = cap(updates.salaryEffectiveFrom, 32);
+        if (updates.photoUrl !== undefined) safeUpdates.photoUrl = cap(updates.photoUrl, 200000);
+        if (updates.nidNumber !== undefined) safeUpdates.nidNumber = cap(updates.nidNumber, 50);
+        if (updates.emergencyContact !== undefined) safeUpdates.emergencyContact = cap(updates.emergencyContact, 60);
         if (updates.status) safeUpdates.status = updates.status;
 
         await db
@@ -1100,6 +1119,11 @@ export async function POST(req: NextRequest) {
           status: input.status || 'active',
           mfaEnabled: Boolean(input.mfaEnabled ?? true),
           phone: cap(input.phone || '', 40),
+          photoUrl: cap((input as Record<string, unknown>).photoUrl || '', 200000),
+          nidNumber: cap((input as Record<string, unknown>).nidNumber || '', 50),
+          designation: cap((input as Record<string, unknown>).designation || '', 100),
+          address: cap((input as Record<string, unknown>).address || '', 240),
+          emergencyContact: cap((input as Record<string, unknown>).emergencyContact || '', 60),
           monthlySalary: Number(input.monthlySalary) || 0,
           appointedBy: sessionUser.displayName || sessionUser.email,
           appointedByRole: sessionUser.role,
@@ -1132,6 +1156,11 @@ export async function POST(req: NextRequest) {
           mfaEnabled?: boolean;
           password?: string;
           phone?: string;
+          photoUrl?: string;
+          nidNumber?: string;
+          designation?: string;
+          address?: string;
+          emergencyContact?: string;
           monthlySalary?: number;
         };
 
@@ -1204,6 +1233,11 @@ export async function POST(req: NextRequest) {
         };
 
         if (updates.phone !== undefined) setFields.phone = cap(updates.phone, 40);
+        if (updates.photoUrl !== undefined) setFields.photoUrl = cap(updates.photoUrl, 200000);
+        if (updates.nidNumber !== undefined) setFields.nidNumber = cap(updates.nidNumber, 50);
+        if (updates.designation !== undefined) setFields.designation = cap(updates.designation, 100);
+        if (updates.address !== undefined) setFields.address = cap(updates.address, 240);
+        if (updates.emergencyContact !== undefined) setFields.emergencyContact = cap(updates.emergencyContact, 60);
         if (updates.monthlySalary !== undefined) setFields.monthlySalary = Number(updates.monthlySalary) || 0;
 
         if (updates.password && updates.password.trim().length >= 6) {
@@ -1271,6 +1305,52 @@ export async function POST(req: NextRequest) {
           businessId: existingUser.assignedBusinesses || 'ALL',
           details: `Revoked & deleted user account "${existingUser.displayName}" (${existingUser.email}, role: ${existingUser.role}) by ${sessionUser.displayName}`,
           severity: 'critical',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'updateUserProfile': {
+        const { targetUserId, updates } = payload as {
+          targetUserId?: string;
+          updates: {
+            displayName?: string;
+            phone?: string;
+            nidNumber?: string;
+            designation?: string;
+            address?: string;
+            emergencyContact?: string;
+            photoUrl?: string;
+            password?: string;
+          };
+        };
+        const userIdToUpdate = isSuperAdmin && targetUserId ? targetUserId : sessionUser.id;
+        const setFields: Record<string, unknown> = { updatedAt: now };
+
+        if (updates.displayName) setFields.displayName = cap(updates.displayName, 120);
+        if (updates.phone !== undefined) setFields.phone = cap(updates.phone, 40);
+        if (updates.nidNumber !== undefined) setFields.nidNumber = cap(updates.nidNumber, 50);
+        if (updates.designation !== undefined) setFields.designation = cap(updates.designation, 100);
+        if (updates.address !== undefined) setFields.address = cap(updates.address, 240);
+        if (updates.emergencyContact !== undefined) setFields.emergencyContact = cap(updates.emergencyContact, 60);
+        if (updates.photoUrl !== undefined) setFields.photoUrl = cap(updates.photoUrl, 200000);
+
+        if (updates.password && updates.password.trim().length >= 6) {
+          setFields.passwordHash = await bcrypt.hash(updates.password.trim(), 10);
+        }
+
+        await db.collection('users').updateOne(
+          { _id: userIdToUpdate as unknown as never },
+          { $set: setFields }
+        );
+
+        await writeAuditLog({
+          action: 'UPDATE_USER_PROFILE',
+          module: 'Profile & Security',
+          businessId: 'ALL',
+          details: `Updated profile details for user "${userIdToUpdate}" by ${sessionUser.displayName} (${sessionUser.role})`,
+          severity: 'info',
           actorEmail,
           ownerId,
         });
@@ -1431,6 +1511,11 @@ export async function POST(req: NextRequest) {
           counterpartyName: sourceType === 'income' ? 'Direct Income' : 'Owner / Sponsor',
           status: 'posted',
           reversedByEntryId: '',
+          actorEmail: sessionUser.email,
+          actorName: sessionUser.displayName || sessionUser.email,
+          actorRole: sessionUser.role,
+          actorDesignation: sessionUser.designation || (sessionUser.role === 'super_admin' ? 'Super Admin' : sessionUser.role === 'super_manager' ? 'General Manager' : 'Officer'),
+          actorPhoto: sessionUser.photoUrl || '',
           ownerId,
           createdAt: now,
           updatedAt: now,

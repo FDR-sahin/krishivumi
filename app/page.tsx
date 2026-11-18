@@ -83,6 +83,7 @@ import BrandLogo from '@/components/BrandLogo';
 import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from '@/components/MonthFilterBar';
 import ClientWorkflowGuideModal from '@/components/ClientWorkflowGuideModal';
 import { getEnterprisePayrollSummary } from '@/lib/payroll-utils';
+import UserProfileCardModal, { UserProfileData } from '@/components/UserProfileCardModal';
 
 type NavSection =
   | 'dashboard'
@@ -252,6 +253,148 @@ export default function AgroErpApp() {
   const [notifications, setNotifications] = useState<ErpNotification[]>([]);
   const [auditLogs, setAuditLogs] = useState<ErpAuditLog[]>([]);
   const [erpUsers, setErpUsers] = useState<ErpUser[]>([]);
+  const [viewingProfile, setViewingProfile] = useState<UserProfileData | null>(null);
+
+  const openActorProfile = useCallback(
+    (actorEmail?: string, fallbackName?: string, fallbackRole?: string) => {
+      const matchedUser = erpUsers.find((u) => u.email === actorEmail);
+      if (matchedUser) {
+        setViewingProfile({
+          id: matchedUser.id,
+          name: matchedUser.displayName || fallbackName || 'System User',
+          displayName: matchedUser.displayName || fallbackName || 'System User',
+          email: matchedUser.email,
+          role: matchedUser.role,
+          designation:
+            matchedUser.designation ||
+            (matchedUser.role === 'super_admin'
+              ? 'ব্যবসা স্বত্বাধিকারী ও চেয়ারম্যান'
+              : matchedUser.role === 'super_manager'
+              ? 'প্রধান জেনারেল ম্যানেজার (COO)'
+              : 'বিভাগীয় ইনচার্জ'),
+          phone: matchedUser.phone || '+880 1711-000000',
+          nidNumber: matchedUser.nidNumber || '19902692019000142',
+          photoUrl: matchedUser.photoUrl,
+          address: matchedUser.address || 'ঢাকা, বাংলাদেশ',
+          emergencyContact: matchedUser.emergencyContact || '+880 1711-112233',
+          joiningDate: matchedUser.createdAt,
+          status: matchedUser.status,
+          businessNames:
+            matchedUser.assignedBusinesses === 'ALL'
+              ? ['সকল ৫টি ব্যবসায়িক ইউনিট']
+              : businesses
+                  .filter((b) => matchedUser.assignedBusinesses?.includes(b.id))
+                  .map((b) => b.nameBn || b.name),
+        });
+        return;
+      }
+      const matchedStk = stakeholders.find(
+        (s) => s.id === actorEmail || s.name.toLowerCase() === fallbackName?.toLowerCase()
+      );
+      if (matchedStk) {
+        setViewingProfile({
+          id: matchedStk.id,
+          name: matchedStk.name,
+          displayName: matchedStk.name,
+          email: matchedStk.phone || 'staff@regardsagro.com',
+          role: 'employee',
+          designation: matchedStk.designationOrCategory || 'খামার কর্মী',
+          phone: matchedStk.phone || '+880 1700-000000',
+          nidNumber: matchedStk.nidNumber || '19942692019000889',
+          photoUrl: matchedStk.photoUrl,
+          address: matchedStk.address || 'খামার ক্যাম্প',
+          emergencyContact: matchedStk.emergencyContact,
+          joiningDate: matchedStk.createdAt,
+          status: matchedStk.status,
+          businessNames: [matchedStk.businessName],
+        });
+        return;
+      }
+      setViewingProfile({
+        id: 'actor-' + (actorEmail || 'admin'),
+        name: fallbackName || user?.displayName || 'Sahin Miah',
+        displayName: fallbackName || user?.displayName || 'Sahin Miah',
+        email: actorEmail || user?.email || 'admin@regardsagro.com',
+        role: (fallbackRole as UserRole) || userRole || 'super_admin',
+        designation:
+          fallbackRole === 'business_manager'
+            ? 'বিভাগীয় ম্যানেজার'
+            : fallbackRole === 'employee'
+            ? 'দায়িত্বরত কর্মী'
+            : 'ব্যবসা স্বত্বাধিকারী (সুপার অ্যাডমিন)',
+        phone: user?.phone || '+880 1711-000000',
+        nidNumber: user?.nidNumber || '19902692019000142',
+        photoUrl: user?.photoUrl,
+        address: user?.address || 'ঢাকা, বাংলাদেশ',
+        emergencyContact: user?.emergencyContact,
+        status: 'active',
+        businessNames: ['সকল ব্যবসায়িক ইউনিট'],
+      });
+    },
+    [erpUsers, stakeholders, businesses, user, userRole]
+  );
+
+  const handleSaveProfile = useCallback(
+    async (updated: Partial<UserProfileData>) => {
+      try {
+        const resolvedName = updated.name || updated.displayName;
+        const res = await fetch('/api/erp/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateUserProfile',
+            userId: updated.id || user?.id,
+            displayName: resolvedName,
+            phone: updated.phone,
+            nidNumber: updated.nidNumber,
+            designation: updated.designation,
+            address: updated.address,
+            emergencyContact: updated.emergencyContact,
+            photoUrl: updated.photoUrl,
+            password: updated.password,
+          }),
+        });
+        if (res.ok) {
+          if (user && (updated.id === user.id || !updated.id)) {
+            setUser((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    displayName: resolvedName || prev.displayName,
+                    phone: updated.phone || prev.phone,
+                    nidNumber: updated.nidNumber || prev.nidNumber,
+                    designation: updated.designation || prev.designation,
+                    address: updated.address || prev.address,
+                    emergencyContact: updated.emergencyContact || prev.emergencyContact,
+                    photoUrl: updated.photoUrl !== undefined ? updated.photoUrl : prev.photoUrl,
+                  }
+                : null
+            );
+          }
+          setErpUsers((prev) =>
+            prev.map((u) =>
+              u.id === updated.id
+                ? {
+                    ...u,
+                    displayName: resolvedName || u.displayName,
+                    phone: updated.phone || u.phone,
+                    nidNumber: updated.nidNumber || u.nidNumber,
+                    designation: updated.designation || u.designation,
+                    address: updated.address || u.address,
+                    emergencyContact: updated.emergencyContact || u.emergencyContact,
+                    photoUrl: updated.photoUrl !== undefined ? updated.photoUrl : u.photoUrl,
+                  }
+                : u
+            )
+          );
+          setViewingProfile(null);
+        }
+      } catch (e) {
+        console.error('Failed to update profile:', e);
+      }
+    },
+    [user]
+  );
 
   const bn = lang === 'bn';
 
@@ -448,16 +591,26 @@ export default function AgroErpApp() {
     setTimeout(() => setQuickToast(null), 5000);
   };
 
-  // RBAC-filtered businesses
+  // RBAC-filtered businesses with strict deduplication (Truck business never repeats)
   const accessibleBusinesses = useMemo(() => {
-    if (userRole === 'super_admin' || userRole === 'super_manager' || assignedBusinessFilter === 'ALL') {
-      return businesses;
-    }
-    const allowed = assignedBusinessFilter
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return businesses.filter((b) => allowed.includes(b.id));
+    const raw =
+      userRole === 'super_admin' || userRole === 'super_manager' || assignedBusinessFilter === 'ALL'
+        ? businesses
+        : businesses.filter((b) => {
+            const allowed = assignedBusinessFilter
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+            return allowed.includes(b.id);
+          });
+
+    const seen = new Set<string>();
+    return raw.filter((b) => {
+      const key = String(b.code || b.templateType || b.name || b.id).trim().toUpperCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [businesses, userRole, assignedBusinessFilter]);
 
   // Journals filtered by selected 12-Month Period
@@ -893,12 +1046,21 @@ export default function AgroErpApp() {
         <div className="p-3 border-t border-slate-800/80 bg-slate-950/60 space-y-2">
           {expanded ? (
             <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800/80">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-black text-xs shadow-md shadow-emerald-950/40 shrink-0 ring-1 ring-white/10">
-                  {(user.displayName || user.email || 'A').slice(0, 1).toUpperCase()}
+              <button
+                type="button"
+                onClick={() => openActorProfile(user.email, user.displayName, user.role)}
+                className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-90 transition-opacity cursor-pointer group flex-1"
+                title={bn ? 'প্রোফাইল ও পরিচয়পত্র দেখুন' : 'View Profile Card'}
+              >
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-black text-xs shadow-md shadow-emerald-950/40 shrink-0 ring-1 ring-white/10 overflow-hidden">
+                  {user.photoUrl ? (
+                    <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (user.displayName || user.email || 'A').slice(0, 1).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0 leading-tight">
-                  <div className="text-xs font-bold text-white truncate max-w-[125px]">
+                  <div className="text-xs font-bold text-white truncate max-w-[125px] group-hover:text-emerald-400 transition-colors">
                     {user.displayName || (bn ? 'অ্যাডমিন' : 'Admin')}
                   </div>
                   <div className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide truncate">
@@ -911,7 +1073,7 @@ export default function AgroErpApp() {
                       : bn ? '👤 কর্মী' : '👤 Staff'}
                   </div>
                 </div>
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -922,14 +1084,30 @@ export default function AgroErpApp() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="w-full flex items-center justify-center p-2 rounded-xl text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors cursor-pointer"
-              title={bn ? 'লগ আউট করুন' : 'Sign Out'}
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => openActorProfile(user.email, user.displayName, user.role)}
+                className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+                title={user.displayName || (bn ? 'প্রোফাইল' : 'Profile')}
+              >
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-black text-xs overflow-hidden">
+                  {user.photoUrl ? (
+                    <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (user.displayName || user.email || 'A').slice(0, 1).toUpperCase()
+                  )}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center p-2 rounded-xl text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors cursor-pointer"
+                title={bn ? 'লগ আউট করুন' : 'Sign Out'}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1145,19 +1323,28 @@ export default function AgroErpApp() {
             </div>
 
             {/* User Profile Pill */}
-            <div className="hidden md:flex items-center gap-2.5 pl-2.5 ml-1 border-l border-slate-200 dark:border-slate-800">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs font-extrabold shadow-xs">
-                {(user.displayName || user.email || 'A').slice(0, 1).toUpperCase()}
+            <button
+              type="button"
+              onClick={() => openActorProfile(user.email, user.displayName, user.role)}
+              className="hidden md:flex items-center gap-2.5 pl-2.5 ml-1 border-l border-slate-200 dark:border-slate-800 text-left hover:opacity-90 transition-all cursor-pointer group"
+              title={bn ? 'প্রোফাইল ও এনআইডি পরিচয়পত্র দেখুন' : 'View Profile & NID'}
+            >
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs font-extrabold shadow-xs overflow-hidden group-hover:ring-2 group-hover:ring-emerald-500 transition-all">
+                {user.photoUrl ? (
+                  <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  (user.displayName || user.email || 'A').slice(0, 1).toUpperCase()
+                )}
               </div>
               <div className="text-xs leading-tight max-w-[140px] truncate">
-                <div className="font-bold text-slate-900 dark:text-white truncate">
+                <div className="font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                   {user.displayName || (bn ? 'অ্যাডমিন' : 'Admin')}
                 </div>
                 <div className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wide truncate">
                   {userRole.replace('_', ' ')}
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -2052,6 +2239,121 @@ export default function AgroErpApp() {
                   </div>
                 </div>
               </section>
+
+              {/* RECENT OPERATIONAL TRANSACTIONS & ACTOR AUDIT SECTION */}
+              <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+                <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {bn ? 'সাম্প্রতিক আর্থিক লেনদেন ও এন্ট্রি প্রদানকারী কর্মী ট্রেইল' : 'Recent Financial Entries & Operational Actor Trail'}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      {bn
+                        ? 'কে কোন ব্যবসা ইউনিটে আয়/ব্যয় ইনপুট দিয়েছেন তার ছবি, নাম ও পদবিসহ লাইভ রেকর্ড (ক্লিক করে প্রোফাইল ও এনআইডি দেখুন)'
+                        : 'Live audit log of who recorded sales, expenses, and vouchers with avatar photos and designations (click to inspect profile)'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveNav('accounting')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline self-start sm:self-auto cursor-pointer"
+                  >
+                    <span>{bn ? 'সকল খতিয়ান দেখুন' : 'Full Ledger View'}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
+                      <tr>
+                        <th className="py-3 px-4">{bn ? 'তারিখ ও ভাউচার' : 'Date / Voucher'}</th>
+                        <th className="py-3 px-4">{bn ? 'ব্যবসা ইউনিট' : 'Business Unit'}</th>
+                        <th className="py-3 px-4">{bn ? 'খাত ও বিবরণ' : 'Category & Description'}</th>
+                        <th className="py-3 px-4 text-right">{bn ? 'টাকার পরিমাণ' : 'Amount (BDT)'}</th>
+                        <th className="py-3 px-4">{bn ? 'এন্ট্রি প্রদানকারী কর্মী (Actor)' : 'Entered By (Staff)'}</th>
+                        <th className="py-3 px-4 text-center">{bn ? 'প্রোফাইল' : 'Profile'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {monthFilteredJournals.slice(0, 8).map((j) => {
+                        const isIncome = j.transactionType === 'sale' || j.transactionType === 'income';
+                        const matchedUser = erpUsers.find((u) => u.email === j.actorEmail);
+                        const actorPhoto = j.actorPhoto || matchedUser?.photoUrl;
+                        const actorName = j.actorName || matchedUser?.displayName || (j.actorEmail ? j.actorEmail.split('@')[0] : (bn ? 'সুপার অ্যাডমিন' : 'Admin'));
+                        const actorRole = j.actorRole || matchedUser?.role || 'Staff';
+                        const actorDesignation = j.actorDesignation || matchedUser?.designation || (actorRole === 'super_admin' ? (bn ? 'ব্যবসা স্বত্বাধিকারী' : 'Owner / Super Admin') : actorRole === 'super_manager' ? (bn ? 'প্রধান জেনারেল ম্যানেজার' : 'COO') : actorRole === 'business_manager' ? (bn ? 'বিভাগীয় ইনচার্জ' : 'Branch Mgr') : (bn ? 'খামার হিসাবরক্ষক' : 'Accountant'));
+
+                        return (
+                          <tr key={j.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <div className="font-semibold text-slate-800 dark:text-slate-200">{j.date}</div>
+                              <div className="font-mono text-[10px] text-slate-400">{j.referenceNo || j.id}</div>
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                {j.businessName}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 max-w-[240px]">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{j.category}</div>
+                              <div className="text-[11px] text-slate-500 truncate">{j.description}</div>
+                            </td>
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              <span className={`font-mono font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                {isIncome ? '+' : '-'}{formatBDT(j.amount)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => openActorProfile(j.actorEmail, actorName, actorRole)}
+                                className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left cursor-pointer group"
+                                title={bn ? 'প্রোফাইল ও এনআইডি কার্ড দেখুন' : 'View Profile & NID'}
+                              >
+                                <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[11px] font-bold text-slate-700 dark:text-slate-300 ring-1 ring-slate-300 dark:ring-slate-600 overflow-hidden shrink-0 group-hover:ring-emerald-500">
+                                  {actorPhoto ? (
+                                    <img src={actorPhoto} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    actorName.slice(0, 1).toUpperCase()
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate max-w-[130px]">
+                                    {actorName}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate max-w-[130px]">
+                                    {actorDesignation}
+                                  </div>
+                                </div>
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => openActorProfile(j.actorEmail, actorName, actorRole)}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 text-slate-700 dark:text-slate-300 hover:text-emerald-600 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                              >
+                                {bn ? 'কার্ড দেখুন' : 'View Card'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {monthFilteredJournals.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                            {bn ? 'এই ফিল্টারে কোনো লেনদেন পাওয়া যায়নি' : 'No transactions recorded for this period'}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             </div>
           )}
 
@@ -2123,8 +2425,14 @@ export default function AgroErpApp() {
 
       {/* Dashboard Quick Sale / Expense Modal */}
       {dashboardQuickTxModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-5">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+          onClick={() => setDashboardQuickTxModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5">
               <div className="flex items-center gap-2.5">
                 <div
@@ -2201,8 +2509,12 @@ export default function AgroErpApp() {
                     type="number"
                     required
                     min={1}
-                    value={quickAmount}
-                    onChange={(e) => setQuickAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={quickAmount === 0 ? '' : quickAmount}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQuickAmount(raw === '' ? 0 : Number(raw));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono font-bold"
                   />
                 </div>
@@ -2213,8 +2525,12 @@ export default function AgroErpApp() {
                   <input
                     type="number"
                     min={0}
-                    value={quickDue}
-                    onChange={(e) => setQuickDue(Number(e.target.value))}
+                    placeholder="0"
+                    value={quickDue === 0 ? '' : quickDue}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQuickDue(raw === '' ? 0 : Number(raw));
+                    }}
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 font-mono"
                   />
                 </div>
@@ -2289,6 +2605,16 @@ export default function AgroErpApp() {
       <ClientWorkflowGuideModal
         isOpen={showOnboardingGuide}
         onClose={() => setShowOnboardingGuide(false)}
+        lang={lang}
+      />
+
+      {/* Official Identity Card & Profile Modal for Owner / Manager / Staff */}
+      <UserProfileCardModal
+        isOpen={Boolean(viewingProfile)}
+        onClose={() => setViewingProfile(null)}
+        profile={viewingProfile}
+        canEdit={viewingProfile?.id === user?.id || userRole === 'super_admin'}
+        onSave={handleSaveProfile}
         lang={lang}
       />
     </div>

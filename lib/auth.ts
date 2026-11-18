@@ -35,6 +35,12 @@ export interface AuthenticatedErpUser {
   status: 'active' | 'suspended' | 'invited';
   mfaEnabled: boolean;
   lastLoginAt: string;
+  phone?: string;
+  photoUrl?: string;
+  nidNumber?: string;
+  designation?: string;
+  address?: string;
+  emergencyContact?: string;
 }
 
 export async function signSessionToken(payload: SessionPayload): Promise<string> {
@@ -92,6 +98,12 @@ export async function getSessionUser(): Promise<AuthenticatedErpUser | null> {
     status: doc.status,
     mfaEnabled: Boolean(doc.mfaEnabled),
     lastLoginAt: String(doc.lastLoginAt || ''),
+    phone: doc.phone ? String(doc.phone) : undefined,
+    photoUrl: doc.photoUrl ? String(doc.photoUrl) : undefined,
+    nidNumber: doc.nidNumber ? String(doc.nidNumber) : undefined,
+    designation: doc.designation ? String(doc.designation) : undefined,
+    address: doc.address ? String(doc.address) : undefined,
+    emergencyContact: doc.emergencyContact ? String(doc.emergencyContact) : undefined,
   };
 }
 

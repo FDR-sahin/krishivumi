@@ -82,9 +82,24 @@ export async function GET() {
     const perms = parseUserPermissions(sessionUser.permissionsJson);
     const canManageUsers = isSuperAdmin || Boolean(perms.canManageUsers);
 
-    const filteredBusinesses = serializeDocs(businesses as Record<string, unknown>[]).filter(
+    const rawFilteredBusinesses = serializeDocs(businesses as Record<string, unknown>[]).filter(
       (b) => isSuperAdmin || !assignedIds || assignedIds.includes(String(b.id))
     );
+
+    // Deduplicate businesses by code or templateType (ensures Truck & Transport never appears twice)
+    const seenBizKeys = new Set<string>();
+    const filteredBusinesses: Record<string, unknown>[] = [];
+    for (const b of rawFilteredBusinesses) {
+      const key = String(b.code || b.templateType || b.name || b.id).trim().toUpperCase();
+      if (seenBizKeys.has(key)) {
+        if (b.id) {
+          db.collection('businesses').deleteOne({ _id: b.id }).catch(() => {});
+        }
+        continue;
+      }
+      seenBizKeys.add(key);
+      filteredBusinesses.push(b);
+    }
 
     const visibleUsers = canManageUsers
       ? serializeDocs(erpUsers as Record<string, unknown>[])

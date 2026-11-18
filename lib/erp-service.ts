@@ -249,6 +249,13 @@ export async function createErpUserAccount(
     permissionsJson: string;
     status?: 'active' | 'suspended' | 'invited';
     mfaEnabled?: boolean;
+    phone?: string;
+    photoUrl?: string;
+    nidNumber?: string;
+    designation?: string;
+    address?: string;
+    emergencyContact?: string;
+    monthlySalary?: number;
   },
   ownerId: string,
   actorEmail: string
@@ -266,10 +273,33 @@ export async function updateErpUserPermissions(
     status?: 'active' | 'suspended' | 'invited';
     mfaEnabled?: boolean;
     password?: string;
+    phone?: string;
+    photoUrl?: string;
+    nidNumber?: string;
+    designation?: string;
+    address?: string;
+    emergencyContact?: string;
+    monthlySalary?: number;
   },
   actorEmail: string
 ): Promise<void> {
   await callErpAction('updateErpUserPermissions', { targetUser, updates, actorEmail });
+}
+
+export async function updateUserProfile(
+  updates: {
+    displayName?: string;
+    phone?: string;
+    nidNumber?: string;
+    designation?: string;
+    address?: string;
+    emergencyContact?: string;
+    photoUrl?: string;
+    password?: string;
+  },
+  targetUserId?: string
+): Promise<void> {
+  await callErpAction('updateUserProfile', { updates, targetUserId });
 }
 
 export async function deleteErpUserAccount(

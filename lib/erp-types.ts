@@ -34,6 +34,12 @@ export interface ErpUser {
   appointedByRole?: UserRole;
   phone?: string;
   monthlySalary?: number;
+  photoUrl?: string;
+  nidNumber?: string;
+  designation?: string;
+  address?: string;
+  emergencyContact?: string;
+  createdAt?: string;
 }
 
 export interface ErpBusiness {
@@ -106,6 +112,11 @@ export interface ErpJournalEntry {
   counterpartyName: string;
   status: 'posted' | 'reversed';
   reversedByEntryId: string;
+  actorEmail?: string;
+  actorName?: string;
+  actorRole?: string;
+  actorDesignation?: string;
+  actorPhoto?: string;
   ownerId: string;
 }
 
@@ -171,7 +182,11 @@ export interface ErpStakeholder {
   appointedAt?: string;
   joiningDate?: string;
   salaryEffectiveFrom?: string;
+  photoUrl?: string;
+  nidNumber?: string;
+  emergencyContact?: string;
   notes?: string;
+  createdAt?: string;
   ownerId: string;
 }
 
@@ -292,6 +307,10 @@ export interface ErpAuditLog {
   details: string;
   severity: 'info' | 'warning' | 'critical';
   actorEmail: string;
+  actorName?: string;
+  actorPhoto?: string;
+  actorDesignation?: string;
+  actorRole?: string;
   ownerId: string;
   createdAt?: unknown;
 }
