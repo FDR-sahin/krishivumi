@@ -111,7 +111,7 @@ export default function EnterpriseLoginGate({
       {/* Top Header Bar */}
       <header className="relative z-10 w-full px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <BrandLogo size="sm" subtitle={bn ? 'সংরক্ষিত এন্টারপ্রাইজ ইআরপি' : 'ENTERPRISE ERP PORTAL'} />
+          <BrandLogo size="md" whiteText={true} subtitle={bn ? 'সংরক্ষিত এন্টারপ্রাইজ ইআরপি' : 'ENTERPRISE ERP PORTAL'} />
           <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-950/70 text-emerald-300 border border-emerald-800/50">
             <Lock className="h-3 w-3 text-emerald-400" />
             <span>{bn ? 'নিরাপদ এনক্রিপ্টেড প্রবেশদ্বার' : 'SSL 256-Bit Encrypted'}</span>
@@ -149,6 +149,11 @@ export default function EnterpriseLoginGate({
           <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600" />
 
           <div className="p-6 sm:p-8 space-y-6">
+            {/* Prominent RegardsAgro Brand Presentation */}
+            <div className="flex justify-center pb-1">
+              <BrandLogo size="lg" whiteText={true} subtitle={bn ? 'এন্টারপ্রাইজ এগ্রো বিজনেস ম্যানেজমেন্ট' : 'ENTERPRISE AGRO BUSINESS SUITE'} />
+            </div>
+
             {/* Security Badge & Title */}
             <div className="space-y-2 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-950/90 text-emerald-300 border border-emerald-800/60 shadow-sm">

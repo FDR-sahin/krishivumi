@@ -16,13 +16,14 @@ export default function BrandLogo({
   whiteText = false,
 }: BrandLogoProps) {
   const boxSize =
-    size === 'sm' ? 'h-8 w-8 rounded-lg' : size === 'lg' ? 'h-11 w-11 rounded-xl' : 'h-9 w-9 rounded-xl';
-  const svgSize = size === 'sm' ? 'h-4 w-4' : size === 'lg' ? 'h-6 w-6' : 'h-5 w-5';
+    size === 'sm' ? 'h-8 w-8 rounded-lg' : size === 'lg' ? 'h-12 w-12 rounded-2xl' : 'h-9 w-9 rounded-xl';
+  const svgSize = size === 'sm' ? 'h-4 w-4' : size === 'lg' ? 'h-7 w-7' : 'h-5 w-5';
+  const textSize = size === 'lg' ? 'text-xl sm:text-2xl' : size === 'sm' ? 'text-[15px]' : 'text-[16px]';
 
   return (
     <div className="inline-flex items-center gap-3 select-none">
       <div
-        className={`${boxSize} bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-900/30 ring-1 ring-inset ring-white/20 shrink-0`}
+        className={`${boxSize} bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-900/40 ring-1 ring-inset ring-white/20 shrink-0`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -43,23 +44,23 @@ export default function BrandLogo({
       </div>
 
       {!compact && (
-        <div className="flex flex-col leading-none min-w-0">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col leading-tight min-w-0">
+          <div className="flex items-center gap-2">
             <span
-              className={`font-display text-[15px] font-extrabold tracking-tight truncate ${
+              className={`font-display ${textSize} font-black tracking-tight drop-shadow-sm truncate ${
                 whiteText ? 'text-white' : 'text-slate-900 dark:text-white'
               }`}
             >
               RegardsAgro
             </span>
-            <span className="hidden sm:inline-flex items-center rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
+            <span className="inline-flex items-center rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-400 ring-1 ring-inset ring-emerald-500/40">
               ERP
             </span>
           </div>
           {subtitle && (
             <span
-              className={`mt-1 text-[10px] font-semibold tracking-wider uppercase truncate ${
-                whiteText ? 'text-slate-400' : 'text-slate-500 dark:text-slate-400'
+              className={`mt-0.5 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase truncate ${
+                whiteText ? 'text-emerald-300/80' : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               {subtitle}

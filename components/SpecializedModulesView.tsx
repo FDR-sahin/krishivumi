@@ -30,6 +30,9 @@ import {
   FileText,
   Loader2,
   Trash2,
+  Coins,
+  FileSpreadsheet,
+  ArrowRight,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -199,6 +202,7 @@ export default function SpecializedModulesView({
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQuickTxModal, setShowQuickTxModal] = useState<'sale' | 'expense' | null>(null);
+  const [showProfitAnalysisModal, setShowProfitAnalysisModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Quick Sale / Expense Form State for ANY business
@@ -956,7 +960,10 @@ export default function SpecializedModulesView({
           </div>
         </div>
 
-        <div className="group/profit relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-xl hover:border-emerald-500/50 transition-all cursor-help hover:z-40">
+        <div
+          onClick={() => setShowProfitAnalysisModal(true)}
+          className="group/profit relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-xl hover:border-emerald-500/50 transition-all cursor-pointer hover:z-40"
+        >
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
             <span>{bn ? 'নিট লাভ / ক্ষতি (Net Profit / Loss)' : 'Net Profit / Loss'}</span>
             <Wallet className="h-4 w-4 text-emerald-600" />
@@ -976,17 +983,25 @@ export default function SpecializedModulesView({
                 ? (bn ? 'ব্যবসা লাভজনক অবস্থায় আছে' : 'Profitable operating status')
                 : (bn ? 'খরচ আয়ের চেয়ে বেশি হয়েছে' : 'Operating deficit recorded')}
             </span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold underline decoration-dotted">
-              {bn ? 'বিশ্লেষণ দেখুন' : 'Hover info'}
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowProfitAnalysisModal(true);
+              }}
+              className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold underline decoration-dotted hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer inline-flex items-center gap-1"
+            >
+              <span>{bn ? 'বিশ্লেষণ দেখুন' : 'View Breakdown'}</span>
+              <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
 
           {/* FLOATING HOVER CARD ABOVE BUSINESS NET PROFIT */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-none z-50">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-auto z-50">
             <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 space-y-3 ring-1 ring-white/10">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-amber-400 text-xs">✨</span>
+                  <TrendingUp className="h-4 w-4 text-emerald-400" />
                   <span className="text-xs font-bold text-slate-100">
                     {bn ? 'ইউনিট লাভ-ক্ষতি বিশ্লেষণ' : 'Unit Profit Breakdown'}
                   </span>
@@ -1037,6 +1052,20 @@ export default function SpecializedModulesView({
                   </span>
                 </div>
               </div>
+
+              {/* Button to open Profit Analysis modal */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowProfitAnalysisModal(true);
+                }}
+                className="w-full mt-2 py-2 px-3 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>{bn ? 'সম্পূর্ণ লাভ-ক্ষতি ও ভাউচার বিশ্লেষণ' : 'Open Complete P&L & Vouchers'}</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
 
               <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
                 <span>{bn ? 'খতিয়ান থেকে সরাসরি সিঙ্ক' : 'Ledger synced'}</span>
@@ -2194,7 +2223,7 @@ export default function SpecializedModulesView({
       )}
 
       {/* THIS BUSINESS'S RECENT TRANSACTIONS LEDGER (Always visible so client sees their sales/expenses right here!) */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+      <div id="business-ledger-section" className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
           <div className="flex items-center gap-2.5">
             <Factory className="h-5 w-5 text-emerald-600" />
@@ -2947,6 +2976,191 @@ export default function SpecializedModulesView({
         businessName={activeBusiness.nameBn || activeBusiness.name}
         lang={lang}
       />
+
+      {/* Comprehensive Profit & Loss Analysis Modal */}
+      {showProfitAnalysisModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setShowProfitAnalysisModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    {bn ? `${activeBusiness.nameBn || activeBusiness.name} — নিট লাভ-ক্ষতি ও খতিয়ান বিশ্লেষণ` : `${activeBusiness.name} — Profit & Loss Analysis`}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {bn ? 'সকল বিক্রি, কেনাকাটা, শ্রম ও পরিচালন খরচের লাইভ সমাপনী হিসাব' : 'Live synchronized financial P&L analysis and ledger audit'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProfitAnalysisModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* 4 Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  {bn ? 'মোট বিক্রি / আয়' : 'Total Revenue'}
+                </div>
+                <div className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                  +{formatBDT(bizRevenue)}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  {bn ? 'মোট খরচ / ব্যয়' : 'Total Expenses'}
+                </div>
+                <div className="text-base font-black font-mono text-amber-600 dark:text-amber-400 mt-1">
+                  -{formatBDT(bizExpense)}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  {bn ? 'প্রকৃত নিট লাভ' : 'Net Profit'}
+                </div>
+                <div
+                  className={`text-base font-black font-mono mt-1 ${
+                    bizNetProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {formatBDT(bizNetProfit)}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  {bn ? 'প্রফিট মার্জিন' : 'Profit Margin'}
+                </div>
+                <div className="text-base font-black font-mono text-slate-900 dark:text-slate-100 mt-1">
+                  {bizRevenue > 0 ? `${((bizNetProfit / bizRevenue) * 100).toFixed(1)}%` : '০%'}
+                </div>
+              </div>
+            </div>
+
+            {/* Operating Health Assessment */}
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  {bizNetProfit >= 0
+                    ? bn
+                      ? 'এই ডিভিশনটি সন্তোষজনক লাভে পরিচালিত হচ্ছে এবং আয়ের অনুপাত স্থিতিশীল রয়েছে।'
+                      : 'This business division is operating profitably with balanced operating ratios.'
+                    : bn
+                      ? 'এই ডিভিশনে খরচ আয়ের চেয়ে বেশি। অতিরিক্ত ব্যয় নিয়ন্ত্রণ বা বিক্রি বাড়ানোর পদক্ষেপ নিন।'
+                      : 'Operating deficit detected. Consider reviewing recurring feed/overhead costs.'}
+                </span>
+              </div>
+            </div>
+
+            {/* Recent Vouchers List Preview */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {bn ? 'সর্বশেষ এন্ট্রি ও ভাউচার তালিকা' : 'Recent Unit Transactions'}
+                </h4>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  {bizJournals.length} {bn ? 'টি লেনদেন' : 'entries'}
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                    <tr>
+                      <th className="py-2 px-3">{bn ? 'ভাউচার' : 'Voucher'}</th>
+                      <th className="py-2 px-3">{bn ? 'তারিখ' : 'Date'}</th>
+                      <th className="py-2 px-3">{bn ? 'বিবরণ' : 'Description'}</th>
+                      <th className="py-2 px-3 text-right">{bn ? 'পরিমাণ' : 'Amount'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {bizJournals.slice(0, 6).map((j) => (
+                      <tr key={j.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                        <td className="py-2 px-3 font-mono font-bold text-slate-600 dark:text-slate-300">
+                          {j.referenceNo}
+                        </td>
+                        <td className="py-2 px-3 text-slate-500">{j.date}</td>
+                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300 font-medium truncate max-w-xs">
+                          {j.description}
+                        </td>
+                        <td
+                          className={`py-2 px-3 text-right font-mono font-bold ${
+                            j.transactionType === 'sale' || j.transactionType === 'income'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          {j.transactionType === 'sale' || j.transactionType === 'income' ? '+' : '-'}
+                          {formatBDT(j.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    {bizJournals.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-4 text-center text-slate-400 text-xs">
+                          {bn ? 'কোনো লেনদেন রেকর্ড পাওয়া যায়নি' : 'No transactions recorded yet'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfitAnalysisModal(false);
+                  const el = document.getElementById('business-ledger-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 transition-colors cursor-pointer"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>{bn ? 'সম্পূর্ণ লেজার টেবিলে যান' : 'Go to Full Ledger Table'}</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>{bn ? 'প্রিন্ট' : 'Print'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowProfitAnalysisModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  {bn ? 'বন্ধ করুন' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

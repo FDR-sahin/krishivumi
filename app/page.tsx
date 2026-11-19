@@ -1926,7 +1926,7 @@ export default function AgroErpApp() {
                     <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 space-y-3 ring-1 ring-white/10">
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-amber-400 text-xs">✨</span>
+                          <Coins className="h-4 w-4 text-emerald-400" />
                           <span className="text-xs font-bold text-slate-100">
                             {bn ? 'কনসোলিডেটেড নিট মুনাফা' : 'Consolidated Net Profit'}
                           </span>
@@ -2529,7 +2529,7 @@ export default function AgroErpApp() {
                                     {/* Tooltip Header */}
                                     <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                                       <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="text-emerald-400 text-xs">✨</span>
+                                        <TrendingUp className="h-4 w-4 text-emerald-400" />
                                         <span className="text-xs font-bold text-slate-100 truncate">
                                           {bn ? `${biz.nameBn || biz.name} - লাভ বিশ্লেষণ` : `${biz.name} Profit Breakdown`}
                                         </span>
