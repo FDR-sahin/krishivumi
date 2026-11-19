@@ -33,6 +33,11 @@ import {
   createNotificationRecord,
 } from '@/lib/erp-service';
 
+const parseNum = (val: string): number => {
+  const clean = val.replace(/^0+(?=\d)/, '');
+  return clean === '' ? 0 : Number(clean);
+};
+
 interface PoultryManagementModuleProps {
   activeBusiness: ErpBusiness;
   batches: ErpPoultryBatch[];
@@ -1041,8 +1046,9 @@ export default function PoultryManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={aInitialQty}
-                    onChange={(e) => setAInitialQty(Number(e.target.value))}
+                    placeholder="0"
+                    value={aInitialQty === 0 ? '' : aInitialQty}
+                    onChange={(e) => setAInitialQty(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1054,8 +1060,9 @@ export default function PoultryManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={aPricePerChick}
-                    onChange={(e) => setAPricePerChick(Number(e.target.value))}
+                    placeholder="0"
+                    value={aPricePerChick === 0 ? '' : aPricePerChick}
+                    onChange={(e) => setAPricePerChick(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1320,8 +1327,9 @@ export default function PoultryManagementModule({
                       type="number"
                       min={0}
                       required
-                      value={bDeadToday}
-                      onChange={(e) => setBDeadToday(Number(e.target.value))}
+                      placeholder="0"
+                      value={bDeadToday === 0 ? '' : bDeadToday}
+                      onChange={(e) => setBDeadToday(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1333,8 +1341,9 @@ export default function PoultryManagementModule({
                       type="number"
                       min={0}
                       required
-                      value={bSickToday}
-                      onChange={(e) => setBSickToday(Number(e.target.value))}
+                      placeholder="0"
+                      value={bSickToday === 0 ? '' : bSickToday}
+                      onChange={(e) => setBSickToday(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1598,8 +1607,9 @@ export default function PoultryManagementModule({
                       type="number"
                       min={1}
                       required
-                      value={cBagsCount}
-                      onChange={(e) => setCBagsCount(Number(e.target.value))}
+                      placeholder="0"
+                      value={cBagsCount === 0 ? '' : cBagsCount}
+                      onChange={(e) => setCBagsCount(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1611,8 +1621,9 @@ export default function PoultryManagementModule({
                       type="number"
                       min={1}
                       required
-                      value={cPricePerBag}
-                      onChange={(e) => setCPricePerBag(Number(e.target.value))}
+                      placeholder="0"
+                      value={cPricePerBag === 0 ? '' : cPricePerBag}
+                      onChange={(e) => setCPricePerBag(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1717,8 +1728,9 @@ export default function PoultryManagementModule({
                       type="number"
                       min={1}
                       required
-                      value={cUseBags}
-                      onChange={(e) => setCUseBags(Number(e.target.value))}
+                      placeholder="0"
+                      value={cUseBags === 0 ? '' : cUseBags}
+                      onChange={(e) => setCUseBags(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1729,8 +1741,9 @@ export default function PoultryManagementModule({
                     <input
                       type="number"
                       min={1}
-                      value={cBagWeightKg}
-                      onChange={(e) => setCBagWeightKg(Number(e.target.value))}
+                      placeholder="0"
+                      value={cBagWeightKg === 0 ? '' : cBagWeightKg}
+                      onChange={(e) => setCBagWeightKg(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                     />
                   </div>
@@ -1841,8 +1854,9 @@ export default function PoultryManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={dMedQty}
-                    onChange={(e) => setDMedQty(Number(e.target.value))}
+                    placeholder="0"
+                    value={dMedQty === 0 ? '' : dMedQty}
+                    onChange={(e) => setDMedQty(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1854,8 +1868,9 @@ export default function PoultryManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={dMedUnitCost}
-                    onChange={(e) => setDMedUnitCost(Number(e.target.value))}
+                    placeholder="0"
+                    value={dMedUnitCost === 0 ? '' : dMedUnitCost}
+                    onChange={(e) => setDMedUnitCost(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1998,8 +2013,9 @@ export default function PoultryManagementModule({
                     type="number"
                     min={0}
                     required
-                    value={dApplyCost}
-                    onChange={(e) => setDApplyCost(Number(e.target.value))}
+                    placeholder="0"
+                    value={dApplyCost === 0 ? '' : dApplyCost}
+                    onChange={(e) => setDApplyCost(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -2095,8 +2111,9 @@ export default function PoultryManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={eAmount}
-                    onChange={(e) => setEAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={eAmount === 0 ? '' : eAmount}
+                    onChange={(e) => setEAmount(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold text-base"
                   />
                 </div>
@@ -2299,8 +2316,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeSmallBirds}
-                        onChange={(e) => setGradeSmallBirds(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeSmallBirds === 0 ? '' : gradeSmallBirds}
+                        onChange={(e) => setGradeSmallBirds(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2309,8 +2327,9 @@ export default function PoultryManagementModule({
                         type="number"
                         min={0}
                         step="0.5"
-                        value={gradeSmallKg}
-                        onChange={(e) => setGradeSmallKg(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeSmallKg === 0 ? '' : gradeSmallKg}
+                        onChange={(e) => setGradeSmallKg(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2318,8 +2337,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeSmallPrice}
-                        onChange={(e) => setGradeSmallPrice(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeSmallPrice === 0 ? '' : gradeSmallPrice}
+                        onChange={(e) => setGradeSmallPrice(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2337,8 +2357,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeMedBirds}
-                        onChange={(e) => setGradeMedBirds(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeMedBirds === 0 ? '' : gradeMedBirds}
+                        onChange={(e) => setGradeMedBirds(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2347,8 +2368,9 @@ export default function PoultryManagementModule({
                         type="number"
                         min={0}
                         step="0.5"
-                        value={gradeMedKg}
-                        onChange={(e) => setGradeMedKg(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeMedKg === 0 ? '' : gradeMedKg}
+                        onChange={(e) => setGradeMedKg(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2356,8 +2378,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeMedPrice}
-                        onChange={(e) => setGradeMedPrice(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeMedPrice === 0 ? '' : gradeMedPrice}
+                        onChange={(e) => setGradeMedPrice(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2375,8 +2398,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeLargeBirds}
-                        onChange={(e) => setGradeLargeBirds(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeLargeBirds === 0 ? '' : gradeLargeBirds}
+                        onChange={(e) => setGradeLargeBirds(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2385,8 +2409,9 @@ export default function PoultryManagementModule({
                         type="number"
                         min={0}
                         step="0.5"
-                        value={gradeLargeKg}
-                        onChange={(e) => setGradeLargeKg(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeLargeKg === 0 ? '' : gradeLargeKg}
+                        onChange={(e) => setGradeLargeKg(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2394,8 +2419,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeLargePrice}
-                        onChange={(e) => setGradeLargePrice(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeLargePrice === 0 ? '' : gradeLargePrice}
+                        onChange={(e) => setGradeLargePrice(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2413,8 +2439,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeXlBirds}
-                        onChange={(e) => setGradeXlBirds(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeXlBirds === 0 ? '' : gradeXlBirds}
+                        onChange={(e) => setGradeXlBirds(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2423,8 +2450,9 @@ export default function PoultryManagementModule({
                         type="number"
                         min={0}
                         step="0.5"
-                        value={gradeXlKg}
-                        onChange={(e) => setGradeXlKg(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeXlKg === 0 ? '' : gradeXlKg}
+                        onChange={(e) => setGradeXlKg(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2432,8 +2460,9 @@ export default function PoultryManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={gradeXlPrice}
-                        onChange={(e) => setGradeXlPrice(Number(e.target.value))}
+                        placeholder="0"
+                        value={gradeXlPrice === 0 ? '' : gradeXlPrice}
+                        onChange={(e) => setGradeXlPrice(parseNum(e.target.value))}
                         className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                       />
                     </td>
@@ -2497,8 +2526,9 @@ export default function PoultryManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={fTransportCost}
-                  onChange={(e) => setFTransportCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={fTransportCost === 0 ? '' : fTransportCost}
+                  onChange={(e) => setFTransportCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -2509,8 +2539,9 @@ export default function PoultryManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={fDueAmount}
-                  onChange={(e) => setFDueAmount(Number(e.target.value))}
+                  placeholder="0"
+                  value={fDueAmount === 0 ? '' : fDueAmount}
+                  onChange={(e) => setFDueAmount(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>

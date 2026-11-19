@@ -29,6 +29,11 @@ import {
   logAuditEvent,
 } from '@/lib/erp-service';
 
+const parseNum = (val: string): number => {
+  const clean = val.replace(/^0+(?=\d)/, '');
+  return clean === '' ? 0 : Number(clean);
+};
+
 interface FishManagementModuleProps {
   activeBusiness: ErpBusiness;
   cycles: ErpFishCycle[];
@@ -813,8 +818,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={1}
-                  value={bAreaDecimals}
-                  onChange={(e) => setBAreaDecimals(Number(e.target.value))}
+                  placeholder="0"
+                  value={bAreaDecimals === 0 ? '' : bAreaDecimals}
+                  onChange={(e) => setBAreaDecimals(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -823,8 +829,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   step="0.5"
-                  value={bDepthFeet}
-                  onChange={(e) => setBDepthFeet(Number(e.target.value))}
+                  placeholder="0"
+                  value={bDepthFeet === 0 ? '' : bDepthFeet}
+                  onChange={(e) => setBDepthFeet(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -871,8 +878,9 @@ export default function FishManagementModule({
                   type="number"
                   required
                   min={1}
-                  value={bFingerlingQty}
-                  onChange={(e) => setBFingerlingQty(Number(e.target.value))}
+                  placeholder="0"
+                  value={bFingerlingQty === 0 ? '' : bFingerlingQty}
+                  onChange={(e) => setBFingerlingQty(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -882,8 +890,9 @@ export default function FishManagementModule({
                   type="number"
                   step="0.5"
                   min={0.1}
-                  value={bPricePerPiece}
-                  onChange={(e) => setBPricePerPiece(Number(e.target.value))}
+                  placeholder="0"
+                  value={bPricePerPiece === 0 ? '' : bPricePerPiece}
+                  onChange={(e) => setBPricePerPiece(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -934,8 +943,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={cFeedKg}
-                  onChange={(e) => setCFeedKg(Number(e.target.value))}
+                  placeholder="0"
+                  value={cFeedKg === 0 ? '' : cFeedKg}
+                  onChange={(e) => setCFeedKg(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -944,8 +954,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={cFeedRatePerKg}
-                  onChange={(e) => setCFeedRatePerKg(Number(e.target.value))}
+                  placeholder="0"
+                  value={cFeedRatePerKg === 0 ? '' : cFeedRatePerKg}
+                  onChange={(e) => setCFeedRatePerKg(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -996,8 +1007,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={cMortalityToday}
-                  onChange={(e) => setCMortalityToday(Number(e.target.value))}
+                  placeholder="0"
+                  value={cMortalityToday === 0 ? '' : cMortalityToday}
+                  onChange={(e) => setCMortalityToday(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -1018,8 +1030,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={cTreatmentCost}
-                  onChange={(e) => setCTreatmentCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={cTreatmentCost === 0 ? '' : cTreatmentCost}
+                  onChange={(e) => setCTreatmentCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -1028,8 +1041,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={cPondCleaningCost}
-                  onChange={(e) => setCPondCleaningCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={cPondCleaningCost === 0 ? '' : cPondCleaningCost}
+                  onChange={(e) => setCPondCleaningCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -1038,8 +1052,9 @@ export default function FishManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={cLabourCost}
-                  onChange={(e) => setCLabourCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={cLabourCost === 0 ? '' : cLabourCost}
+                  onChange={(e) => setCLabourCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -1088,8 +1103,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={ruiKg}
-                          onChange={(e) => setRuiKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={ruiKg === 0 ? '' : ruiKg}
+                          onChange={(e) => setRuiKg(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                         />
                       </td>
@@ -1097,8 +1113,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={ruiPrice}
-                          onChange={(e) => setRuiPrice(Number(e.target.value))}
+                          placeholder="0"
+                          value={ruiPrice === 0 ? '' : ruiPrice}
+                          onChange={(e) => setRuiPrice(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                         />
                       </td>
@@ -1112,8 +1129,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={katlaKg}
-                          onChange={(e) => setKatlaKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={katlaKg === 0 ? '' : katlaKg}
+                          onChange={(e) => setKatlaKg(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                         />
                       </td>
@@ -1121,8 +1139,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={katlaPrice}
-                          onChange={(e) => setKatlaPrice(Number(e.target.value))}
+                          placeholder="0"
+                          value={katlaPrice === 0 ? '' : katlaPrice}
+                          onChange={(e) => setKatlaPrice(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                         />
                       </td>
@@ -1136,8 +1155,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={tilapiaKg}
-                          onChange={(e) => setTilapiaKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={tilapiaKg === 0 ? '' : tilapiaKg}
+                          onChange={(e) => setTilapiaKg(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                         />
                       </td>
@@ -1145,8 +1165,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={tilapiaPrice}
-                          onChange={(e) => setTilapiaPrice(Number(e.target.value))}
+                          placeholder="0"
+                          value={tilapiaPrice === 0 ? '' : tilapiaPrice}
+                          onChange={(e) => setTilapiaPrice(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
                         />
                       </td>
@@ -1167,8 +1188,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={otherKg}
-                          onChange={(e) => setOtherKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={otherKg === 0 ? '' : otherKg}
+                          onChange={(e) => setOtherKg(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono"
                         />
                       </td>
@@ -1176,8 +1198,9 @@ export default function FishManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={otherPrice}
-                          onChange={(e) => setOtherPrice(Number(e.target.value))}
+                          placeholder="0"
+                          value={otherPrice === 0 ? '' : otherPrice}
+                          onChange={(e) => setOtherPrice(parseNum(e.target.value))}
                           className="w-28 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono"
                         />
                       </td>
@@ -1239,8 +1262,9 @@ export default function FishManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={dDueAmount}
-                    onChange={(e) => setDDueAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={dDueAmount === 0 ? '' : dDueAmount}
+                    onChange={(e) => setDDueAmount(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                   />
                 </div>

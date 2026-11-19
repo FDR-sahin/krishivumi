@@ -55,6 +55,11 @@ import TransportManagementModule from './TransportManagementModule';
 import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from './MonthFilterBar';
 import UserProfileCardModal, { UserProfileData } from './UserProfileCardModal';
 
+const parseNum = (val: string): number => {
+  const clean = val.replace(/^0+(?=\d)/, '');
+  return clean === '' ? 0 : Number(clean);
+};
+
 interface SpecializedModulesViewProps {
   activeBusiness: ErpBusiness;
   poultryBatches: ErpPoultryBatch[];
@@ -2266,8 +2271,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'মোট বাচ্চার সংখ্যা (Quantity)' : 'Chick Quantity'}</label>
                     <input
                       type="number"
-                      value={pInitQty}
-                      onChange={(e) => setPInitQty(Number(e.target.value))}
+                      placeholder="0"
+                      value={pInitQty === 0 ? '' : pInitQty}
+                      onChange={(e) => setPInitQty(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2277,8 +2283,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'বাচ্চা কেনার দাম (BDT)' : 'Chick Purchase Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={pPurchaseCost}
-                      onChange={(e) => setPPurchaseCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={pPurchaseCost === 0 ? '' : pPurchaseCost}
+                      onChange={(e) => setPPurchaseCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2286,8 +2293,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'খাবারের খরচ (Feed Cost BDT)' : 'Feed Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={pFeedCost}
-                      onChange={(e) => setPFeedCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={pFeedCost === 0 ? '' : pFeedCost}
+                      onChange={(e) => setPFeedCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2297,8 +2305,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'ওষুধ ও টিকা খরচ' : 'Medicine & Vaccine Cost'}</label>
                     <input
                       type="number"
-                      value={pMedCost}
-                      onChange={(e) => setPMedCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={pMedCost === 0 ? '' : pMedCost}
+                      onChange={(e) => setPMedCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2306,8 +2315,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'লেবার ও বিদ্যুৎ বিল' : 'Labor & Electricity Bill'}</label>
                     <input
                       type="number"
-                      value={pLabourCost}
-                      onChange={(e) => setPLabourCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={pLabourCost === 0 ? '' : pLabourCost}
+                      onChange={(e) => setPLabourCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2315,8 +2325,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'বিক্রয় মূল্য (BDT)' : 'Sales Revenue (BDT)'}</label>
                     <input
                       type="number"
-                      value={pSalesRev}
-                      onChange={(e) => setPSalesRev(Number(e.target.value))}
+                      placeholder="0"
+                      value={pSalesRev === 0 ? '' : pSalesRev}
+                      onChange={(e) => setPSalesRev(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2382,8 +2393,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'ওজন (কেজি)' : 'Weight (KG)'}</label>
                     <input
                       type="number"
-                      value={lWeight}
-                      onChange={(e) => setLWeight(Number(e.target.value))}
+                      placeholder="0"
+                      value={lWeight === 0 ? '' : lWeight}
+                      onChange={(e) => setLWeight(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2393,8 +2405,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'কেনা দাম (Purchase BDT)' : 'Purchase Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={lPurchasePrice}
-                      onChange={(e) => setLPurchasePrice(Number(e.target.value))}
+                      placeholder="0"
+                      value={lPurchasePrice === 0 ? '' : lPurchasePrice}
+                      onChange={(e) => setLPurchasePrice(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2402,8 +2415,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'খাবার খরচ (Feed Cost BDT)' : 'Feed Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={lFeedCost}
-                      onChange={(e) => setLFeedCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={lFeedCost === 0 ? '' : lFeedCost}
+                      onChange={(e) => setLFeedCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2435,8 +2449,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'আয়তন (শতক / Decimals)' : 'Surface Area (Decimals)'}</label>
                     <input
                       type="number"
-                      value={fArea}
-                      onChange={(e) => setFArea(Number(e.target.value))}
+                      placeholder="0"
+                      value={fArea === 0 ? '' : fArea}
+                      onChange={(e) => setFArea(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2455,8 +2470,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'পোনা সংখ্যা (Quantity)' : 'Fingerling Quantity'}</label>
                     <input
                       type="number"
-                      value={fInitQty}
-                      onChange={(e) => setFInitQty(Number(e.target.value))}
+                      placeholder="0"
+                      value={fInitQty === 0 ? '' : fInitQty}
+                      onChange={(e) => setFInitQty(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2466,8 +2482,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'পোনা খরচ (BDT)' : 'Fingerling Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={fFingerlingCost}
-                      onChange={(e) => setFFingerlingCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={fFingerlingCost === 0 ? '' : fFingerlingCost}
+                      onChange={(e) => setFFingerlingCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2475,8 +2492,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">খাবার খরচ (BDT)</label>
                     <input
                       type="number"
-                      value={fFeedCost}
-                      onChange={(e) => setFFeedCost(Number(e.target.value))}
+                      placeholder="0"
+                      value={fFeedCost === 0 ? '' : fFeedCost}
+                      onChange={(e) => setFFeedCost(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2484,8 +2502,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">বিক্রয় মূল্য (BDT)</label>
                     <input
                       type="number"
-                      value={fSalesRev}
-                      onChange={(e) => setFSalesRev(Number(e.target.value))}
+                      placeholder="0"
+                      value={fSalesRev === 0 ? '' : fSalesRev}
+                      onChange={(e) => setFSalesRev(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2548,8 +2567,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'ডিজেল খরচ (BDT)' : 'Diesel Fuel Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={tFuel}
-                      onChange={(e) => setTFuel(Number(e.target.value))}
+                      placeholder="0"
+                      value={tFuel === 0 ? '' : tFuel}
+                      onChange={(e) => setTFuel(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2557,8 +2577,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'ব্রিজ টোল (BDT)' : 'Bridge & Toll Cost (BDT)'}</label>
                     <input
                       type="number"
-                      value={tToll}
-                      onChange={(e) => setTToll(Number(e.target.value))}
+                      placeholder="0"
+                      value={tToll === 0 ? '' : tToll}
+                      onChange={(e) => setTToll(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>
@@ -2566,8 +2587,9 @@ export default function SpecializedModulesView({
                     <label className="block mb-1 font-medium">{bn ? 'ট্রিপ ভাড়া (Revenue BDT)' : 'Trip Freight Revenue (BDT)'}</label>
                     <input
                       type="number"
-                      value={tRev}
-                      onChange={(e) => setTRev(Number(e.target.value))}
+                      placeholder="0"
+                      value={tRev === 0 ? '' : tRev}
+                      onChange={(e) => setTRev(parseNum(e.target.value))}
                       className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                     />
                   </div>

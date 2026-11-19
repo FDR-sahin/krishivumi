@@ -37,6 +37,11 @@ import {
   createNotificationRecord,
 } from '@/lib/erp-service';
 
+const parseNum = (val: string): number => {
+  const clean = val.replace(/^0+(?=\d)/, '');
+  return clean === '' ? 0 : Number(clean);
+};
+
 interface LivestockManagementModuleProps {
   activeBusiness: ErpBusiness;
   species: 'cattle' | 'goat';
@@ -1320,8 +1325,9 @@ export default function LivestockManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={aAgeMonths}
-                    onChange={(e) => setAAgeMonths(Number(e.target.value))}
+                    placeholder="0"
+                    value={aAgeMonths === 0 ? '' : aAgeMonths}
+                    onChange={(e) => setAAgeMonths(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                   />
                 </div>
@@ -1342,8 +1348,9 @@ export default function LivestockManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={aPurchasePrice}
-                    onChange={(e) => setAPurchasePrice(Number(e.target.value))}
+                    placeholder="0"
+                    value={aPurchasePrice === 0 ? '' : aPurchasePrice}
+                    onChange={(e) => setAPurchasePrice(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1353,8 +1360,9 @@ export default function LivestockManagementModule({
                     type="number"
                     min={1}
                     step="0.5"
-                    value={aWeightKg}
-                    onChange={(e) => setAWeightKg(Number(e.target.value))}
+                    placeholder="0"
+                    value={aWeightKg === 0 ? '' : aWeightKg}
+                    onChange={(e) => setAWeightKg(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -1449,8 +1457,9 @@ export default function LivestockManagementModule({
                       type="number"
                       step="0.5"
                       min={0}
-                      value={bMorningLiters}
-                      onChange={(e) => setBMorningLiters(Number(e.target.value))}
+                      placeholder="0"
+                      value={bMorningLiters === 0 ? '' : bMorningLiters}
+                      onChange={(e) => setBMorningLiters(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1462,8 +1471,9 @@ export default function LivestockManagementModule({
                       type="number"
                       step="0.5"
                       min={0}
-                      value={bEveningLiters}
-                      onChange={(e) => setBEveningLiters(Number(e.target.value))}
+                      placeholder="0"
+                      value={bEveningLiters === 0 ? '' : bEveningLiters}
+                      onChange={(e) => setBEveningLiters(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1476,8 +1486,9 @@ export default function LivestockManagementModule({
                       type="number"
                       step="0.5"
                       min={0}
-                      value={bFarmUseLiters}
-                      onChange={(e) => setBFarmUseLiters(Number(e.target.value))}
+                      placeholder="0"
+                      value={bFarmUseLiters === 0 ? '' : bFarmUseLiters}
+                      onChange={(e) => setBFarmUseLiters(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                     />
                   </div>
@@ -1487,8 +1498,9 @@ export default function LivestockManagementModule({
                       type="number"
                       step="0.5"
                       min={0}
-                      value={bWastedLiters}
-                      onChange={(e) => setBWastedLiters(Number(e.target.value))}
+                      placeholder="0"
+                      value={bWastedLiters === 0 ? '' : bWastedLiters}
+                      onChange={(e) => setBWastedLiters(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                     />
                   </div>
@@ -1497,8 +1509,9 @@ export default function LivestockManagementModule({
                     <input
                       type="number"
                       min={1}
-                      value={bMilkPricePerLiter}
-                      onChange={(e) => setBMilkPricePerLiter(Number(e.target.value))}
+                      placeholder="0"
+                      value={bMilkPricePerLiter === 0 ? '' : bMilkPricePerLiter}
+                      onChange={(e) => setBMilkPricePerLiter(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1574,8 +1587,9 @@ export default function LivestockManagementModule({
                       type="number"
                       step="0.5"
                       required
-                      value={wNewWeightKg}
-                      onChange={(e) => setWNewWeightKg(Number(e.target.value))}
+                      placeholder="0"
+                      value={wNewWeightKg === 0 ? '' : wNewWeightKg}
+                      onChange={(e) => setWNewWeightKg(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                     />
                   </div>
@@ -1588,8 +1602,9 @@ export default function LivestockManagementModule({
                     </label>
                     <input
                       type="number"
-                      value={wTargetWeightKg}
-                      onChange={(e) => setWTargetWeightKg(Number(e.target.value))}
+                      placeholder="0"
+                      value={wTargetWeightKg === 0 ? '' : wTargetWeightKg}
+                      onChange={(e) => setWTargetWeightKg(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                     />
                   </div>
@@ -1599,8 +1614,9 @@ export default function LivestockManagementModule({
                     </label>
                     <input
                       type="number"
-                      value={wExpectedPricePerKg}
-                      onChange={(e) => setWExpectedPricePerKg(Number(e.target.value))}
+                      placeholder="0"
+                      value={wExpectedPricePerKg === 0 ? '' : wExpectedPricePerKg}
+                      onChange={(e) => setWExpectedPricePerKg(parseNum(e.target.value))}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                     />
                   </div>
@@ -1782,8 +1798,9 @@ export default function LivestockManagementModule({
                           type="number"
                           step="0.5"
                           min={0}
-                          value={cGrassKg}
-                          onChange={(e) => setCGrassKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={cGrassKg === 0 ? '' : cGrassKg}
+                          onChange={(e) => setCGrassKg(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1791,8 +1808,9 @@ export default function LivestockManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={cGrassRate}
-                          onChange={(e) => setCGrassRate(Number(e.target.value))}
+                          placeholder="0"
+                          value={cGrassRate === 0 ? '' : cGrassRate}
+                          onChange={(e) => setCGrassRate(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1807,8 +1825,9 @@ export default function LivestockManagementModule({
                           type="number"
                           step="0.5"
                           min={0}
-                          value={cStrawKg}
-                          onChange={(e) => setCStrawKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={cStrawKg === 0 ? '' : cStrawKg}
+                          onChange={(e) => setCStrawKg(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1816,8 +1835,9 @@ export default function LivestockManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={cStrawRate}
-                          onChange={(e) => setCStrawRate(Number(e.target.value))}
+                          placeholder="0"
+                          value={cStrawRate === 0 ? '' : cStrawRate}
+                          onChange={(e) => setCStrawRate(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1832,8 +1852,9 @@ export default function LivestockManagementModule({
                           type="number"
                           step="0.5"
                           min={0}
-                          value={cBranKg}
-                          onChange={(e) => setCBranKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={cBranKg === 0 ? '' : cBranKg}
+                          onChange={(e) => setCBranKg(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1841,8 +1862,9 @@ export default function LivestockManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={cBranRate}
-                          onChange={(e) => setCBranRate(Number(e.target.value))}
+                          placeholder="0"
+                          value={cBranRate === 0 ? '' : cBranRate}
+                          onChange={(e) => setCBranRate(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1857,8 +1879,9 @@ export default function LivestockManagementModule({
                           type="number"
                           step="0.5"
                           min={0}
-                          value={cOtherKg}
-                          onChange={(e) => setCOtherKg(Number(e.target.value))}
+                          placeholder="0"
+                          value={cOtherKg === 0 ? '' : cOtherKg}
+                          onChange={(e) => setCOtherKg(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -1866,8 +1889,9 @@ export default function LivestockManagementModule({
                         <input
                           type="number"
                           min={0}
-                          value={cOtherRate}
-                          onChange={(e) => setCOtherRate(Number(e.target.value))}
+                          placeholder="0"
+                          value={cOtherRate === 0 ? '' : cOtherRate}
+                          onChange={(e) => setCOtherRate(parseNum(e.target.value))}
                           className="w-24 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono"
                         />
                       </td>
@@ -2013,8 +2037,9 @@ export default function LivestockManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={dMedCost}
-                    onChange={(e) => setDMedCost(Number(e.target.value))}
+                    placeholder="0"
+                    value={dMedCost === 0 ? '' : dMedCost}
+                    onChange={(e) => setDMedCost(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                   />
                 </div>
@@ -2162,8 +2187,9 @@ export default function LivestockManagementModule({
                   <input
                     type="number"
                     step="0.2"
-                    value={newbornWeight}
-                    onChange={(e) => setNewbornWeight(Number(e.target.value))}
+                    placeholder="0"
+                    value={newbornWeight === 0 ? '' : newbornWeight}
+                    onChange={(e) => setNewbornWeight(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                   />
                 </div>
@@ -2440,8 +2466,9 @@ export default function LivestockManagementModule({
                   type="number"
                   required
                   min={1}
-                  value={fSalePrice}
-                  onChange={(e) => setFSalePrice(Number(e.target.value))}
+                  placeholder="0"
+                  value={fSalePrice === 0 ? '' : fSalePrice}
+                  onChange={(e) => setFSalePrice(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold text-sm"
                 />
               </div>
@@ -2485,8 +2512,9 @@ export default function LivestockManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={fDueAmount}
-                    onChange={(e) => setFDueAmount(Number(e.target.value))}
+                    placeholder="0"
+                    value={fDueAmount === 0 ? '' : fDueAmount}
+                    onChange={(e) => setFDueAmount(parseNum(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                   />
                 </div>

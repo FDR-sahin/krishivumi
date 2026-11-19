@@ -1312,38 +1312,73 @@ export async function POST(req: NextRequest) {
       }
 
       case 'updateUserProfile': {
-        const { targetUserId, updates } = payload as {
-          targetUserId?: string;
-          updates: {
-            displayName?: string;
-            phone?: string;
-            nidNumber?: string;
-            designation?: string;
-            address?: string;
-            emergencyContact?: string;
-            photoUrl?: string;
-            password?: string;
-          };
+        const payloadData = (payload || {}) as Record<string, unknown>;
+        const updates = ((payloadData.updates as Record<string, unknown>) || payloadData) as {
+          displayName?: string;
+          name?: string;
+          phone?: string;
+          nidNumber?: string;
+          designation?: string;
+          address?: string;
+          emergencyContact?: string;
+          photoUrl?: string;
+          password?: string;
         };
-        const userIdToUpdate = isSuperAdmin && targetUserId ? targetUserId : sessionUser.id;
+        const rawTargetId = String(payloadData.userId || payloadData.targetUserId || sessionUser.id || '');
+        const userIdToUpdate = isSuperAdmin && rawTargetId ? rawTargetId : sessionUser.id;
         const setFields: Record<string, unknown> = { updatedAt: now };
 
-        if (updates.displayName) setFields.displayName = cap(updates.displayName, 120);
+        const resolvedName = updates.displayName || updates.name;
+        if (resolvedName) setFields.displayName = cap(resolvedName, 120);
         if (updates.phone !== undefined) setFields.phone = cap(updates.phone, 40);
         if (updates.nidNumber !== undefined) setFields.nidNumber = cap(updates.nidNumber, 50);
         if (updates.designation !== undefined) setFields.designation = cap(updates.designation, 100);
         if (updates.address !== undefined) setFields.address = cap(updates.address, 240);
         if (updates.emergencyContact !== undefined) setFields.emergencyContact = cap(updates.emergencyContact, 60);
-        if (updates.photoUrl !== undefined) setFields.photoUrl = cap(updates.photoUrl, 200000);
+        if (updates.photoUrl !== undefined) setFields.photoUrl = updates.photoUrl;
 
-        if (updates.password && updates.password.trim().length >= 6) {
+        if (updates.password && typeof updates.password === 'string' && updates.password.trim().length >= 6) {
           setFields.passwordHash = await bcrypt.hash(updates.password.trim(), 10);
         }
 
+        // Resilient update matching _id, id, uid, or fallback to sessionUser email
         await db.collection('users').updateOne(
-          { _id: userIdToUpdate as unknown as never },
+          {
+            $or: [
+              { _id: userIdToUpdate as unknown as never },
+              { id: userIdToUpdate },
+              { uid: userIdToUpdate },
+              { email: sessionUser.email },
+            ],
+          },
           { $set: setFields }
         );
+
+        // Also sync stakeholder profile if target is an employee
+        await db
+          .collection('stakeholders')
+          .updateOne(
+            {
+              $or: [
+                { _id: userIdToUpdate as unknown as never },
+                { id: userIdToUpdate },
+                { email: sessionUser.email },
+              ],
+            },
+            {
+              $set: {
+                ...(resolvedName ? { name: cap(resolvedName, 120) } : {}),
+                ...(updates.phone !== undefined ? { phone: cap(updates.phone, 40) } : {}),
+                ...(updates.nidNumber !== undefined ? { nidNumber: cap(updates.nidNumber, 50) } : {}),
+                ...(updates.designation !== undefined ? { designationOrCategory: cap(updates.designation, 100) } : {}),
+                ...(updates.address !== undefined ? { address: cap(updates.address, 240) } : {}),
+                ...(updates.emergencyContact !== undefined ? { emergencyContact: cap(updates.emergencyContact, 60) } : {}),
+                ...(updates.photoUrl !== undefined ? { photoUrl: updates.photoUrl } : {}),
+                updatedAt: now,
+              },
+            }
+          )
+          .catch(() => {});
 
         await writeAuditLog({
           action: 'UPDATE_USER_PROFILE',

@@ -90,16 +90,29 @@ export async function GET() {
     const seenBizKeys = new Set<string>();
     const filteredBusinesses: Record<string, unknown>[] = [];
     for (const b of rawFilteredBusinesses) {
-      const key = String(b.code || b.templateType || b.name || b.id).trim().toUpperCase();
-      if (seenBizKeys.has(key)) {
-        if (b.id) {
-          db.collection('businesses').deleteOne({ _id: b.id }).catch(() => {});
+      const isTransport =
+        b.templateType === 'transport' ||
+        String(b.name || '').toLowerCase().includes('transport') ||
+        String(b.nameBn || '').includes('ট্রাক') ||
+        String(b.code || '').toUpperCase().startsWith('BIZ-TRAN');
+
+      const key = isTransport
+        ? 'SINGLE_TRANSPORT_BUSINESS_KEY'
+        : String(b.code || b.templateType || b.name || b.id).trim().toUpperCase();
+
+      if (seenBizKeys.has(key) || String(b.code || '').toUpperCase() === 'BIZ-TRAN-06') {
+        const deleteId = b._id || b.id;
+        if (deleteId) {
+          db.collection('businesses').deleteOne({ _id: deleteId as unknown as never }).catch(() => {});
         }
         continue;
       }
       seenBizKeys.add(key);
       filteredBusinesses.push(b);
     }
+
+    // Clean up any historical duplicate transport records directly from DB
+    db.collection('businesses').deleteMany({ code: 'BIZ-TRAN-06' }).catch(() => {});
 
     const visibleUsers = canManageUsers
       ? serializeDocs(erpUsers as Record<string, unknown>[])

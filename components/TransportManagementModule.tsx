@@ -27,6 +27,11 @@ import {
   createNotificationRecord,
 } from '@/lib/erp-service';
 
+const parseNum = (val: string): number => {
+  const clean = val.replace(/^0+(?=\d)/, '');
+  return clean === '' ? 0 : Number(clean);
+};
+
 interface TransportManagementModuleProps {
   activeBusiness: ErpBusiness;
   ops: ErpTransportOp[];
@@ -770,8 +775,9 @@ export default function TransportManagementModule({
                 <input
                   type="number"
                   min={1}
-                  value={aDistanceKm}
-                  onChange={(e) => setADistanceKm(Number(e.target.value))}
+                  placeholder="0"
+                  value={aDistanceKm === 0 ? '' : aDistanceKm}
+                  onChange={(e) => setADistanceKm(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -817,8 +823,9 @@ export default function TransportManagementModule({
                 <input
                   type="number"
                   required
-                  value={aTripRevenue}
-                  onChange={(e) => setATripRevenue(Number(e.target.value))}
+                  placeholder="0"
+                  value={aTripRevenue === 0 ? '' : aTripRevenue}
+                  onChange={(e) => setATripRevenue(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -826,8 +833,9 @@ export default function TransportManagementModule({
                 <label className="block font-semibold mb-1">{bn ? 'ডিজেল খরচ (৳)' : 'Diesel Fuel Cost (৳)'}</label>
                 <input
                   type="number"
-                  value={aDieselCost}
-                  onChange={(e) => setADieselCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={aDieselCost === 0 ? '' : aDieselCost}
+                  onChange={(e) => setADieselCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -835,8 +843,9 @@ export default function TransportManagementModule({
                 <label className="block font-semibold mb-1">{bn ? 'টোল খরচ (৳)' : 'Highway & Bridge Toll (৳)'}</label>
                 <input
                   type="number"
-                  value={aTollCost}
-                  onChange={(e) => setATollCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={aTollCost === 0 ? '' : aTollCost}
+                  onChange={(e) => setATollCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -844,8 +853,9 @@ export default function TransportManagementModule({
                 <label className="block font-semibold mb-1">{bn ? 'চালকের ভাতা (৳)' : 'Driver Allowance (৳)'}</label>
                 <input
                   type="number"
-                  value={aDriverAllowance}
-                  onChange={(e) => setADriverAllowance(Number(e.target.value))}
+                  placeholder="0"
+                  value={aDriverAllowance === 0 ? '' : aDriverAllowance}
+                  onChange={(e) => setADriverAllowance(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -853,8 +863,9 @@ export default function TransportManagementModule({
                 <label className="block font-semibold mb-1">{bn ? 'অন্যান্য খরচ (৳)' : 'Other Incidentals (৳)'}</label>
                 <input
                   type="number"
-                  value={aOtherTripCost}
-                  onChange={(e) => setAOtherTripCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={aOtherTripCost === 0 ? '' : aOtherTripCost}
+                  onChange={(e) => setAOtherTripCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -863,8 +874,9 @@ export default function TransportManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={aDueAmount}
-                  onChange={(e) => setADueAmount(Number(e.target.value))}
+                  placeholder="0"
+                  value={aDueAmount === 0 ? '' : aDueAmount}
+                  onChange={(e) => setADueAmount(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                 />
               </div>
@@ -955,8 +967,9 @@ export default function TransportManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={bMaintenanceCost}
-                  onChange={(e) => setBMaintenanceCost(Number(e.target.value))}
+                  placeholder="0"
+                  value={bMaintenanceCost === 0 ? '' : bMaintenanceCost}
+                  onChange={(e) => setBMaintenanceCost(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -965,8 +978,9 @@ export default function TransportManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={bDriverSalary}
-                  onChange={(e) => setBDriverSalary(Number(e.target.value))}
+                  placeholder="0"
+                  value={bDriverSalary === 0 ? '' : bDriverSalary}
+                  onChange={(e) => setBDriverSalary(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
@@ -977,8 +991,9 @@ export default function TransportManagementModule({
                 <input
                   type="number"
                   min={0}
-                  value={bDowntimeDays}
-                  onChange={(e) => setBDowntimeDays(Number(e.target.value))}
+                  placeholder="0"
+                  value={bDowntimeDays === 0 ? '' : bDowntimeDays}
+                  onChange={(e) => setBDowntimeDays(parseNum(e.target.value))}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold"
                 />
               </div>
