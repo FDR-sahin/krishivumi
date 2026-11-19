@@ -59,7 +59,7 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
   const isFiltered = value.year !== 'ALL' || value.month !== 'ALL';
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-3 shadow-xs space-y-2.5 no-print transition-all">
+    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-2.5 shadow-xs no-print transition-all">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs">
           <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 shadow-2xs">
@@ -75,17 +75,39 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Year Dropdown */}
           <select
             value={value.year}
             onChange={(e) => onChange({ ...value, year: e.target.value })}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-2xs focus:border-emerald-500"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-2xs focus:border-emerald-500 focus:outline-none"
             aria-label="Filter by Year"
           >
             <option value="ALL">{bn ? 'সব বছর (All Years)' : 'All Years'}</option>
             <option value="2026">Year 2026</option>
             <option value="2025">Year 2025</option>
             <option value="2027">Year 2027</option>
+          </select>
+
+          {/* Month Dropdown (Replaces horizontal 12-month pill bar) */}
+          <select
+            value={value.month}
+            onChange={(e) => {
+              const m = e.target.value;
+              onChange({
+                month: m,
+                year: value.year === 'ALL' && m !== 'ALL' ? '2026' : value.year,
+              });
+            }}
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-2xs focus:border-emerald-500 focus:outline-none"
+            aria-label="Filter by Month"
+          >
+            <option value="ALL">{bn ? 'সব ১২ মাস (All 12 Months)' : 'All 12 Months'}</option>
+            {MONTHS_12.map((m) => (
+              <option key={m.code} value={m.code}>
+                {bn ? `${m.fullBn} (${m.code})` : `${m.fullEn} (${m.code})`}
+              </option>
+            ))}
           </select>
 
           {isFiltered && (
@@ -99,44 +121,6 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
             </button>
           )}
         </div>
-      </div>
-
-      {/* 12-Month Quick Pill Strip */}
-      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-        <button
-          type="button"
-          onClick={() => onChange({ ...value, month: 'ALL' })}
-          className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-            value.month === 'ALL'
-              ? 'bg-emerald-600 text-white shadow-xs shadow-emerald-600/30 ring-1 ring-emerald-500'
-              : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-          }`}
-        >
-          {bn ? 'সব ১২ মাস' : 'All 12M'}
-        </button>
-
-        {MONTHS_12.map((m) => {
-          const active = value.month === m.code;
-          return (
-            <button
-              key={m.code}
-              type="button"
-              onClick={() =>
-                onChange({
-                  year: value.year === 'ALL' ? '2026' : value.year,
-                  month: m.code,
-                })
-              }
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-                active
-                  ? 'bg-emerald-600 text-white font-bold shadow-xs shadow-emerald-600/30 ring-1 ring-emerald-500'
-                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {bn ? m.shortBn : m.shortEn}
-            </button>
-          );
-        })}
       </div>
     </div>
   );

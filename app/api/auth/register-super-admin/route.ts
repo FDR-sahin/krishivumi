@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
       permissionsJson: fullPermissions,
       status: 'active' as const,
       mfaEnabled: true,
+      photoUrl: (body as Record<string, unknown>).photoUrl ? String((body as Record<string, unknown>).photoUrl) : undefined,
       lastLoginAt: now.toISOString(),
       createdAt: now,
       updatedAt: now,
