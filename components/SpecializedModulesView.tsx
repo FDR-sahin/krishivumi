@@ -956,7 +956,7 @@ export default function SpecializedModulesView({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+        <div className="group/profit relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs hover:shadow-xl hover:border-emerald-500/50 transition-all cursor-help hover:z-40">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
             <span>{bn ? 'নিট লাভ / ক্ষতি (Net Profit / Loss)' : 'Net Profit / Loss'}</span>
             <Wallet className="h-4 w-4 text-emerald-600" />
@@ -970,8 +970,81 @@ export default function SpecializedModulesView({
           >
             {formatBDT(bizNetProfit)}
           </div>
-          <div className="mt-1 text-xs text-slate-500">
-            {bizNetProfit >= 0 ? (bn ? 'ব্যবসা লাভজনক অবস্থায় আছে' : 'Profitable operating status') : (bn ? 'খরচ আয়ের চেয়ে বেশি হয়েছে' : 'Operating deficit recorded')}
+          <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              {bizNetProfit >= 0
+                ? (bn ? 'ব্যবসা লাভজনক অবস্থায় আছে' : 'Profitable operating status')
+                : (bn ? 'খরচ আয়ের চেয়ে বেশি হয়েছে' : 'Operating deficit recorded')}
+            </span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold underline decoration-dotted">
+              {bn ? 'বিশ্লেষণ দেখুন' : 'Hover info'}
+            </span>
+          </div>
+
+          {/* FLOATING HOVER CARD ABOVE BUSINESS NET PROFIT */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-none z-50">
+            <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 space-y-3 ring-1 ring-white/10">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-amber-400 text-xs">✨</span>
+                  <span className="text-xs font-bold text-slate-100">
+                    {bn ? 'ইউনিট লাভ-ক্ষতি বিশ্লেষণ' : 'Unit Profit Breakdown'}
+                  </span>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black font-mono ${
+                    bizNetProfit >= 0
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {bizRevenue > 0
+                    ? `${bizNetProfit >= 0 ? '+' : ''}${((bizNetProfit / bizRevenue) * 100).toFixed(1)}% ${bn ? 'মার্জিন' : 'Margin'}`
+                    : '০% মার্জিন'}
+                </span>
+              </div>
+
+              <div className="text-center py-1 bg-slate-800/40 rounded-xl border border-slate-800">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {bn ? 'চলতি ডিভিশনের চূড়ান্ত নিট মুনাফা' : 'Current Unit Net Profit'}
+                </div>
+                <div
+                  className={`text-2xl font-black font-mono tracking-tight mt-0.5 ${
+                    bizNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}
+                >
+                  {formatBDT(bizNetProfit)}
+                </div>
+              </div>
+
+              <div className="bg-slate-950/80 rounded-xl p-2.5 space-y-1.5 text-xs font-mono border border-slate-800">
+                <div className="flex items-center justify-between text-slate-300">
+                  <span className="text-[11px] font-sans">{bn ? 'মোট বিক্রি / আয় (Sales):' : 'Revenue:'}</span>
+                  <span className="font-bold text-emerald-400">+{formatBDT(bizRevenue)}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-300">
+                  <span className="text-[11px] font-sans">{bn ? 'মোট পরিচালন ব্যয় (Expenses):' : 'Expenses:'}</span>
+                  <span className="font-bold text-amber-300">-{formatBDT(bizExpense)}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-300 pt-1 border-t border-slate-800/80">
+                  <span className="text-[11px] font-sans">{bn ? 'প্রকৃত নিট লাভ (Net Margin):' : 'Net Profit:'}</span>
+                  <span
+                    className={`font-bold ${
+                      bizNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                    }`}
+                  >
+                    {formatBDT(bizNetProfit)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                <span>{bn ? 'খতিয়ান থেকে সরাসরি সিঙ্ক' : 'Ledger synced'}</span>
+                <span className="text-emerald-400 font-semibold">{bn ? 'লাইভ হিসাব' : 'Live'}</span>
+              </div>
+            </div>
+            {/* Center downward pointer */}
+            <div className="w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-slate-900 dark:border-t-slate-950 mx-auto -mt-0.5" />
           </div>
         </div>
 

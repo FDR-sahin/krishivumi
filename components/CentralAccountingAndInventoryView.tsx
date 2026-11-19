@@ -4092,10 +4092,10 @@ export default function CentralAccountingAndInventoryView({
                   return (
                     <div
                       key={biz.id}
-                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs flex flex-col justify-between"
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:z-30 shadow-2xs flex flex-col justify-between relative"
                     >
                       <div
-                        className={`h-1.5 w-full ${
+                        className={`h-1.5 w-full rounded-t-2xl ${
                           net >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
                         }`}
                       />
@@ -4137,9 +4137,14 @@ export default function CentralAccountingAndInventoryView({
                               {formatBDT(exp)}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-[10px] text-slate-500">
-                              {net >= 0 ? 'নিট লাভ' : 'নিট ক্ষতি'}
+                          <div className="group/profit relative text-right cursor-help p-1 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors">
+                            <div className="text-[10px] text-slate-500 flex items-center justify-end gap-1">
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  net >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                                }`}
+                              />
+                              <span>{net >= 0 ? 'নিট লাভ' : 'নিট ক্ষতি'}</span>
                             </div>
                             <div
                               className={`font-mono font-extrabold mt-0.5 ${
@@ -4149,6 +4154,47 @@ export default function CentralAccountingAndInventoryView({
                               }`}
                             >
                               {formatBDT(net)}
+                            </div>
+
+                            {/* Floating Hover Card above Net Profit */}
+                            <div className="absolute bottom-full right-0 mb-2 w-64 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-1 group-hover/profit:translate-y-0 pointer-events-none z-50">
+                              <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-xl p-3 shadow-2xl border border-emerald-500/30 text-left space-y-2">
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                                  <span className="text-xs font-bold text-slate-100 truncate">
+                                    {biz.nameBn || biz.name}
+                                  </span>
+                                  <span
+                                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                                      net >= 0
+                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                        : 'bg-rose-500/20 text-rose-300'
+                                    }`}
+                                  >
+                                    মার্জিন: {margin}%
+                                  </span>
+                                </div>
+                                <div className="text-center py-0.5">
+                                  <div className="text-[10px] text-slate-400">প্রকৃত লাভ/ক্ষতি</div>
+                                  <div
+                                    className={`text-lg font-black font-mono ${
+                                      net >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                                    }`}
+                                  >
+                                    {formatBDT(net)}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-950/80 rounded-lg p-2 space-y-1 text-[11px] font-mono">
+                                  <div className="flex justify-between text-slate-300">
+                                    <span>বিক্রি/আয়:</span>
+                                    <span className="text-emerald-400 font-bold">+{formatBDT(rev)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-slate-300">
+                                    <span>মোট খরচ:</span>
+                                    <span className="text-amber-300 font-bold">-{formatBDT(exp)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-0 h-0 border-x-6 border-x-transparent border-t-6 border-t-slate-900 dark:border-t-slate-950 ml-auto mr-4 -mt-0.5" />
                             </div>
                           </div>
                         </div>
