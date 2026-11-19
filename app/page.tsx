@@ -498,9 +498,20 @@ export default function AgroErpApp() {
         const activePhoto = json.user?.photoUrl || cachedPhoto || undefined;
 
         if (json.user) {
-          setUser({
-            ...json.user,
-            photoUrl: activePhoto,
+          setUser((prev) => {
+            if (
+              prev &&
+              prev.id === json.user!.id &&
+              prev.photoUrl === activePhoto &&
+              prev.role === json.user!.role &&
+              prev.displayName === json.user!.displayName
+            ) {
+              return prev;
+            }
+            return {
+              ...json.user!,
+              photoUrl: activePhoto,
+            };
           });
         }
 
@@ -537,7 +548,16 @@ export default function AgroErpApp() {
           userMap.set(u.id, updatedUser);
           if (u.email) userMap.set(u.email.toLowerCase(), updatedUser);
         }
-        setErpUsers(Array.from(new Set(userMap.values())));
+        const userList = Array.from(new Set(userMap.values()));
+        setErpUsers((prev) => {
+          if (
+            prev.length === userList.length &&
+            prev.every((u, i) => u.id === userList[i]?.id && u.photoUrl === userList[i]?.photoUrl && u.role === userList[i]?.role)
+          ) {
+            return prev;
+          }
+          return userList;
+        });
         if (json.data.businesses?.length > 0) {
           setQuickBizId((prev) => prev || json.data!.businesses[0].id);
         }
@@ -597,7 +617,7 @@ export default function AgroErpApp() {
   }, [darkMode]);
 
   useEffect(() => {
-    if (!authReady || !user) return;
+    if (!authReady || !user?.id) return;
     let active = true;
     Promise.resolve().then(() => {
       if (active) void loadBootstrapData();
@@ -609,7 +629,7 @@ export default function AgroErpApp() {
       active = false;
       unsubscribe();
     };
-  }, [authReady, user, loadBootstrapData]);
+  }, [authReady, user?.id, loadBootstrapData]);
 
   const handleOpenAuthModal = async () => {
     setIsSigningIn(true);
@@ -2357,6 +2377,7 @@ export default function AgroErpApp() {
                         onClick={() => {
                           setSelectedBusinessId(biz.id);
                           setActiveNav('business_detail');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
                         className={`group relative hover:z-30 cursor-pointer rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.glowBorder} flex flex-col justify-between`}
                       >
@@ -2469,8 +2490,13 @@ export default function AgroErpApp() {
 
                               {/* Tile 3: Margin / Net Profit with Interactive Hover Card */}
                               <div
-                                onClick={(e) => e.stopPropagation()}
-                                className="group/profit relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:ring-2 hover:ring-emerald-500/50 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 cursor-help"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBusinessId(biz.id);
+                                  setActiveNav('business_detail');
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="group/profit relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:ring-2 hover:ring-emerald-500/50 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 cursor-pointer"
                               >
                                 <div className="flex items-center justify-between gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                                   <div className="flex items-center gap-1">
@@ -2498,7 +2524,7 @@ export default function AgroErpApp() {
                                 </div>
 
                                 {/* GORGEOUS FLOATING PROFIT BREAKDOWN CARD (HOVER TOOLTIP) */}
-                                <div className="absolute bottom-full right-0 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-none z-50">
+                                <div className="absolute bottom-full right-0 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-auto z-50">
                                   <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/30 space-y-3 ring-1 ring-white/10">
                                     {/* Tooltip Header */}
                                     <div className="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -2559,6 +2585,21 @@ export default function AgroErpApp() {
                                       )}
                                     </div>
 
+                                    {/* Action button inside tooltip to go directly to details */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedBusinessId(biz.id);
+                                        setActiveNav('business_detail');
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }}
+                                      className="w-full py-2 px-3 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
+                                    >
+                                      <span>{bn ? 'বিস্তারিত ডিভিশন খতিয়ান ও অপারেশন খুলুন' : 'Open Detailed Workspace'}</span>
+                                      <ArrowRight className="h-3.5 w-3.5" />
+                                    </button>
+
                                     {/* Footer Synchronized Hint */}
                                     <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
                                       <span className="flex items-center gap-1">
@@ -2587,10 +2628,19 @@ export default function AgroErpApp() {
                                 </span>
                               )}
 
-                              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 group-hover:bg-emerald-600 group-hover:text-white text-xs font-bold transition-all shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBusinessId(biz.id);
+                                  setActiveNav('business_detail');
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white group-hover:bg-emerald-600 group-hover:text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                              >
                                 <span>{bn ? 'ডিভিশন কনসোল খুলুন' : 'Open Division Console'}</span>
                                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                              </span>
+                              </button>
                             </div>
                           </div>
                         </div>
