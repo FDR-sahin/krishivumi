@@ -90,6 +90,7 @@ import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from '@/componen
 import ClientWorkflowGuideModal from '@/components/ClientWorkflowGuideModal';
 import { getEnterprisePayrollSummary } from '@/lib/payroll-utils';
 import UserProfileCardModal, { UserProfileData } from '@/components/UserProfileCardModal';
+import GlobalToastAndConfirmModal, { triggerGlobalToast, triggerConfirmDelete } from '@/components/GlobalToastAndConfirmModal';
 
 type NavSection =
   | 'dashboard'
@@ -227,6 +228,7 @@ export default function AgroErpApp() {
   const [quickParty, setQuickParty] = useState<string>('');
   const [quickDate, setQuickDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [quickToast, setQuickToast] = useState<string | null>(null);
+  const [isSavingQuickTx, setIsSavingQuickTx] = useState(false);
 
   // Global 12-Month Filter across Dashboard, Accounting, Inventory, Reports & Business Modules
   const [monthFilter, setMonthFilter] = useState<MonthFilterValue>({
@@ -487,18 +489,55 @@ export default function AgroErpApp() {
         setTransportOps(json.data.transportOps || []);
         setNotifications(json.data.notifications || []);
         setAuditLogs(json.data.auditLogs || []);
-        setErpUsers(json.data.erpUsers || []);
+
+        const cachedPhoto =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('krishi_saved_photo_' + (json.user?.id || '')) ||
+              localStorage.getItem('krishi_saved_photo_self')
+            : null;
+        const activePhoto = json.user?.photoUrl || cachedPhoto || undefined;
+
         if (json.user) {
-          const cachedPhoto =
-            typeof window !== 'undefined'
-              ? localStorage.getItem('krishi_saved_photo_' + json.user.id) ||
-                localStorage.getItem('krishi_saved_photo_self')
-              : null;
           setUser({
             ...json.user,
-            photoUrl: json.user.photoUrl || cachedPhoto || undefined,
+            photoUrl: activePhoto,
           });
         }
+
+        // Merge active user with latest photo into erpUsers list
+        const rawUsers = json.data.erpUsers || [];
+        const userMap = new Map<string, ErpUser>();
+        rawUsers.forEach((u) => {
+          if (u.id) userMap.set(u.id, u);
+          if (u.email) userMap.set(u.email.toLowerCase(), u);
+        });
+        if (json.user || user) {
+          const u = json.user || user!;
+          const existing = userMap.get(u.id) || (u.email ? userMap.get(u.email.toLowerCase()) : null);
+          const updatedUser: ErpUser = {
+            ...(existing || {}),
+            id: u.id,
+            uid: existing?.uid || (u as any).uid || u.id,
+            email: u.email,
+            displayName: u.displayName,
+            role: u.role,
+            phone: u.phone,
+            nidNumber: u.nidNumber,
+            designation: u.designation,
+            address: u.address,
+            emergencyContact: u.emergencyContact,
+            photoUrl: activePhoto || existing?.photoUrl,
+            assignedBusinesses: u.assignedBusinesses || 'ALL',
+            permissionsJson: u.permissionsJson || '{}',
+            status: u.status || 'active',
+            mfaEnabled: existing?.mfaEnabled ?? true,
+            lastLoginAt: existing?.lastLoginAt || new Date().toISOString(),
+            ownerId: u.ownerId,
+          };
+          userMap.set(u.id, updatedUser);
+          if (u.email) userMap.set(u.email.toLowerCase(), updatedUser);
+        }
+        setErpUsers(Array.from(new Set(userMap.values())));
         if (json.data.businesses?.length > 0) {
           setQuickBizId((prev) => prev || json.data!.businesses[0].id);
         }
@@ -625,40 +664,48 @@ export default function AgroErpApp() {
 
     if (!targetBiz || !cashOrBank || !revAcc || !expAcc) return;
 
-    await postDoubleEntryTransaction(
-      {
-        referenceNo: `JV-${Date.now().toString().slice(-5)}`,
-        date: quickDate || new Date().toISOString().split('T')[0],
-        businessId: targetBiz.id,
-        businessName: targetBiz.name,
-        transactionType: isSale ? 'sale' : 'expense',
-        category: quickCategory || (isSale ? 'পণ্য বিক্রি (Sales)' : 'খামার খরচ (Expense)'),
-        description: `${targetBiz.nameBn || targetBiz.name} — ${quickCategory}`,
-        debitAccountId: isSale ? cashOrBank.id : expAcc.id,
-        debitAccountName: isSale ? cashOrBank.name : expAcc.name,
-        creditAccountId: isSale ? revAcc.id : cashOrBank.id,
-        creditAccountName: isSale ? revAcc.name : cashOrBank.name,
-        amount: Number(quickAmount),
-        paymentStatus: Number(quickDue) > 0 ? 'partial' : 'paid',
-        dueAmount: Number(quickDue) || 0,
-        counterpartyName: quickParty || (isSale ? 'পাইকারি ক্রেতা' : 'সাপ্লায়ার'),
-      },
-      accounts,
-      user.ownerId,
-      user.email || 'admin@regardsagro.bd'
-    );
+    setIsSavingQuickTx(true);
+    try {
+      await postDoubleEntryTransaction(
+        {
+          referenceNo: `JV-${Date.now().toString().slice(-5)}`,
+          date: quickDate || new Date().toISOString().split('T')[0],
+          businessId: targetBiz.id,
+          businessName: targetBiz.name,
+          transactionType: isSale ? 'sale' : 'expense',
+          category: quickCategory || (isSale ? 'পণ্য বিক্রি (Sales)' : 'খামার খরচ (Expense)'),
+          description: `${targetBiz.nameBn || targetBiz.name} — ${quickCategory}`,
+          debitAccountId: isSale ? cashOrBank.id : expAcc.id,
+          debitAccountName: isSale ? cashOrBank.name : expAcc.name,
+          creditAccountId: isSale ? revAcc.id : cashOrBank.id,
+          creditAccountName: isSale ? revAcc.name : cashOrBank.name,
+          amount: Number(quickAmount),
+          paymentStatus: Number(quickDue) > 0 ? 'partial' : 'paid',
+          dueAmount: Number(quickDue) || 0,
+          counterpartyName: quickParty || (isSale ? 'পাইকারি ক্রেতা' : 'সাপ্লায়ার'),
+        },
+        accounts,
+        user.ownerId,
+        user.email || 'admin@regardsagro.bd'
+      );
 
-    setDashboardQuickTxModal(null);
-    setQuickToast(
-      bn
+      setDashboardQuickTxModal(null);
+      const msg = bn
         ? `${targetBiz.nameBn || targetBiz.name}-এ ${isSale ? 'বিক্রি/আয়' : 'খরচ'} বাবদ ${formatBDT(
             Number(quickAmount)
           )} সফলভাবে সংরক্ষিত হয়েছে।`
         : `${isSale ? 'Revenue' : 'Expense'} of ${formatBDT(Number(quickAmount))} posted to ${
             targetBiz.name
-          }.`
-    );
-    setTimeout(() => setQuickToast(null), 5000);
+          }.`;
+      setQuickToast(msg);
+      triggerGlobalToast(msg, 'success');
+      setTimeout(() => setQuickToast(null), 5000);
+    } catch (e) {
+      console.error(e);
+      triggerGlobalToast(String(e), 'error');
+    } finally {
+      setIsSavingQuickTx(false);
+    }
   };
 
   // RBAC-filtered businesses with strict deduplication (Truck business never repeats)
@@ -2732,8 +2779,9 @@ export default function AgroErpApp() {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {monthFilteredJournals.slice(0, 8).map((j) => {
                         const isIncome = j.transactionType === 'sale' || j.transactionType === 'income';
-                        const matchedUser = erpUsers.find((u) => u.email === j.actorEmail);
-                        const actorPhoto = j.actorPhoto || matchedUser?.photoUrl;
+                        const matchedUser = erpUsers.find((u) => u.email === j.actorEmail || (j.actorName && u.displayName?.toLowerCase() === j.actorName.toLowerCase()));
+                        const isSuperOrCurrent = j.actorRole === 'super_admin' || j.actorEmail === user.email || j.actorName?.toLowerCase().includes('sahin');
+                        const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || (isSuperOrCurrent ? user.photoUrl : undefined);
                         const actorName = j.actorName || matchedUser?.displayName || (j.actorEmail ? j.actorEmail.split('@')[0] : (bn ? 'সুপার অ্যাডমিন' : 'Admin'));
                         const actorRole = j.actorRole || matchedUser?.role || 'Staff';
                         const actorDesignation = j.actorDesignation || matchedUser?.designation || (actorRole === 'super_admin' ? (bn ? 'ব্যবসা স্বত্বাধিকারী' : 'Owner / Super Admin') : actorRole === 'super_manager' ? (bn ? 'প্রধান জেনারেল ম্যানেজার' : 'COO') : actorRole === 'business_manager' ? (bn ? 'বিভাগীয় ইনচার্জ' : 'Branch Mgr') : (bn ? 'খামার হিসাবরক্ষক' : 'Accountant'));
@@ -2828,6 +2876,8 @@ export default function AgroErpApp() {
               onBackToDashboard={() => setActiveNav('dashboard')}
               monthFilter={monthFilter}
               onChangeMonthFilter={setMonthFilter}
+              currentUser={user}
+              currentUserPhoto={user.photoUrl}
               lang={lang}
             />
           )}
@@ -2863,6 +2913,8 @@ export default function AgroErpApp() {
               assignedBusinessFilter={assignedBusinessFilter}
               monthFilter={monthFilter}
               onChangeMonthFilter={setMonthFilter}
+              currentUser={user}
+              currentUserPhoto={user.photoUrl}
               onChangeRoleSimulation={(role, bizId) => {
                 if (user.role !== 'super_admin') return;
                 setUserRole(role);
@@ -3068,6 +3120,9 @@ export default function AgroErpApp() {
         onSave={handleSaveProfile}
         lang={lang}
       />
+
+      {/* Global Interactive Toast Notification & Secure Delete Confirmation Popup */}
+      <GlobalToastAndConfirmModal lang={lang} />
     </div>
   );
 }

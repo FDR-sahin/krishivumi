@@ -13,6 +13,8 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -31,7 +33,12 @@ import {
   postDoubleEntryTransaction,
   logAuditEvent,
   createNotificationRecord,
+  deletePoultryBatch,
 } from '@/lib/erp-service';
+import {
+  triggerGlobalToast,
+  triggerConfirmDelete,
+} from './GlobalToastAndConfirmModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -73,6 +80,10 @@ export default function PoultryManagementModule({
   lang = 'bn',
 }: PoultryManagementModuleProps) {
   const bn = lang === 'bn';
+  const notify = (msg: string) => {
+    onNotify(msg);
+    triggerGlobalToast(msg, 'success');
+  };
   const [activeSubTab, setActiveSubTab] = useState<PoultrySubTab>('A_BATCH');
   const [batchSearchQuery, setBatchSearchQuery] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<string>(batches[0]?.id || '');
@@ -306,7 +317,7 @@ export default function PoultryManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `নতুন ব্যাচ ${aBatchCode} (${aInitialQty}টি ${aChickenType} বাচ্চা, মোট ${formatBDT(aTotalChickCost)}) সফলভাবে তৈরি হয়েছে!`
       );
     } finally {
@@ -350,7 +361,7 @@ export default function PoultryManagementModule({
         ownerId,
         actorEmail
       );
-      onNotify(
+      notify(
         'আপনার উদাহরণের ব্যাচ POL-2026-001 (১,০০০ ব্রয়লার বাচ্চা, ৬টি মৃত, ৯৯৪টি জীবিত, মোট আয় ৳৩,৫০,০০০, নিট লাভ ৳১,২৬,০০০) লোড করা হয়েছে!'
       );
     } finally {
@@ -383,7 +394,7 @@ export default function PoultryManagementModule({
         ownerId,
       });
 
-      onNotify(
+      notify(
         `${selectedBatch.batchCode}-এ আজকের মৃত্যু (${bDeadToday}টি) ও অসুস্থ (${bSickToday}টি) রেকর্ড আপডেট হয়েছে! বর্তমান জীবিত: ${
           selectedBatch.initialQuantity - newMortality - selectedBatch.soldBirdsCount
         }টি।`
@@ -449,7 +460,7 @@ export default function PoultryManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${cBagsCount} বস্তা ${cFeedType} (মোট ${formatBDT(totalCost)}) ইনভেন্টরি স্টকে যোগ হয়েছে!`
       );
     } finally {
@@ -500,7 +511,7 @@ export default function PoultryManagementModule({
         actorEmail
       );
 
-      onNotify(
+      notify(
         `${selectedBatch.batchCode}-এ ${cUseBags} বস্তা (${usedKg} কেজি) খাবার দেওয়া হয়েছে। স্টক থেকে ${cUseBags} বস্তা কমানো হয়েছে এবং ব্যাচের খরচে ${formatBDT(addedCost)} যুক্ত হয়েছে!`
       );
     } finally {
@@ -532,7 +543,7 @@ export default function PoultryManagementModule({
         ownerId,
         actorEmail
       );
-      onNotify(
+      notify(
         `${dMedName} (${dMedQty} টি, মেয়াদ: ${dMedExpiry}) ওষুধের স্টকে যুক্ত হয়েছে!`
       );
     } finally {
@@ -589,7 +600,7 @@ export default function PoultryManagementModule({
         });
       }
 
-      onNotify(
+      notify(
         `${selectedBatch.batchCode}-এ ওষুধ/ভ্যাকসিন (${dApplyName}, খরচ ${formatBDT(Number(dApplyCost))}) যোগ হয়েছে এবং ${dNextReminderDate} তারিখের রিমাইন্ডার সেট হয়েছে!`
       );
     } finally {
@@ -673,7 +684,7 @@ export default function PoultryManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${eExpenseType} বাবদ ${formatBDT(totalExp)} (${ruleLabel}) সফলভাবে হিসাবভুক্ত হয়েছে!`
       );
     } finally {
@@ -739,7 +750,7 @@ export default function PoultryManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${selectedBatch.batchCode} থেকে ৪টি গ্রেডে মোট ${totalGradedBirds}টি মুরগি (${totalGradedKg} কেজি) ${formatBDT(totalGradedRevenue)}-এ বিক্রি সম্পন্ন হয়েছে!`
       );
     } finally {
@@ -807,10 +818,19 @@ export default function PoultryManagementModule({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleCreateExamplePol2026}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer disabled:opacity-60"
               >
-                <Plus className="h-3.5 w-3.5" />
-                {bn ? 'উদাহরণ ব্যাচ (POL-2026-001) লোড করুন' : 'Load Demo Batch (POL-2026-001)'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{bn ? 'লোড করা হচ্ছে...' : 'Loading demo...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{bn ? 'উদাহরণ ব্যাচ (POL-2026-001) লোড করুন' : 'Load Demo Batch (POL-2026-001)'}</span>
+                  </>
+                )}
               </button>
             )}
             <div className="relative">
@@ -859,6 +879,41 @@ export default function PoultryManagementModule({
               </button>
             );
           })}
+
+          {selectedBatch && (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                triggerConfirmDelete({
+                  title: bn ? 'পোল্ট্রি ব্যাচ ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Batch',
+                  message: bn
+                    ? `আপনি কি নিশ্চিতভাবে এই ব্যাচটি ডিলিট করতে চান? এর সাথে যুক্ত সমস্ত তথ্য মুছে যাবে।`
+                    : `Are you sure you want to delete this batch? All records will be removed.`,
+                  itemName: `${selectedBatch.batchCode} (${selectedBatch.shedNumber} - ${selectedBatch.chickenType})`,
+                  onConfirm: async () => {
+                    setIsSubmitting(true);
+                    try {
+                      await deletePoultryBatch(selectedBatch.id);
+                      triggerGlobalToast(
+                        bn ? `ব্যাচ ${selectedBatch.batchCode} সফলভাবে ডিলিট করা হয়েছে!` : `Batch ${selectedBatch.batchCode} deleted!`,
+                        'delete'
+                      );
+                      onNotify(bn ? `ব্যাচ ${selectedBatch.batchCode} ডিলিট সম্পন্ন!` : `Batch deleted!`);
+                    } catch (err: any) {
+                      triggerGlobalToast(err?.message || 'Delete failed', 'info');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  },
+                });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-xs ml-auto cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{bn ? 'ব্যাচ ডিলিট (Delete)' : 'Delete Batch'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1111,9 +1166,16 @@ export default function PoultryManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-xs"
+                className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {bn ? `+ নতুন মুরগির ব্যাচ সেভ করুন (Save Batch ${aBatchCode})` : `+ Save New Poultry Batch (${aBatchCode})`}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'ব্যাচ সেভ করা হচ্ছে...' : 'Saving Batch...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? `+ নতুন মুরগির ব্যাচ সেভ করুন (Save Batch ${aBatchCode})` : `+ Save New Poultry Batch (${aBatchCode})`}</span>
+                )}
               </button>
             </form>
           </div>
@@ -1392,9 +1454,16 @@ export default function PoultryManagementModule({
                 <button
                   type="submit"
                   disabled={isSubmitting || !selectedBatch}
-                  className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity"
+                  className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {bn ? 'আজকের মৃত্যু ও স্বাস্থ্য তথ্য আপডেট করুন' : 'Update Daily Mortality & Health Log'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>{bn ? 'তথ্য আপডেট করা হচ্ছে...' : 'Updating Records...'}</span>
+                    </>
+                  ) : (
+                    <span>{bn ? 'আজকের মৃত্যু ও স্বাস্থ্য তথ্য আপডেট করুন' : 'Update Daily Mortality & Health Log'}</span>
+                  )}
                 </button>
               </form>
             </div>
@@ -1652,9 +1721,16 @@ export default function PoultryManagementModule({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors"
+                  className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {bn ? `+ ${cBagsCount} বস্তা খাবার স্টকে যুক্ত করুন` : `+ Add ${cBagsCount} Feed Bags to Stock`}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>{bn ? 'খাবার স্টকে যোগ করা হচ্ছে...' : 'Adding Feed to Stock...'}</span>
+                    </>
+                  ) : (
+                    <span>{bn ? `+ ${cBagsCount} বস্তা খাবার স্টকে যুক্ত করুন` : `+ Add ${cBagsCount} Feed Bags to Stock`}</span>
+                  )}
                 </button>
               </form>
             </div>
@@ -1752,9 +1828,16 @@ export default function PoultryManagementModule({
                 <button
                   type="submit"
                   disabled={isSubmitting || !selectedBatch}
-                  className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity"
+                  className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {bn ? `খাবার ব্যবহার রেকর্ড করুন (${cUseBags} বস্তা = ${cUseBags * cBagWeightKg} কেজি)` : `Record Feed Usage (${cUseBags} Bags = ${cUseBags * cBagWeightKg} KG)`}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>{bn ? 'খাবার ব্যবহার রেকর্ড করা হচ্ছে...' : 'Recording Feed Usage...'}</span>
+                    </>
+                  ) : (
+                    <span>{bn ? `খাবার ব্যবহার রেকর্ড করুন (${cUseBags} বস্তা = ${cUseBags * cBagWeightKg} কেজি)` : `Record Feed Usage (${cUseBags} Bags = ${cUseBags * cBagWeightKg} KG)`}</span>
+                  )}
                 </button>
               </form>
             </div>
@@ -1903,9 +1986,16 @@ export default function PoultryManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors"
+                className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {bn ? `+ ওষুধ/ভ্যাকসিন স্টকে যোগ করুন (মোট ${formatBDT(dMedQty * dMedUnitCost)})` : `+ Add to Stock (${formatBDT(dMedQty * dMedUnitCost)})`}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'ওষুধ স্টকে যোগ হচ্ছে...' : 'Adding to Medicine Stock...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? `+ ওষুধ/ভ্যাকসিন স্টকে যোগ করুন (মোট ${formatBDT(dMedQty * dMedUnitCost)})` : `+ Add to Stock (${formatBDT(dMedQty * dMedUnitCost)})`}</span>
+                )}
               </button>
             </form>
 
@@ -2048,9 +2138,16 @@ export default function PoultryManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting || !selectedBatch}
-                className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity"
+                className="w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {bn ? `ব্যাচে ওষুধের খরচ (${formatBDT(dApplyCost)}) ও ভ্যাকসিন রিমাইন্ডার সেভ করুন` : `Save Treatment Cost (${formatBDT(dApplyCost)}) & Set Reminder`}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'চিকিৎসা খরচ সেভ হচ্ছে...' : 'Saving Treatment...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? `ব্যাচে ওষুধের খরচ (${formatBDT(dApplyCost)}) ও ভ্যাকসিন রিমাইন্ডার সেভ করুন` : `Save Treatment Cost (${formatBDT(dApplyCost)}) & Set Reminder`}</span>
+                )}
               </button>
             </form>
 
@@ -2222,9 +2319,16 @@ export default function PoultryManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting || !selectedBatch}
-                className="w-full py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors"
+                className="w-full py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {bn ? `+ খরচ রেকর্ড করুন (${eExpenseType} — ${formatBDT(eAmount)})` : `+ Record Expense (${eExpenseType} — ${formatBDT(eAmount)})`}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'খরচ রেকর্ড করা হচ্ছে...' : 'Recording Expense...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? `+ খরচ রেকর্ড করুন (${eExpenseType} — ${formatBDT(eAmount)})` : `+ Record Expense (${eExpenseType} — ${formatBDT(eAmount)})`}</span>
+                )}
               </button>
             </form>
           </div>
@@ -2566,10 +2670,18 @@ export default function PoultryManagementModule({
             <button
               type="submit"
               disabled={isSubmitting || !selectedBatch}
-              className="w-full py-3 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors shadow-xs"
+              className="w-full py-3 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              {bn ? `গ্রেডভিত্তিক বিক্রয় চালান সেভ করুন (${totalGradedBirds}টি মুরগি · ${totalGradedKg} কেজি · মোট ` : `Save Graded Sales Invoice (${totalGradedBirds} Birds · ${totalGradedKg} KG · Total `}
-              {formatBDT(totalGradedRevenue)})
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>{bn ? 'বিক্রয় চালান সংরক্ষিত হচ্ছে...' : 'Saving Sales Invoice...'}</span>
+                </>
+              ) : (
+                <span>
+                  {bn ? `গ্রেডভিত্তিক বিক্রয় চালান সেভ করুন (${totalGradedBirds}টি মুরগি · ${totalGradedKg} কেজি · মোট ${formatBDT(totalGradedRevenue)})` : `Save Graded Sales Invoice (${totalGradedBirds} Birds · ${totalGradedKg} KG · Total ${formatBDT(totalGradedRevenue)})`}
+                </span>
+              )}
             </button>
           </form>
         </div>

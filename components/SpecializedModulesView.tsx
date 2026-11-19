@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Plus,
   Bird,
@@ -28,6 +28,8 @@ import {
   Copy,
   Check,
   FileText,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -52,6 +54,8 @@ import {
   postDoubleEntryTransaction,
   createStakeholderRecord,
   assignBusinessManager,
+  deleteStakeholderRecord,
+  deleteJournalEntry,
 } from '@/lib/erp-service';
 import PoultryManagementModule from './PoultryManagementModule';
 import LivestockManagementModule from './LivestockManagementModule';
@@ -60,6 +64,7 @@ import TransportManagementModule from './TransportManagementModule';
 import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from './MonthFilterBar';
 import UserProfileCardModal, { UserProfileData } from './UserProfileCardModal';
 import TripChallanModal from './TripChallanModal';
+import { triggerGlobalToast, triggerConfirmDelete } from './GlobalToastAndConfirmModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -121,6 +126,8 @@ interface SpecializedModulesViewProps {
   onBackToDashboard: () => void;
   monthFilter?: MonthFilterValue;
   onChangeMonthFilter?: (next: MonthFilterValue) => void;
+  currentUser?: ErpUser | { id?: string; email?: string; displayName?: string; photoUrl?: string } | null;
+  currentUserPhoto?: string;
   lang?: 'en' | 'bn';
 }
 
@@ -142,6 +149,8 @@ export default function SpecializedModulesView({
   onBackToDashboard,
   monthFilter: controlledMonthFilter,
   onChangeMonthFilter,
+  currentUser,
+  currentUserPhoto,
   lang = 'bn',
 }: SpecializedModulesViewProps) {
   const bn = lang === 'bn';
@@ -333,8 +342,59 @@ export default function SpecializedModulesView({
   // Trip Challan / Work Order Modal State
   const [selectedTripChallan, setSelectedTripChallan] = useState<ErpTransportOp | null>(null);
 
+  // Submissions & Loading states for all forms
+  const [isSavingQuickTx, setIsSavingQuickTx] = useState(false);
+  const [isSavingBatch, setIsSavingBatch] = useState(false);
+  const [isSavingAnimal, setIsSavingAnimal] = useState(false);
+  const [isSavingCycle, setIsSavingCycle] = useState(false);
+  const [isSavingTrip, setIsSavingTrip] = useState(false);
+
+  // Universal Actor / User Photo Resolver
+  const resolveActorPhoto = useCallback(
+    (targetEmail?: string, targetName?: string, targetRole?: string, rawPhoto?: string) => {
+      if (rawPhoto && rawPhoto.startsWith('data:image')) return rawPhoto;
+      if (rawPhoto && rawPhoto.length > 15) return rawPhoto;
+
+      const myPhoto =
+        currentUserPhoto ||
+        currentUser?.photoUrl ||
+        (typeof window !== 'undefined' ? localStorage.getItem('krishi_saved_photo_self') : null);
+
+      const isCurrent =
+        targetRole === 'super_admin' ||
+        (targetEmail && currentUser?.email && targetEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (targetName && currentUser?.displayName && targetName.toLowerCase() === currentUser.displayName.toLowerCase()) ||
+        targetEmail === 'admin' ||
+        targetName?.toLowerCase() === 'sahin miah';
+
+      if (isCurrent && myPhoto) return myPhoto;
+
+      const matchedUser = (erpUsers || []).find(
+        (u) =>
+          (targetEmail && u.email?.toLowerCase() === targetEmail.toLowerCase()) ||
+          (targetName && u.displayName?.toLowerCase() === targetName.toLowerCase()) ||
+          (targetRole === 'super_admin' && u.role === 'super_admin')
+      );
+      if (matchedUser?.photoUrl) return matchedUser.photoUrl;
+
+      const matchedStk = (stakeholders || []).find(
+        (s) =>
+          (targetEmail && s.phone === targetEmail) ||
+          (targetName && s.name?.toLowerCase() === targetName.toLowerCase())
+      );
+      if (matchedStk?.photoUrl) return matchedStk.photoUrl;
+
+      if (myPhoto && (targetRole === 'super_admin' || targetName?.toLowerCase().includes('sahin'))) {
+        return myPhoto;
+      }
+      return '';
+    },
+    [currentUser, currentUserPhoto, erpUsers, stakeholders]
+  );
+
   const notify = (msg: string) => {
     setStatusMessage(msg);
+    triggerGlobalToast(msg, 'success');
     setTimeout(() => setStatusMessage(null), 4500);
   };
 
@@ -507,171 +567,211 @@ export default function SpecializedModulesView({
     const expAcc = accounts.find((a) => a.accountType === 'expense') || accounts[0];
     if (!cashOrBank || !revAcc || !expAcc) return;
 
-    await postDoubleEntryTransaction(
-      {
-        referenceNo: `VCH-${Date.now().toString().slice(-5)}`,
-        date: new Date().toISOString().split('T')[0],
-        businessId: activeBusiness.id,
-        businessName: activeBusiness.name,
-        transactionType: isSale ? 'sale' : 'expense',
-        category: qCategory || (isSale ? 'পণ্য বিক্রি (Product Sale)' : 'খামার খরচ (Farm Expense)'),
-        description: qDesc || `${isSale ? 'বিক্রি' : 'খরচ'} - ${activeBusiness.name}`,
-        debitAccountId: isSale ? cashOrBank.id : expAcc.id,
-        debitAccountName: isSale ? cashOrBank.name : expAcc.name,
-        creditAccountId: isSale ? revAcc.id : cashOrBank.id,
-        creditAccountName: isSale ? revAcc.name : cashOrBank.name,
-        amount: Number(qAmount),
-        paymentStatus: Number(qDueAmount) > 0 ? 'partial' : 'paid',
-        dueAmount: Number(qDueAmount) || 0,
-        counterpartyName: qCounterparty || (isSale ? 'পাইকারি ক্রেতা' : 'সাপ্লায়ার'),
-      },
-      accounts,
-      ownerId,
-      actorEmail
-    );
-    setShowQuickTxModal(null);
-    notify(
-      `${activeBusiness.name}-এ ${isSale ? 'বিক্রি/আয়' : 'খরচ'} বাবদ ${formatBDT(Number(qAmount))} সফলভাবে হিসাবভুক্ত হয়েছে!`
-    );
+    setIsSavingQuickTx(true);
+    try {
+      await postDoubleEntryTransaction(
+        {
+          referenceNo: `VCH-${Date.now().toString().slice(-5)}`,
+          date: new Date().toISOString().split('T')[0],
+          businessId: activeBusiness.id,
+          businessName: activeBusiness.name,
+          transactionType: isSale ? 'sale' : 'expense',
+          category: qCategory || (isSale ? 'পণ্য বিক্রি (Product Sale)' : 'খামার খরচ (Farm Expense)'),
+          description: qDesc || `${isSale ? 'বিক্রি' : 'খরচ'} - ${activeBusiness.name}`,
+          debitAccountId: isSale ? cashOrBank.id : expAcc.id,
+          debitAccountName: isSale ? cashOrBank.name : expAcc.name,
+          creditAccountId: isSale ? revAcc.id : cashOrBank.id,
+          creditAccountName: isSale ? revAcc.name : cashOrBank.name,
+          amount: Number(qAmount),
+          paymentStatus: Number(qDueAmount) > 0 ? 'partial' : 'paid',
+          dueAmount: Number(qDueAmount) || 0,
+          counterpartyName: qCounterparty || (isSale ? 'পাইকারি ক্রেতা' : 'সাপ্লায়ার'),
+        },
+        accounts,
+        ownerId,
+        actorEmail
+      );
+      setShowQuickTxModal(null);
+      notify(
+        `${activeBusiness.name}-এ ${isSale ? 'বিক্রি/আয়' : 'খরচ'} বাবদ ${formatBDT(Number(qAmount))} সফলভাবে হিসাবভুক্ত হয়েছে!`
+      );
+    } catch (err) {
+      console.error(err);
+      triggerGlobalToast(String(err), 'error');
+    } finally {
+      setIsSavingQuickTx(false);
+    }
   };
 
   const handleAddPoultryBatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createPoultryBatchRecord(
-      {
-        batchCode: pBatchCode,
-        businessId: activeBusiness.id,
-        chickPurchaseDate: new Date().toISOString().split('T')[0],
-        chickenType: pChickenType,
-        shedNumber: pShed,
-        supplierName: pSupplier,
-        initialQuantity: Number(pInitQty),
-        mortalityCount: 10,
-        sickBirdsCount: 2,
-        soldBirdsCount: 0,
-        purchaseCost: Number(pPurchaseCost),
-        starterFeedKg: 600,
-        growerFeedKg: 1200,
-        finisherFeedKg: 900,
-        feedCost: Number(pFeedCost),
-        medicineCost: Number(pMedCost),
-        labourAndUtilityCost: Number(pLabourCost),
-        otherExpense: 5000,
-        totalSoldKg: Math.round(Number(pInitQty) * 1.6),
-        gradeBreakdown: 'বড় সাইজ: ৭০% | মাঝারি: ২৫% | ছোট: ৫%',
-        pricePerKg: 170,
-        totalSalesRevenue: Number(pSalesRev),
-        outstandingDue: 0,
-        vaccineScheduleNotes: '৫ম দিন: রানীক্ষেত, ১২তম দিন: গামবোরো টিকা সম্পন্ন',
-        status: 'active',
-      },
-      ownerId,
-      actorEmail
-    );
-    setShowAddModal(false);
-    notify(`নতুন মুরগির ব্যাচ (${pBatchCode}) সফলভাবে চালু হয়েছে!`);
+    setIsSavingBatch(true);
+    try {
+      await createPoultryBatchRecord(
+        {
+          batchCode: pBatchCode,
+          businessId: activeBusiness.id,
+          chickPurchaseDate: new Date().toISOString().split('T')[0],
+          chickenType: pChickenType,
+          shedNumber: pShed,
+          supplierName: pSupplier,
+          initialQuantity: Number(pInitQty),
+          mortalityCount: 10,
+          sickBirdsCount: 2,
+          soldBirdsCount: 0,
+          purchaseCost: Number(pPurchaseCost),
+          starterFeedKg: 600,
+          growerFeedKg: 1200,
+          finisherFeedKg: 900,
+          feedCost: Number(pFeedCost),
+          medicineCost: Number(pMedCost),
+          labourAndUtilityCost: Number(pLabourCost),
+          otherExpense: 5000,
+          totalSoldKg: Math.round(Number(pInitQty) * 1.6),
+          gradeBreakdown: 'বড় সাইজ: ৭০% | মাঝারি: ২৫% | ছোট: ৫%',
+          pricePerKg: 170,
+          totalSalesRevenue: Number(pSalesRev),
+          outstandingDue: 0,
+          vaccineScheduleNotes: '৫ম দিন: রানীক্ষেত, ১২তম দিন: গামবোরো টিকা সম্পন্ন',
+          status: 'active',
+        },
+        ownerId,
+        actorEmail
+      );
+      setShowAddModal(false);
+      notify(`নতুন মুরগির ব্যাচ (${pBatchCode}) সফলভাবে চালু হয়েছে!`);
+    } catch (err) {
+      console.error(err);
+      triggerGlobalToast(String(err), 'error');
+    } finally {
+      setIsSavingBatch(false);
+    }
   };
 
   const handleAddLivestock = async (e: React.FormEvent) => {
     e.preventDefault();
-    const species = tpl === 'goat' ? 'goat' : 'cattle';
-    await createLivestockAnimalRecord(
-      {
-        animalTag: lTag,
-        species,
-        businessId: activeBusiness.id,
-        name: lName || `${lBreed} #${lTag}`,
-        breed: lBreed,
-        gender: lGender,
-        ageMonths: Number(lAge),
-        purchaseDate: new Date().toISOString().split('T')[0],
-        purchasePrice: Number(lPurchasePrice),
-        currentWeightKg: Number(lWeight),
-        healthStatus: lGender === 'Female' && species === 'cattle' ? 'Lactating' : 'Healthy',
-        feedCost: Number(lFeedCost),
-        medicineAndVetCost: species === 'goat' ? 950 : 6500,
-        vaccinationHistory:
-          species === 'goat' ? 'পিপিআর (PPR) ও গোট পক্স টিকা দেওয়া হয়েছে' : 'ক্ষুরা রোগ (FMD) ও তড়কা টিকা দেওয়া হয়েছে',
-        breedingAndOffspringNotes: species === 'goat' ? 'সুস্থ প্রজননক্ষম' : 'ডাক্তারি পরীক্ষা স্বাভাবিক',
-        parentTag: lParentTag,
-        totalMilkLiters: Number(lMilkLiters),
-        milkSalesRevenue: Number(lMilkRev),
-        animalSalePrice: species === 'goat' ? 35000 : 0,
-        status: 'active',
-      },
-      ownerId,
-      actorEmail
-    );
-    setShowAddModal(false);
-    notify(`নতুন পশুর রেকর্ড (${lTag}) সফলভাবে যুক্ত হয়েছে!`);
+    setIsSavingAnimal(true);
+    try {
+      const species = tpl === 'goat' ? 'goat' : 'cattle';
+      await createLivestockAnimalRecord(
+        {
+          animalTag: lTag,
+          species,
+          businessId: activeBusiness.id,
+          name: lName || `${lBreed} #${lTag}`,
+          breed: lBreed,
+          gender: lGender,
+          ageMonths: Number(lAge),
+          purchaseDate: new Date().toISOString().split('T')[0],
+          purchasePrice: Number(lPurchasePrice),
+          currentWeightKg: Number(lWeight),
+          healthStatus: lGender === 'Female' && species === 'cattle' ? 'Lactating' : 'Healthy',
+          feedCost: Number(lFeedCost),
+          medicineAndVetCost: species === 'goat' ? 950 : 6500,
+          vaccinationHistory:
+            species === 'goat' ? 'পিপিআর (PPR) ও গোট পক্স টিকা দেওয়া হয়েছে' : 'ক্ষুরা রোগ (FMD) ও তড়কা টিকা দেওয়া হয়েছে',
+          breedingAndOffspringNotes: species === 'goat' ? 'সুস্থ প্রজননক্ষম' : 'ডাক্তারি পরীক্ষা স্বাভাবিক',
+          parentTag: lParentTag,
+          totalMilkLiters: Number(lMilkLiters),
+          milkSalesRevenue: Number(lMilkRev),
+          animalSalePrice: species === 'goat' ? 35000 : 0,
+          status: 'active',
+        },
+        ownerId,
+        actorEmail
+      );
+      setShowAddModal(false);
+      notify(`নতুন পশুর রেকর্ড (${lTag}) সফলভাবে যুক্ত হয়েছে!`);
+    } catch (err) {
+      console.error(err);
+      triggerGlobalToast(String(err), 'error');
+    } finally {
+      setIsSavingAnimal(false);
+    }
   };
 
   const handleAddFishCycle = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createFishCycleRecord(
-      {
-        cycleCode: fCycleCode,
-        pondId: fPondId,
-        pondName: fPondName,
-        businessId: activeBusiness.id,
-        areaDecimals: Number(fArea),
-        depthFeet: 6.0,
-        location: activeBusiness.location,
-        waterQualityNotes: 'pH: 7.6 | অক্সিজেন (DO): 6.5 mg/L | পানির অবস্থা ভালো',
-        fishSpecies: fSpecies,
-        stockingDate: new Date().toISOString().split('T')[0],
-        initialQuantity: Number(fInitQty),
-        mortalityCount: 300,
-        fingerlingCost: Number(fFingerlingCost),
-        feedCost: Number(fFeedCost),
-        medicineAndLimeCost: 15000,
-        labourCost: 30000,
-        harvestDate: 'চলমান (Active)',
-        harvestWeightKg: 2800,
-        totalSalesRevenue: Number(fSalesRev),
-        status: 'active',
-      },
-      ownerId,
-      actorEmail
-    );
-    setShowAddModal(false);
-    notify(`নতুন পুকুরের মাছ চাষ চক্র (${fPondName}) যুক্ত হয়েছে!`);
+    setIsSavingCycle(true);
+    try {
+      await createFishCycleRecord(
+        {
+          cycleCode: fCycleCode,
+          pondId: fPondId,
+          pondName: fPondName,
+          businessId: activeBusiness.id,
+          areaDecimals: Number(fArea),
+          depthFeet: 6.0,
+          location: activeBusiness.location,
+          waterQualityNotes: 'pH: 7.6 | অক্সিজেন (DO): 6.5 mg/L | পানির অবস্থা ভালো',
+          fishSpecies: fSpecies,
+          stockingDate: new Date().toISOString().split('T')[0],
+          initialQuantity: Number(fInitQty),
+          mortalityCount: 300,
+          fingerlingCost: Number(fFingerlingCost),
+          feedCost: Number(fFeedCost),
+          medicineAndLimeCost: 15000,
+          labourCost: 30000,
+          harvestDate: 'চলমান (Active)',
+          harvestWeightKg: 2800,
+          totalSalesRevenue: Number(fSalesRev),
+          status: 'active',
+        },
+        ownerId,
+        actorEmail
+      );
+      setShowAddModal(false);
+      notify(`নতুন পুকুরের মাছ চাষ চক্র (${fPondName}) যুক্ত হয়েছে!`);
+    } catch (err) {
+      console.error(err);
+      triggerGlobalToast(String(err), 'error');
+    } finally {
+      setIsSavingCycle(false);
+    }
   };
 
   const handleAddTransportOp = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createTransportOpRecord(
-      {
-        tripOrVehicleCode: tCode,
-        recordType: 'trip',
-        businessId: activeBusiness.id,
-        registrationNumber: tRegNo,
-        vehicleType: tVehicleType,
-        driverName: tDriver,
-        origin: tOrigin,
-        destination: tDest,
-        cargoDetails: 'কৃষি ও খামার পণ্য পরিবহন',
-        customerName: 'পাইকারি আড়তদার',
-        distanceKm: Number(tDistance),
-        fuelCost: Number(tFuel),
-        tollCost: Number(tToll),
-        driverAllowance: Number(tAllowance),
-        maintenanceCost: 1000,
-        maintenanceDetails: 'ইঞ্জিন অয়েল ও ব্রেক চেকআপ',
-        tripRevenue: Number(tRev),
-        outstandingDue: 0,
-        insuranceExpiry: '2027-09-30',
-        fitnessExpiry: '2027-06-30',
-        taxTokenExpiry: '2027-06-30',
-        nextServiceDate: '2026-12-25',
-        date: new Date().toISOString().split('T')[0],
-        status: 'completed',
-      },
-      ownerId,
-      actorEmail
-    );
-    setShowAddModal(false);
-    notify(`নতুন ট্রিপের হিসাব (${tCode}) যুক্ত হয়েছে!`);
+    setIsSavingTrip(true);
+    try {
+      await createTransportOpRecord(
+        {
+          tripOrVehicleCode: tCode,
+          recordType: 'trip',
+          businessId: activeBusiness.id,
+          registrationNumber: tRegNo,
+          vehicleType: tVehicleType,
+          driverName: tDriver,
+          origin: tOrigin,
+          destination: tDest,
+          cargoDetails: 'কৃষি ও খামার পণ্য পরিবহন',
+          customerName: 'পাইকারি আড়তদার',
+          distanceKm: Number(tDistance),
+          fuelCost: Number(tFuel),
+          tollCost: Number(tToll),
+          driverAllowance: Number(tAllowance),
+          maintenanceCost: 1000,
+          maintenanceDetails: 'ইঞ্জিন অয়েল ও ব্রেক চেকআপ',
+          tripRevenue: Number(tRev),
+          outstandingDue: 0,
+          insuranceExpiry: '2027-09-30',
+          fitnessExpiry: '2027-06-30',
+          taxTokenExpiry: '2027-06-30',
+          nextServiceDate: '2026-12-25',
+          date: new Date().toISOString().split('T')[0],
+          status: 'completed',
+        },
+        ownerId,
+        actorEmail
+      );
+      setShowAddModal(false);
+      notify(`নতুন ট্রিপের হিসাব (${tCode}) যুক্ত হয়েছে!`);
+    } catch (err) {
+      console.error(err);
+      triggerGlobalToast(String(err), 'error');
+    } finally {
+      setIsSavingTrip(false);
+    }
   };
 
   return (
@@ -1150,9 +1250,29 @@ export default function SpecializedModulesView({
                               accounts.find((a) => a.subType === 'cash')?.id || accounts[0]?.id || ''
                             );
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors shadow-2xs whitespace-nowrap"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
                         >
                           {bn ? '৳ বেতন দিন' : 'Pay Salary'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerConfirmDelete({
+                              title: bn ? 'কর্মী অপসারণ ও পদ বাতিল' : 'Terminate Staff Member',
+                              message: bn
+                                ? `আপনি কি নিশ্চিতভাবে "${stf.name}" (${stf.code})-কে এই ইউনিট থেকে অপসারণ করতে চান?`
+                                : `Are you sure you want to remove "${stf.name}" (${stf.code})?`,
+                              itemName: `${stf.name} — ${stf.designationOrCategory}`,
+                              onConfirm: async () => {
+                                await deleteStakeholderRecord(stf.id);
+                              },
+                            });
+                          }}
+                          className="p-1 rounded-lg border border-red-200 dark:border-red-900/60 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                          title={bn ? 'কর্মী অপসারণ করুন' : 'Remove Staff'}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
@@ -2037,6 +2157,7 @@ export default function SpecializedModulesView({
                   <th className="py-3 px-4">{bn ? 'বিবরণ ও ক্রেতা/সাপ্লায়ার' : 'Description & Party'}</th>
                   <th className="py-3 px-4 text-right">{bn ? 'টাকার পরিমাণ (BDT)' : 'Amount (BDT)'}</th>
                   <th className="py-3 px-4 text-right">{bn ? 'বাকি (Due)' : 'Due'}</th>
+                  <th className="py-3 px-4 text-center">{bn ? 'অ্যাকশন' : 'Action'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -2045,7 +2166,7 @@ export default function SpecializedModulesView({
                   const actorEmail = j.actorEmail || '';
                   const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === actorEmail.toLowerCase());
                   const actorName = j.actorName || matchedUser?.displayName || (actorEmail.split('@')[0]) || 'RegardsAgro Admin';
-                  const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || '';
+                  const actorPhoto = resolveActorPhoto(actorEmail, actorName, j.actorRole, j.actorPhoto);
                   const actorPost = j.actorDesignation || matchedUser?.designation || (j.actorRole === 'super_admin' ? 'Super Admin' : j.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
 
                   return (
@@ -2128,6 +2249,27 @@ export default function SpecializedModulesView({
                         ) : (
                           <span className="text-emerald-600">{bn ? "পরিশোধিত" : "Paid"}</span>
                         )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerConfirmDelete({
+                              title: bn ? 'ভাউচার ডিলিট নিশ্চিতকরণ' : 'Delete Transaction Voucher',
+                              message: bn
+                                ? `আপনি কি নিশ্চিতভাবে "${j.referenceNo}" নম্বরের লেনদেনটি ডিলিট করতে চান?`
+                                : `Are you sure you want to delete voucher "${j.referenceNo}"?`,
+                              itemName: `${j.referenceNo} - ${formatBDT(j.amount)} (${j.category})`,
+                              onConfirm: async () => {
+                                await deleteJournalEntry(j.id);
+                              },
+                            });
+                          }}
+                          className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                          title={bn ? 'লেনদেন ডিলিট করুন' : 'Delete Entry'}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -2247,9 +2389,17 @@ export default function SpecializedModulesView({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer shadow-xs"
+                  disabled={isSavingQuickTx}
+                  className="px-5 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer shadow-xs disabled:opacity-60 flex items-center gap-2"
                 >
-                  {bn ? 'হিসাব সেভ করুন (Save)' : 'Save Transaction'}
+                  {isSavingQuickTx ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>{bn ? 'হিসাব সেভ হচ্ছে...' : 'Saving...'}</span>
+                    </>
+                  ) : (
+                    <span>{bn ? 'হিসাব সেভ করুন (Save)' : 'Save Transaction'}</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -2393,9 +2543,17 @@ export default function SpecializedModulesView({
                 <div className="flex justify-end gap-2 pt-3">
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                    disabled={isSavingBatch}
+                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-2 cursor-pointer"
                   >
-                    {bn ? 'ব্যাচ সেভ করুন' : 'Save Batch'}
+                    {isSavingBatch ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        <span>{bn ? 'সেভ হচ্ছে...' : 'Saving...'}</span>
+                      </>
+                    ) : (
+                      <span>{bn ? 'ব্যাচ সেভ করুন' : 'Save Batch'}</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -2483,9 +2641,17 @@ export default function SpecializedModulesView({
                 <div className="flex justify-end gap-2 pt-3">
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                    disabled={isSavingAnimal}
+                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-2 cursor-pointer"
                   >
-                    {bn ? 'পশু রেজিস্ট্রেশন সেভ করুন' : 'Save Livestock Record'}
+                    {isSavingAnimal ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        <span>{bn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...'}</span>
+                      </>
+                    ) : (
+                      <span>{bn ? 'পশু রেজিস্ট্রেশন সেভ করুন' : 'Save Livestock Record'}</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -2570,9 +2736,17 @@ export default function SpecializedModulesView({
                 <div className="flex justify-end gap-2 pt-3">
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                    disabled={isSavingCycle}
+                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-2 cursor-pointer"
                   >
-                    {bn ? 'পুকুরের হিসাব সেভ করুন' : 'Save Pond Record'}
+                    {isSavingCycle ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        <span>{bn ? 'চক্র চালু হচ্ছে...' : 'Saving...'}</span>
+                      </>
+                    ) : (
+                      <span>{bn ? 'পুকুরের হিসাব সেভ করুন' : 'Save Pond Record'}</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -2655,9 +2829,17 @@ export default function SpecializedModulesView({
                 <div className="flex justify-end gap-2 pt-3">
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                    disabled={isSavingTrip}
+                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-2 cursor-pointer"
                   >
-                    {bn ? 'ট্রিপ সেভ করুন' : 'Save Fleet Trip'}
+                    {isSavingTrip ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        <span>{bn ? 'ট্রিপ সেভ হচ্ছে...' : 'Saving...'}</span>
+                      </>
+                    ) : (
+                      <span>{bn ? 'ট্রিপ সেভ করুন' : 'Save Fleet Trip'}</span>
+                    )}
                   </button>
                 </div>
               </form>

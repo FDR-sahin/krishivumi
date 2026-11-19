@@ -349,3 +349,27 @@ export async function settleStakeholderPayment(input: {
 }): Promise<string> {
   return callErpAction<string>('settleStakeholderPayment', input);
 }
+
+export async function deletePoultryBatch(batchId: string): Promise<void> {
+  await callErpAction('deletePoultryBatch', { batchId });
+}
+
+export async function deleteLivestockAnimal(animalId: string): Promise<void> {
+  await callErpAction('deleteLivestockAnimal', { animalId });
+}
+
+export async function deleteFishCycle(cycleId: string): Promise<void> {
+  await callErpAction('deleteFishCycle', { cycleId });
+}
+
+export async function deleteTransportOp(opId: string): Promise<void> {
+  await callErpAction('deleteTransportOp', { opId });
+}
+
+export async function deleteInventoryItem(itemId: string): Promise<void> {
+  await callErpAction('deleteInventoryItem', { itemId });
+}
+
+export async function deleteJournalEntry(entryId: string): Promise<void> {
+  await callErpAction('deleteJournalEntry', { entryId });
+}

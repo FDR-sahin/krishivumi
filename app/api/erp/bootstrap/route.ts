@@ -57,10 +57,35 @@ export async function GET() {
       db.collection('transport_ops').find(ownerFilter).toArray(),
       db.collection('notifications').find(ownerFilter).sort({ createdAt: -1 }).toArray(),
       db.collection('audit_logs').find(ownerFilter).sort({ createdAt: -1 }).limit(200).toArray(),
-      db.collection('users').find(ownerFilter).toArray(),
+      db.collection('users').find({ $or: [ownerFilter, { email: sessionUser.email }] }).toArray(),
     ]);
 
     const isSuperAdmin = sessionUser.role === 'super_admin';
+
+    // Auto-propagate user's photoUrl to any past journal entries or audit logs where actorPhoto is empty
+    if (sessionUser.photoUrl) {
+      const matchCrit = isSuperAdmin
+        ? {
+            $or: [
+              { actorEmail: sessionUser.email },
+              { actorName: sessionUser.displayName },
+              { actorRole: 'super_admin' },
+              { actorName: 'sahin miah' },
+            ],
+            actorPhoto: { $in: ['', null, undefined] } as unknown as never,
+          }
+        : {
+            $or: [{ actorEmail: sessionUser.email }, { actorName: sessionUser.displayName }],
+            actorPhoto: { $in: ['', null, undefined] } as unknown as never,
+          };
+
+      db.collection('journal_entries')
+        .updateMany(matchCrit as never, { $set: { actorPhoto: sessionUser.photoUrl } })
+        .catch(() => {});
+      db.collection('audit_logs')
+        .updateMany(matchCrit as never, { $set: { actorPhoto: sessionUser.photoUrl } })
+        .catch(() => {});
+    }
     const assignedIds =
       sessionUser.assignedBusinesses === 'ALL'
         ? null

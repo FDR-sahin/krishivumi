@@ -18,6 +18,8 @@ import {
   QrCode,
   Scale,
   AlertCircle,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -35,7 +37,12 @@ import {
   postDoubleEntryTransaction,
   logAuditEvent,
   createNotificationRecord,
+  deleteLivestockAnimal,
 } from '@/lib/erp-service';
+import {
+  triggerGlobalToast,
+  triggerConfirmDelete,
+} from './GlobalToastAndConfirmModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -78,6 +85,10 @@ export default function LivestockManagementModule({
   lang = 'bn',
 }: LivestockManagementModuleProps) {
   const bn = lang === 'bn';
+  const notify = (msg: string) => {
+    onNotify(msg);
+    triggerGlobalToast(msg, 'success');
+  };
   const isCattle = species === 'cattle';
   const [activeSubTab, setActiveSubTab] = useState<LivestockSubTab>('A_PROFILE');
   const [tagSearchQuery, setTagSearchQuery] = useState('');
@@ -300,7 +311,7 @@ export default function LivestockManagementModule({
           ownerId,
         });
 
-        onNotify(
+        notify(
           'উদাহরণের গাভী CAT-0001 (নাম: লক্ষ্মী, ক্রয়মূল্য ৳৮০,০০০, বরাদ্দ খরচ ৳২৫,০০০, বিক্রয়মূল্য ৳১,২০,০০০, প্রকৃত লাভ ৳১৫,০০০ + দুধের আয়) সফলভাবে লোড হয়েছে!'
         );
       } else {
@@ -387,7 +398,7 @@ export default function LivestockManagementModule({
           actorEmail
         );
 
-        onNotify(
+        notify(
           'মা ছাগল GOAT-0001 এবং তার ২টি বাচ্চা (GOAT-K01 ও GOAT-K02) সহ সম্পূর্ণ Family Tree লোড করা হয়েছে!'
         );
       }
@@ -465,7 +476,7 @@ export default function LivestockManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `নতুন ডিজিটাল প্রোফাইল ${aTag} (${aName}, ক্রয়মূল্য ${formatBDT(Number(aPurchasePrice))}) সফলভাবে তৈরি হয়েছে!`
       );
     } finally {
@@ -532,7 +543,7 @@ export default function LivestockManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${selectedAnimal.animalTag} (${selectedAnimal.name})-এর আজকের দুধ উৎপাদন: সকাল ${bMorningLiters} লি. + বিকেল ${bEveningLiters} লি. = ${totalDailyMilk} লিটার (আয় ${formatBDT(dailyMilkRevenue)}) সংরক্ষিত হয়েছে!`
       );
     } finally {
@@ -566,7 +577,7 @@ export default function LivestockManagementModule({
         ownerId,
       });
 
-      onNotify(
+      notify(
         `${selectedAnimal.animalTag}-এর নতুন ওজন ${wNewWeightKg} কেজি (${diff >= 0 ? '+' : ''}${diff} কেজি) আপডেট হয়েছে!`
       );
     } finally {
@@ -642,7 +653,7 @@ export default function LivestockManagementModule({
         ownerId,
       });
 
-      onNotify(
+      notify(
         `খাবারের হিসাব (${modeLabel}: মোট ${formatBDT(totalPeriodFeedCost)}) সফলভাবে প্রোফাইলে যুক্ত হয়েছে!`
       );
     } finally {
@@ -697,7 +708,7 @@ export default function LivestockManagementModule({
         });
       }
 
-      onNotify(
+      notify(
         `${selectedAnimal.animalTag}-এর চিকিৎসা ও ভ্যাকসিন খরচ (${formatBDT(Number(dMedCost))}) এবং পরবর্তী ভ্যাকসিন রিমাইন্ডার (${dNextVaccineDate}) সেভ হয়েছে!`
       );
     } finally {
@@ -757,7 +768,7 @@ export default function LivestockManagementModule({
         actorEmail
       );
 
-      onNotify(
+      notify(
         `অভিনন্দন! মা ${selectedAnimal.animalTag}-এর নতুন বাচ্চা ${newbornTag} (${newbornName}) স্বয়ংক্রিয় বংশলতিকা (Parent Link) সহ রেজিস্ট্রেশন হয়েছে!`
       );
     } finally {
@@ -811,7 +822,7 @@ export default function LivestockManagementModule({
         }
       }
 
-      onNotify(
+      notify(
         `${selectedAnimal.animalTag} (${selectedAnimal.name})-এর বিক্রয়মূল্য ${formatBDT(Number(fSalePrice))} আপডেট হয়েছে!`
       );
     } finally {
@@ -897,12 +908,23 @@ export default function LivestockManagementModule({
               type="button"
               disabled={isSubmitting}
               onClick={handleLoadPromptExample}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer disabled:opacity-60"
             >
-              <Plus className="h-3.5 w-3.5" />
-              {isCattle
-                ? 'উদাহরণ গরু (CAT-0001 লক্ষ্মী) লোড করুন'
-                : 'উদাহরণ ছাগল ও Family Tree লোড করুন'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>{bn ? 'লোড করা হচ্ছে...' : 'Loading demo...'}</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>
+                    {isCattle
+                      ? 'উদাহরণ গরু (CAT-0001 লক্ষ্মী) লোড করুন'
+                      : 'উদাহরণ ছাগল ও Family Tree লোড করুন'}
+                  </span>
+                </>
+              )}
             </button>
 
             <div className="relative">
@@ -950,6 +972,41 @@ export default function LivestockManagementModule({
               </button>
             );
           })}
+
+          {selectedAnimal && (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                triggerConfirmDelete({
+                  title: bn ? 'পশুর রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Animal',
+                  message: bn
+                    ? `আপনি কি নিশ্চিতভাবে এই পশুর রেকর্ডটি (${selectedAnimal.animalTag}) ডিলিট করতে চান?`
+                    : `Are you sure you want to delete animal record ${selectedAnimal.animalTag}?`,
+                  itemName: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed})`,
+                  onConfirm: async () => {
+                    setIsSubmitting(true);
+                    try {
+                      await deleteLivestockAnimal(selectedAnimal.id);
+                      triggerGlobalToast(
+                        bn ? `${selectedAnimal.animalTag} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedAnimal.animalTag} deleted!`,
+                        'delete'
+                      );
+                      onNotify(bn ? `${selectedAnimal.animalTag} ডিলিট সম্পন্ন!` : `Record deleted!`);
+                    } catch (err: any) {
+                      triggerGlobalToast(err?.message || 'Delete failed', 'info');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  },
+                });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-xs ml-auto cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{bn ? 'রেকর্ড ডিলিট (Delete)' : 'Delete Animal'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1406,9 +1463,16 @@ export default function LivestockManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors"
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {bn ? `+ নতুন ${isCattle ? 'গরুর' : 'ছাগলের'} Digital ID সেভ করুন` : `+ Save New ${isCattle ? 'Cattle' : 'Goat'} ID Profile`}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'সেভ করা হচ্ছে...' : 'Saving...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? `+ নতুন ${isCattle ? 'গরুর' : 'ছাগলের'} Digital ID সেভ করুন` : `+ Save New ${isCattle ? 'Cattle' : 'Goat'} ID Profile`}</span>
+                )}
               </button>
             </form>
           </div>
@@ -1542,9 +1606,16 @@ export default function LivestockManagementModule({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                  className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {bn ? '+ আজকের দুধের হিসাব ও বিক্রয় আয় সেভ করুন' : '+ Save Daily Milk Yield & Revenue'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>{bn ? 'দুধের হিসাব সেভ হচ্ছে...' : 'Saving Milk Log...'}</span>
+                    </>
+                  ) : (
+                    <span>{bn ? '+ আজকের দুধের হিসাব ও বিক্রয় আয় সেভ করুন' : '+ Save Daily Milk Yield & Revenue'}</span>
+                  )}
                 </button>
               </form>
             </div>
@@ -1640,9 +1711,16 @@ export default function LivestockManagementModule({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-2.5 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95"
+                  className="w-full py-2.5 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {bn ? `+ নতুন ওজন (${wNewWeightKg} কেজি) সংরক্ষণ করুন` : `+ Save Weight Log (${wNewWeightKg} KG)`}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>{bn ? 'ওজন আপডেট হচ্ছে...' : 'Updating Weight...'}</span>
+                    </>
+                  ) : (
+                    <span>{bn ? `+ নতুন ওজন (${wNewWeightKg} কেজি) সংরক্ষণ করুন` : `+ Save Weight Log (${wNewWeightKg} KG)`}</span>
+                  )}
                 </button>
               </form>
             </div>
@@ -1937,9 +2015,16 @@ export default function LivestockManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {bn ? `+ খাবারের খরচ (${formatBDT(totalPeriodFeedCost)}) প্রোফাইলে যোগ করুন` : `+ Add Feed Expense (${formatBDT(totalPeriodFeedCost)}) to Record`}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'খাবারের খরচ যোগ হচ্ছে...' : 'Adding Feed Expense...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? `+ খাবারের খরচ (${formatBDT(totalPeriodFeedCost)}) প্রোফাইলে যোগ করুন` : `+ Add Feed Expense (${formatBDT(totalPeriodFeedCost)}) to Record`}</span>
+                )}
               </button>
             </form>
           </div>
@@ -2127,9 +2212,16 @@ export default function LivestockManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                + চিকিৎসা, ভ্যাকসিন ও প্রজনন তথ্য সেভ করুন
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'তথ্য সেভ হচ্ছে...' : 'Saving Information...'}</span>
+                  </>
+                ) : (
+                  <span>+ চিকিৎসা, ভ্যাকসিন ও প্রজনন তথ্য সেভ করুন</span>
+                )}
               </button>
             </form>
           </div>
@@ -2228,9 +2320,16 @@ export default function LivestockManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95"
+                className="w-full py-2.5 rounded-lg bg-slate-900 dark:bg-emerald-600 text-white font-bold hover:opacity-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                + সদ্যজাত {isCattle ? 'বাছুরের' : 'ছাগলছানার'} নতুন ID তৈরি করুন
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'বাচ্চার ID তৈরি হচ্ছে...' : 'Creating Offspring ID...'}</span>
+                  </>
+                ) : (
+                  <span>+ সদ্যজাত {isCattle ? 'বাছুরের' : 'ছাগলছানার'} নতুন ID তৈরি করুন</span>
+                )}
               </button>
             </form>
           </div>
@@ -2532,9 +2631,16 @@ export default function LivestockManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                বিক্রির হিসাব ও লাভ-ক্ষতি আপডেট করুন
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'বিক্রির হিসাব আপডেট হচ্ছে...' : 'Updating Sales...'}</span>
+                  </>
+                ) : (
+                  <span>{bn ? 'বিক্রির হিসাব ও লাভ-ক্ষতি আপডেট করুন' : 'Update Sale & Profit'}</span>
+                )}
               </button>
             </form>
           </div>

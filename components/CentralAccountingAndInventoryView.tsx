@@ -39,6 +39,7 @@ import {
   HelpCircle,
   LayoutGrid,
   ListFilter,
+  Loader2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -81,6 +82,10 @@ import MonthFilterBar, {
 } from './MonthFilterBar';
 import { getPayrollCycleInfo, getEnterprisePayrollSummary } from '@/lib/payroll-utils';
 import UserProfileCardModal, { UserProfileData } from './UserProfileCardModal';
+import {
+  triggerGlobalToast,
+  triggerConfirmDelete,
+} from './GlobalToastAndConfirmModal';
 
 interface GranularPermissionsState {
   canView: boolean;
@@ -232,6 +237,8 @@ interface CentralAccountingAndInventoryViewProps {
   onChangeRoleSimulation: (role: UserRole, assignedBiz: string) => void;
   monthFilter?: MonthFilterValue;
   onChangeMonthFilter?: (next: MonthFilterValue) => void;
+  currentUser?: ErpUser;
+  currentUserPhoto?: string;
   lang?: 'en' | 'bn';
 }
 
@@ -257,8 +264,11 @@ export default function CentralAccountingAndInventoryView({
   onChangeRoleSimulation,
   monthFilter: controlledMonthFilter,
   onChangeMonthFilter,
+  currentUser,
+  currentUserPhoto,
   lang = 'bn',
 }: CentralAccountingAndInventoryViewProps) {
+  const bn = lang === 'bn';
   const fullBusinessList = React.useMemo(() => {
     const raw = allBusinesses && allBusinesses.length > 0 ? allBusinesses : businesses;
     const seen = new Set<string>();
@@ -456,10 +466,51 @@ export default function CentralAccountingAndInventoryView({
   // Profile Modal State (Clickable Actor / User Profile Card)
   const [viewingProfile, setViewingProfile] = useState<UserProfileData | null>(null);
 
+  // Universal Actor / User Photo Resolver
+  const resolveActorPhoto = React.useCallback(
+    (targetEmail?: string, targetName?: string, targetRole?: string, rawPhoto?: string) => {
+      if (rawPhoto && rawPhoto.startsWith('data:image')) return rawPhoto;
+      if (rawPhoto && rawPhoto.length > 15) return rawPhoto;
+
+      const myPhoto =
+        currentUserPhoto ||
+        currentUser?.photoUrl ||
+        (typeof window !== 'undefined' ? localStorage.getItem('krishi_saved_photo_self') : null);
+
+      const isCurrent =
+        targetRole === 'super_admin' ||
+        (targetEmail && currentUser?.email && targetEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (targetName && currentUser?.displayName && targetName.toLowerCase() === currentUser.displayName.toLowerCase()) ||
+        targetEmail === 'admin' ||
+        targetName?.toLowerCase() === 'sahin miah';
+
+      if (isCurrent && myPhoto) return myPhoto;
+
+      const matchedUser = (erpUsers || []).find(
+        (u) =>
+          (targetEmail && u.email?.toLowerCase() === targetEmail.toLowerCase()) ||
+          (targetName && u.displayName?.toLowerCase() === targetName.toLowerCase()) ||
+          (targetRole === 'super_admin' && u.role === 'super_admin')
+      );
+      if (matchedUser?.photoUrl) return matchedUser.photoUrl;
+
+      const matchedStk = (stakeholders || []).find(
+        (s) =>
+          (targetEmail && s.phone === targetEmail) ||
+          (targetName && s.name?.toLowerCase() === targetName.toLowerCase())
+      );
+      if (matchedStk?.photoUrl) return matchedStk.photoUrl;
+
+      return '';
+    },
+    [currentUser, currentUserPhoto, erpUsers, stakeholders]
+  );
+
   const showNotice = (msg: string) => {
     setToastMsg(msg);
     setErrorMsg(null);
     setTimeout(() => setToastMsg(null), 4500);
+    triggerGlobalToast(msg, 'success');
   };
 
   const parseUserPermissions = (u: ErpUser): GranularPermissionsState => {
@@ -1921,7 +1972,7 @@ export default function CentralAccountingAndInventoryView({
                             const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
                             const matchedStk = stakeholders.find((s) => s.email?.toLowerCase() === email.toLowerCase() || s.name === j.actorName);
                             const actorName = j.actorName || matchedUser?.displayName || matchedStk?.name || (email.split('@')[0]) || 'RegardsAgro Admin';
-                            const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || matchedStk?.photoUrl || '';
+                            const actorPhoto = resolveActorPhoto(email, actorName, j.actorRole, j.actorPhoto || matchedUser?.photoUrl || matchedStk?.photoUrl);
                             const actorPost = j.actorDesignation || matchedUser?.designation || matchedStk?.designationOrCategory || (j.actorRole === 'super_admin' ? 'Super Admin' : j.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
 
                             return (
@@ -2032,16 +2083,26 @@ export default function CentralAccountingAndInventoryView({
                               <button
                                 type="button"
                                 disabled={userRole === 'employee'}
-                                onClick={async () => {
-                                  await reversePostedJournalEntry(j, accounts, actorEmail);
-                                  showNotice(
-                                    `${j.referenceNo} রিভার্স করা হয়েছে (REV-${j.referenceNo})।`
-                                  );
+                                onClick={() => {
+                                  triggerConfirmDelete({
+                                    title: bn ? 'ভাউচার রিভার্স নিশ্চিতকরণ' : 'Confirm Voucher Reversal',
+                                    message: bn
+                                      ? `আপনি কি নিশ্চিতভাবে ভাউচার ${j.referenceNo} রিভার্স করতে চান? এর ফলে বিপরীত এন্ট্রি পাশ হবে।`
+                                      : `Are you sure you want to reverse voucher ${j.referenceNo}? This will post an offsetting transaction.`,
+                                    itemName: `${j.referenceNo} - ${j.category} (${formatBDT(j.amount)})`,
+                                    onConfirm: async () => {
+                                      await reversePostedJournalEntry(j, accounts, actorEmail);
+                                      triggerGlobalToast(
+                                        bn ? `${j.referenceNo} রিভার্স করা হয়েছে!` : `${j.referenceNo} reversed!`,
+                                        'delete'
+                                      );
+                                    },
+                                  });
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 whitespace-nowrap cursor-pointer"
                               >
                                 <RotateCcw className="h-3 w-3" />
-                                রিভার্স করুন
+                                {bn ? 'রিভার্স করুন' : 'Reverse'}
                               </button>
                             ) : (
                               <span className="text-slate-400 font-mono text-[11px]">Locked</span>
@@ -4660,10 +4721,51 @@ export default function CentralAccountingAndInventoryView({
                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
                       >
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-900 dark:text-slate-100">
-                            {u.displayName}
-                          </div>
-                          <div className="font-mono text-[11px] text-slate-500">{u.email}</div>
+                          {(() => {
+                            const uPhoto = resolveActorPhoto(u.email, u.displayName, u.role, u.photoUrl);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setViewingProfile({
+                                    id: u.id,
+                                    name: u.displayName,
+                                    email: u.email,
+                                    phone: u.phone || '+880 1711-000000',
+                                    nidNumber: u.nidNumber || '',
+                                    designation: u.designation || (u.role === 'super_admin' ? 'Super Admin' : u.role === 'super_manager' ? 'General Manager' : 'Business Incharge'),
+                                    role: u.role,
+                                    businessName: u.assignedBusinesses === 'ALL' ? 'সকল ব্যবসা (All)' : u.assignedBusinesses,
+                                    photoUrl: uPhoto,
+                                    address: u.address || 'Dhaka, Bangladesh',
+                                    status: u.status || 'active',
+                                  })
+                                }
+                                className="flex items-center gap-3 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                              >
+                                {uPhoto ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={uPhoto}
+                                    alt={u.displayName}
+                                    className="h-9 w-9 rounded-full object-cover shrink-0 ring-2 ring-emerald-500/30 shadow-xs"
+                                  />
+                                ) : (
+                                  <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold text-sm flex items-center justify-center shrink-0">
+                                    {(u.displayName || 'U').slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 transition-colors">
+                                    {u.displayName}
+                                  </div>
+                                  <div className="font-mono text-[11px] text-slate-500 truncate max-w-[150px]">
+                                    {u.email}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })()}
                         </td>
 
                         <td className="py-3.5 px-4">
@@ -4821,8 +4923,23 @@ export default function CentralAccountingAndInventoryView({
 
                                 <button
                                   type="button"
-                                  onClick={() => deleteErpUserAccount(u, actorEmail)}
-                                  className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50"
+                                  onClick={() => {
+                                    triggerConfirmDelete({
+                                      title: bn ? 'ইউজার অ্যাকাউন্ট মুছে ফেলা নিশ্চিতকরণ' : 'Confirm Delete User',
+                                      message: bn
+                                        ? `আপনি কি নিশ্চিতভাবে "${u.displayName}"-এর অ্যাকাউন্ট মুছে ফেলতে চান?`
+                                        : `Are you sure you want to delete user account "${u.displayName}"?`,
+                                      itemName: `${u.displayName} (${u.email})`,
+                                      onConfirm: async () => {
+                                        await deleteErpUserAccount(u, actorEmail);
+                                        triggerGlobalToast(
+                                          bn ? `ইউজার "${u.displayName}" মুছে ফেলা হয়েছে!` : `User "${u.displayName}" deleted!`,
+                                          'delete'
+                                        );
+                                      },
+                                    });
+                                  }}
+                                  className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                                   title="ইউজার মুছে ফেলুন"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -4877,7 +4994,7 @@ export default function CentralAccountingAndInventoryView({
                           const email = log.actorEmail || '';
                           const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
                           const actorName = log.actorName || matchedUser?.displayName || (email.split('@')[0]) || 'RegardsAgro Admin';
-                          const actorPhoto = log.actorPhoto || matchedUser?.photoUrl || '';
+                          const actorPhoto = resolveActorPhoto(email, actorName, log.actorRole, log.actorPhoto || matchedUser?.photoUrl);
                           const actorPost = log.actorDesignation || matchedUser?.designation || (log.actorRole === 'super_admin' ? 'Super Admin' : log.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
 
                           return (

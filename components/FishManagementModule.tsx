@@ -11,6 +11,8 @@ import {
   Scale,
   CheckCircle2,
   FileSpreadsheet,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -27,7 +29,12 @@ import {
   recordStockMovement,
   postDoubleEntryTransaction,
   logAuditEvent,
+  deleteFishCycle,
 } from '@/lib/erp-service';
+import {
+  triggerGlobalToast,
+  triggerConfirmDelete,
+} from './GlobalToastAndConfirmModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -65,6 +72,10 @@ export default function FishManagementModule({
   lang = 'bn',
 }: FishManagementModuleProps) {
   const bn = lang === 'bn';
+  const notify = (msg: string) => {
+    onNotify(msg);
+    triggerGlobalToast(msg, 'success');
+  };
   const [activeSubTab, setActiveSubTab] = useState<FishSubTab>('A_POND_PROFILE');
   const [pondSearch, setPondSearch] = useState('');
   const [selectedCycleId, setSelectedCycleId] = useState<string>(cycles[0]?.id || '');
@@ -204,7 +215,7 @@ export default function FishManagementModule({
         actorEmail
       );
 
-      onNotify(
+      notify(
         'উদাহরণের পুকুর POND-001 (আয়তন ৫০ শতাংশ, গভীরতা ৬ ফুট, রুই-কাতলা ৫,০০০ পোনা, রুই ৩০০ কেজি + কাতলা ২০০ কেজি + তেলাপিয়া ১০০ কেজি = ৬০০ কেজি বিক্রি, মোট আয় ৳১,৬৬,০০০) সফলভাবে লোড হয়েছে!'
       );
     } finally {
@@ -272,7 +283,7 @@ export default function FishManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${bPondId}-এ নতুন Production Cycle (${bCycleCode}: ${bFingerlingQty}টি পোনা, বিনিয়োগ ${formatBDT(totalFingerlingInvestment)}) চালু হয়েছে!`
       );
     } finally {
@@ -346,7 +357,7 @@ export default function FishManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${selectedCycle.pondId}-এ খাবার (${cFeedKg} কেজি), পানির মান (pH ${cWaterPh}, DO ${cWaterDo}) এবং পরিচর্যা খরচ (${formatBDT(totalDayExpense)}) আপডেট হয়েছে!`
       );
     } finally {
@@ -415,7 +426,7 @@ export default function FishManagementModule({
         ownerId,
       });
 
-      onNotify(
+      notify(
         `${selectedCycle.pondId} থেকে মোট ${totalHarvestKg} কেজি মাছ ${formatBDT(totalHarvestRevenue)}-এ বিক্রি সম্পন্ন হয়েছে!`
       );
     } finally {
@@ -462,10 +473,19 @@ export default function FishManagementModule({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleLoadPromptPondExample}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer disabled:opacity-60"
               >
-                <Plus className="h-3.5 w-3.5" />
-                উদাহরণ পুকুর (POND-001) লোড করুন
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{bn ? 'লোড করা হচ্ছে...' : 'Loading demo...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>উদাহরণ পুকুর (POND-001) লোড করুন</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -514,6 +534,41 @@ export default function FishManagementModule({
               </button>
             );
           })}
+
+          {selectedCycle && (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                triggerConfirmDelete({
+                  title: bn ? 'পুকুর সাইকেল ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Pond Cycle',
+                  message: bn
+                    ? `আপনি কি নিশ্চিতভাবে এই পুকুর/সাইকেলের রেকর্ডটি (${selectedCycle.pondId} - ${selectedCycle.cycleCode}) ডিলিট করতে চান?`
+                    : `Are you sure you want to delete cycle ${selectedCycle.pondId} - ${selectedCycle.cycleCode}?`,
+                  itemName: `${selectedCycle.pondId} (${selectedCycle.pondName} - ${selectedCycle.fishSpecies})`,
+                  onConfirm: async () => {
+                    setIsSubmitting(true);
+                    try {
+                      await deleteFishCycle(selectedCycle.id);
+                      triggerGlobalToast(
+                        bn ? `${selectedCycle.pondId} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedCycle.pondId} deleted!`,
+                        'delete'
+                      );
+                      onNotify(bn ? `${selectedCycle.pondId} ডিলিট সম্পন্ন!` : `Cycle deleted!`);
+                    } catch (err: any) {
+                      triggerGlobalToast(err?.message || 'Delete failed', 'info');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  },
+                });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-xs ml-auto cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{bn ? 'সাইকেল ডিলিট (Delete)' : 'Delete Cycle'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -909,9 +964,16 @@ export default function FishManagementModule({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              {bn ? '+ পোনা ক্রয় ও নতুন Production Cycle সেভ করুন' : '+ Save Stocking & Initialize Cycle'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>{bn ? 'সাইকেল সেভ করা হচ্ছে...' : 'Saving Cycle...'}</span>
+                </>
+              ) : (
+                <span>{bn ? '+ পোনা ক্রয় ও নতুন Production Cycle সেভ করুন' : '+ Save Stocking & Initialize Cycle'}</span>
+              )}
             </button>
           </form>
         </div>
@@ -1063,9 +1125,16 @@ export default function FishManagementModule({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              {bn ? '+ পুকুরের খাবার, পানির মান (pH/DO) ও খরচ সেভ করুন' : '+ Save Daily Feed, Water Quality & Expenses'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>{bn ? 'তথ্য সেভ করা হচ্ছে...' : 'Saving Data...'}</span>
+                </>
+              ) : (
+                <span>{bn ? '+ পুকুরের খাবার, পানির মান (pH/DO) ও খরচ সেভ করুন' : '+ Save Daily Feed, Water Quality & Expenses'}</span>
+              )}
             </button>
           </form>
         </div>
@@ -1273,9 +1342,16 @@ export default function FishManagementModule({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                + মাছ বিক্রির চালান ({totalHarvestKg} কেজি = {formatBDT(totalHarvestRevenue)}) সেভ করুন
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{bn ? 'চালান সেভ করা হচ্ছে...' : 'Saving Invoice...'}</span>
+                  </>
+                ) : (
+                  <span>+ মাছ বিক্রির চালান ({totalHarvestKg} কেজি = {formatBDT(totalHarvestRevenue)}) সেভ করুন</span>
+                )}
               </button>
             </form>
           </div>

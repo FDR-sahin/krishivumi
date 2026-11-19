@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   Bell,
   Eye,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -26,8 +28,13 @@ import {
   postDoubleEntryTransaction,
   logAuditEvent,
   createNotificationRecord,
+  deleteTransportOp,
 } from '@/lib/erp-service';
 import TripChallanModal from './TripChallanModal';
+import {
+  triggerGlobalToast,
+  triggerConfirmDelete,
+} from './GlobalToastAndConfirmModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -61,6 +68,10 @@ export default function TransportManagementModule({
   lang = 'bn',
 }: TransportManagementModuleProps) {
   const bn = lang === 'bn';
+  const notify = (msg: string) => {
+    onNotify(msg);
+    triggerGlobalToast(msg, 'success');
+  };
   const [activeSubTab, setActiveSubTab] = useState<TransportSubTab>('PROFILE_OVERVIEW');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOpId, setSelectedOpId] = useState<string>(ops[0]?.id || '');
@@ -183,7 +194,7 @@ export default function TransportManagementModule({
         actorEmail
       );
 
-      onNotify(
+      notify(
         'উদাহরণের গাড়ি ও ট্রিপ রিপোর্ট TRUCK-001 (ঢাকা মেট্রো-ট-১২-৩৪৫৬, চালক: আব্দুল, রুট: ঢাকা → চট্টগ্রাম, ভাড়া: ৳২৫,০০০, মোট খরচ: ৳১০,৫০০, ট্রিপের লাভ: ৳১৪,৫০০) সফলভাবে লোড হয়েছে!'
       );
     } finally {
@@ -282,7 +293,7 @@ export default function TransportManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${aVehicleCode} (${aOrigin} → ${aDestination}) ট্রিপ সেভ হয়েছে! ভাড়া: ${formatBDT(Number(aTripRevenue))}, মোট খরচ: ${formatBDT(formTotalTripExpense)}, ট্রিপের লাভ: ${formatBDT(formNetTripProfit)}।`
       );
     } finally {
@@ -358,7 +369,7 @@ export default function TransportManagementModule({
         );
       }
 
-      onNotify(
+      notify(
         `${selectedOp.tripOrVehicleCode}-এর সার্ভিসিং, ড্রাইভার বেতন ও কাগজপত্রের মেয়াদ (ফিটনেস: ${bFitnessExpiry}, ট্যাক্স টোকেন: ${bTaxTokenExpiry}) রিমাইন্ডার সহ আপডেট হয়েছে!`
       );
     } finally {
@@ -401,10 +412,19 @@ export default function TransportManagementModule({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleLoadPromptTruckExample}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer disabled:opacity-60"
               >
-                <Plus className="h-3.5 w-3.5" />
-                উদাহরণ ট্রাক (TRUCK-001 ঢাকা → চট্টগ্রাম) লোড করুন
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{bn ? 'লোড করা হচ্ছে...' : 'Loading demo...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>উদাহরণ ট্রাক (TRUCK-001 ঢাকা → চট্টগ্রাম) লোড করুন</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -444,6 +464,41 @@ export default function TransportManagementModule({
               </button>
             );
           })}
+
+          {selectedOp && (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                triggerConfirmDelete({
+                  title: bn ? 'গাড়ি ও ট্রিপ রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Vehicle / Trip',
+                  message: bn
+                    ? `আপনি কি নিশ্চিতভাবে এই ট্রিপ রেকর্ডটি (${selectedOp.tripOrVehicleCode}: ${selectedOp.origin} → ${selectedOp.destination}) ডিলিট করতে চান?`
+                    : `Are you sure you want to delete trip ${selectedOp.tripOrVehicleCode}?`,
+                  itemName: `${selectedOp.tripOrVehicleCode} (${selectedOp.registrationNumber} - চালক: ${selectedOp.driverName})`,
+                  onConfirm: async () => {
+                    setIsSubmitting(true);
+                    try {
+                      await deleteTransportOp(selectedOp.id);
+                      triggerGlobalToast(
+                        bn ? `${selectedOp.tripOrVehicleCode} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedOp.tripOrVehicleCode} deleted!`,
+                        'delete'
+                      );
+                      onNotify(bn ? `${selectedOp.tripOrVehicleCode} ডিলিট সম্পন্ন!` : `Trip deleted!`);
+                    } catch (err: any) {
+                      triggerGlobalToast(err?.message || 'Delete failed', 'info');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  },
+                });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-xs ml-auto cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{bn ? 'ট্রিপ ডিলিট (Delete)' : 'Delete Trip'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -918,9 +973,16 @@ export default function TransportManagementModule({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              {bn ? '+ নতুন ট্রিপ ও লাভ-ক্ষতি সেভ করুন' : '+ Save Freight Trip & Ledger Entry'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>{bn ? 'ট্রিপ সেভ করা হচ্ছে...' : 'Saving Trip...'}</span>
+                </>
+              ) : (
+                <span>{bn ? '+ নতুন ট্রিপ ও লাভ-ক্ষতি সেভ করুন' : '+ Save Freight Trip & Ledger Entry'}</span>
+              )}
             </button>
           </form>
         </div>
@@ -1061,9 +1123,16 @@ export default function TransportManagementModule({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+              className="w-full py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              + রক্ষণাবেক্ষণ খরচ ও মেয়াদ শেষ হওয়ার Reminder সেভ করুন
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>{bn ? 'রক্ষণাবেক্ষণ সেভ হচ্ছে...' : 'Saving Maintenance...'}</span>
+                </>
+              ) : (
+                <span>+ রক্ষণাবেক্ষণ খরচ ও মেয়াদ শেষ হওয়ার Reminder সেভ করুন</span>
+              )}
             </button>
           </form>
         </div>

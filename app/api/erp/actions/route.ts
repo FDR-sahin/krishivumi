@@ -993,6 +993,114 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      case 'deletePoultryBatch': {
+        const { batchId } = payload as { batchId: string };
+        await db.collection('poultry_batches').deleteOne({
+          $or: [{ _id: batchId as unknown as never }, { id: batchId }],
+          ownerId,
+        });
+        await writeAuditLog({
+          action: 'DELETE_POULTRY_BATCH',
+          module: 'Poultry Farming',
+          businessId: 'biz-poultry',
+          details: `Deleted poultry batch ${batchId} by ${sessionUser.displayName}`,
+          severity: 'warning',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'deleteLivestockAnimal': {
+        const { animalId } = payload as { animalId: string };
+        await db.collection('livestock_records').deleteOne({
+          $or: [{ _id: animalId as unknown as never }, { id: animalId }],
+          ownerId,
+        });
+        await writeAuditLog({
+          action: 'DELETE_LIVESTOCK_ANIMAL',
+          module: 'Livestock Farming',
+          businessId: 'biz-cattle',
+          details: `Deleted livestock animal ${animalId} by ${sessionUser.displayName}`,
+          severity: 'warning',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'deleteFishCycle': {
+        const { cycleId } = payload as { cycleId: string };
+        await db.collection('fish_cycles').deleteOne({
+          $or: [{ _id: cycleId as unknown as never }, { id: cycleId }],
+          ownerId,
+        });
+        await writeAuditLog({
+          action: 'DELETE_FISH_CYCLE',
+          module: 'Fish Aquaculture',
+          businessId: 'biz-fish',
+          details: `Deleted fish pond cycle ${cycleId} by ${sessionUser.displayName}`,
+          severity: 'warning',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'deleteTransportOp': {
+        const { opId } = payload as { opId: string };
+        await db.collection('transport_ops').deleteOne({
+          $or: [{ _id: opId as unknown as never }, { id: opId }],
+          ownerId,
+        });
+        await writeAuditLog({
+          action: 'DELETE_TRANSPORT_OP',
+          module: 'Fleet Logistics',
+          businessId: 'biz-trans',
+          details: `Deleted transport trip ${opId} by ${sessionUser.displayName}`,
+          severity: 'warning',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'deleteInventoryItem': {
+        const { itemId } = payload as { itemId: string };
+        await db.collection('inventory').deleteOne({
+          $or: [{ _id: itemId as unknown as never }, { id: itemId }],
+          ownerId,
+        });
+        await writeAuditLog({
+          action: 'DELETE_INVENTORY_ITEM',
+          module: 'Inventory Management',
+          businessId: 'ALL',
+          details: `Deleted inventory item ${itemId} by ${sessionUser.displayName}`,
+          severity: 'warning',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'deleteJournalEntry': {
+        const { entryId } = payload as { entryId: string };
+        await db.collection('journal_entries').deleteOne({
+          $or: [{ _id: entryId as unknown as never }, { id: entryId }],
+          ownerId,
+        });
+        await writeAuditLog({
+          action: 'DELETE_JOURNAL_ENTRY',
+          module: 'Central Accounting',
+          businessId: 'ALL',
+          details: `Deleted journal entry ${entryId} by ${sessionUser.displayName}`,
+          severity: 'warning',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       case 'markNotificationAsRead': {
         const notification = payload.notification as { id: string };
         await db
@@ -1410,6 +1518,30 @@ export async function POST(req: NextRequest) {
             }
           )
           .catch(() => {});
+
+        // If photoUrl was updated, propagate it to all past journal entries & audit logs of this user
+        if (updates.photoUrl) {
+          const syncEmail = targetEmail || sessionUser.email;
+          const syncConditions: Record<string, unknown>[] = [
+            { actorEmail: syncEmail },
+            { actorEmail: syncEmail.toLowerCase() },
+            { actorName: resolvedName || sessionUser.displayName },
+          ];
+          if (isSuperAdmin || isSelf) {
+            syncConditions.push({ actorRole: 'super_admin' });
+            syncConditions.push({ actorName: 'sahin miah' });
+          }
+          await Promise.all([
+            db.collection('journal_entries').updateMany(
+              { $or: syncConditions as never },
+              { $set: { actorPhoto: updates.photoUrl } }
+            ),
+            db.collection('audit_logs').updateMany(
+              { $or: syncConditions as never },
+              { $set: { actorPhoto: updates.photoUrl } }
+            ),
+          ]).catch(() => {});
+        }
 
         await writeAuditLog({
           action: 'UPDATE_USER_PROFILE',
