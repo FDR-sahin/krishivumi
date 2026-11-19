@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { cookies } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
+import { ObjectId } from 'mongodb';
 import { getDb } from './mongodb';
 import { UserRole } from './erp-types';
 
@@ -82,7 +83,16 @@ export async function getSessionUser(): Promise<AuthenticatedErpUser | null> {
   if (!decoded) return null;
 
   const db = await getDb();
-  const doc = await db.collection('users').findOne({ _id: decoded.userId as unknown as never });
+  const orConditions: Record<string, unknown>[] = [
+    { _id: decoded.userId as unknown as never },
+    { id: decoded.userId },
+    { uid: decoded.userId },
+    { email: decoded.email },
+  ];
+  if (ObjectId.isValid(decoded.userId)) {
+    orConditions.unshift({ _id: new ObjectId(decoded.userId) as unknown as never });
+  }
+  const doc = await db.collection('users').findOne({ $or: orConditions as never });
   if (!doc) return null;
   if (doc.status !== 'active') return null;
 

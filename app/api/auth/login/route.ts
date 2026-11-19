@@ -73,6 +73,12 @@ export async function POST(req: NextRequest) {
       status: userDoc.status,
       mfaEnabled: Boolean(userDoc.mfaEnabled),
       lastLoginAt: nowIso,
+      phone: userDoc.phone ? String(userDoc.phone) : undefined,
+      photoUrl: userDoc.photoUrl ? String(userDoc.photoUrl) : undefined,
+      nidNumber: userDoc.nidNumber ? String(userDoc.nidNumber) : undefined,
+      designation: userDoc.designation ? String(userDoc.designation) : undefined,
+      address: userDoc.address ? String(userDoc.address) : undefined,
+      emergencyContact: userDoc.emergencyContact ? String(userDoc.emergencyContact) : undefined,
     };
 
     const res = NextResponse.json({ ok: true, user: userView });

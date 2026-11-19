@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Bell,
+  Eye,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -26,6 +27,7 @@ import {
   logAuditEvent,
   createNotificationRecord,
 } from '@/lib/erp-service';
+import TripChallanModal from './TripChallanModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -63,6 +65,7 @@ export default function TransportManagementModule({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOpId, setSelectedOpId] = useState<string>(ops[0]?.id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedTripChallan, setSelectedTripChallan] = useState<ErpTransportOp | null>(null);
 
   const filteredOps = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -607,9 +610,20 @@ export default function TransportManagementModule({
                   {bn ? 'তারিখ: ' : 'Date: '}{selectedOp.date} · {bn ? 'পার্টি: ' : 'Client: '}{selectedOp.customerName}
                 </p>
               </div>
-              <span className="px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                {selectedOp.status === 'completed' ? 'Completed' : selectedOp.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                  {selectedOp.status === 'completed' ? 'Completed' : selectedOp.status}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTripChallan(selectedOp)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap"
+                  title={bn ? 'কাজের অর্ডার ও ডেলিভারি চালান দেখুন' : 'View Work Order & Challan'}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>{bn ? 'ভিউ চালান ও অর্ডার' : 'View Challan / PO'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1054,6 +1068,15 @@ export default function TransportManagementModule({
           </form>
         </div>
       )}
+
+      {/* Trip Challan & Work Order Modal */}
+      <TripChallanModal
+        isOpen={Boolean(selectedTripChallan)}
+        onClose={() => setSelectedTripChallan(null)}
+        trip={selectedTripChallan}
+        businessName={activeBusiness.nameBn || activeBusiness.name}
+        lang={lang}
+      />
     </div>
   );
 }

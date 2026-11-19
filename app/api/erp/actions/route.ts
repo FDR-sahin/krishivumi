@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { getSessionUser, parseUserPermissions } from '@/lib/auth';
 import { seedInitialErpDataIfEmptyMongo } from '@/lib/erp-seed';
@@ -1316,6 +1317,7 @@ export async function POST(req: NextRequest) {
         const updates = ((payloadData.updates as Record<string, unknown>) || payloadData) as {
           displayName?: string;
           name?: string;
+          email?: string;
           phone?: string;
           nidNumber?: string;
           designation?: string;
@@ -1324,8 +1326,15 @@ export async function POST(req: NextRequest) {
           photoUrl?: string;
           password?: string;
         };
-        const rawTargetId = String(payloadData.userId || payloadData.targetUserId || sessionUser.id || '');
-        const userIdToUpdate = isSuperAdmin && rawTargetId ? rawTargetId : sessionUser.id;
+        const rawTargetId = String(payloadData.userId || payloadData.targetUserId || '');
+        const targetEmail = String(payloadData.email || updates.email || '').trim();
+        const isSelf =
+          !rawTargetId ||
+          rawTargetId === sessionUser.id ||
+          rawTargetId.startsWith('actor-') ||
+          (targetEmail && targetEmail.toLowerCase() === sessionUser.email.toLowerCase());
+
+        const userIdToUpdate = isSelf ? sessionUser.id : (isSuperAdmin ? rawTargetId : sessionUser.id);
         const setFields: Record<string, unknown> = { updatedAt: now };
 
         const resolvedName = updates.displayName || updates.name;
@@ -1341,30 +1350,52 @@ export async function POST(req: NextRequest) {
           setFields.passwordHash = await bcrypt.hash(updates.password.trim(), 10);
         }
 
-        // Resilient update matching _id, id, uid, or fallback to sessionUser email
+        // Resilient user query conditions
+        const userOrConditions: Record<string, unknown>[] = [
+          { _id: userIdToUpdate as unknown as never },
+          { id: userIdToUpdate },
+          { uid: userIdToUpdate },
+        ];
+        if (ObjectId.isValid(userIdToUpdate)) {
+          userOrConditions.unshift({ _id: new ObjectId(userIdToUpdate) as unknown as never });
+        }
+        if (targetEmail) {
+          userOrConditions.push({ email: targetEmail });
+          userOrConditions.push({ email: targetEmail.toLowerCase() });
+        }
+        if (isSelf && sessionUser.email) {
+          userOrConditions.push({ email: sessionUser.email });
+          userOrConditions.push({ email: sessionUser.email.toLowerCase() });
+          if (ObjectId.isValid(sessionUser.id)) {
+            userOrConditions.unshift({ _id: new ObjectId(sessionUser.id) as unknown as never });
+          }
+        }
+
+        // Resilient update matching _id, id, uid, or email
         await db.collection('users').updateOne(
-          {
-            $or: [
-              { _id: userIdToUpdate as unknown as never },
-              { id: userIdToUpdate },
-              { uid: userIdToUpdate },
-              { email: sessionUser.email },
-            ],
-          },
+          { $or: userOrConditions as never },
           { $set: setFields }
         );
 
-        // Also sync stakeholder profile if target is an employee
+        // Also sync stakeholder profile if target is an employee or self
+        const stkOrConditions: Record<string, unknown>[] = [
+          { _id: userIdToUpdate as unknown as never },
+          { id: userIdToUpdate },
+        ];
+        if (ObjectId.isValid(userIdToUpdate)) {
+          stkOrConditions.unshift({ _id: new ObjectId(userIdToUpdate) as unknown as never });
+        }
+        if (targetEmail) {
+          stkOrConditions.push({ email: targetEmail });
+        }
+        if (isSelf && sessionUser.email) {
+          stkOrConditions.push({ email: sessionUser.email });
+        }
+
         await db
           .collection('stakeholders')
           .updateOne(
-            {
-              $or: [
-                { _id: userIdToUpdate as unknown as never },
-                { id: userIdToUpdate },
-                { email: sessionUser.email },
-              ],
-            },
+            { $or: stkOrConditions as never },
             {
               $set: {
                 ...(resolvedName ? { name: cap(resolvedName, 120) } : {}),
@@ -1389,7 +1420,7 @@ export async function POST(req: NextRequest) {
           actorEmail,
           ownerId,
         });
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: true, photoUrl: updates.photoUrl });
       }
 
       case 'createTreasuryAccount': {

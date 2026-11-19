@@ -1,0 +1,534 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  X,
+  Printer,
+  Copy,
+  Check,
+  Truck,
+  FileText,
+  MapPin,
+  Calendar,
+  Phone,
+  Building2,
+  User,
+  ShieldCheck,
+  CheckCircle2,
+} from 'lucide-react';
+import { ErpTransportOp, formatBDT } from '@/lib/erp-types';
+
+interface TripChallanModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  trip: ErpTransportOp | null;
+  businessName?: string;
+  lang?: 'bn' | 'en';
+}
+
+function numberToWords(amount: number): string {
+  if (amount === 0) return 'Zero Taka Only';
+  const units = [
+    '',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function convert(n: number): string {
+    if (n < 20) return units[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + units[n % 10] : '');
+    if (n < 1000) return units[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+    return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '');
+  }
+  return convert(Math.abs(amount)) + ' Taka Only';
+}
+
+export default function TripChallanModal({
+  isOpen,
+  onClose,
+  trip,
+  businessName = 'RegardsAgro Enterprise',
+  lang = 'bn',
+}: TripChallanModalProps) {
+  const bn = lang === 'bn';
+  const [copied, setCopied] = useState(false);
+
+  if (!isOpen || !trip) return null;
+
+  const totalTripCost =
+    (trip.fuelCost || 0) +
+    (trip.tollCost || 0) +
+    (trip.driverAllowance || 0) +
+    (trip.maintenanceCost || 0);
+  const netTripProfit = (trip.tripRevenue || 0) - totalTripCost;
+
+  // Estimated delivery calculation (typically 1-2 days after departure)
+  const departureDate = trip.date || new Date().toISOString().split('T')[0];
+  const deliveryDateObj = new Date(departureDate);
+  deliveryDateObj.setDate(deliveryDateObj.getDate() + 1);
+  const deliveryDate = deliveryDateObj.toISOString().split('T')[0];
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  };
+
+  const handleCopySummary = async () => {
+    const textSummary = `
+========================================
+RegardsAgro Enterprise - কাজের অর্ডার ও চালান
+========================================
+কাজের অর্ডার নং: ${trip.tripOrVehicleCode}
+গাড়ি নং: ${trip.registrationNumber} (${trip.vehicleType || 'ট্রাক'})
+চালক: ${trip.driverName}
+উৎস (কার থেকে আনছে): RegardsAgro Agro Complex (${trip.origin})
+গন্তব্য (কার কাছে যাচ্ছে): ${trip.customerName || 'চট্টগ্রাম পাইকারি আড়ত'} (${trip.destination})
+দূরত্ব: ${trip.distanceKm} কি.মি.
+পণ্য: ${trip.cargoDetails || 'খামারের পণ্যবাহী লোড'}
+ট্রিপ ভাড়া: ৳ ${trip.tripRevenue.toLocaleString()}
+মোট ট্রিপ খরচ: ৳ ${totalTripCost.toLocaleString()} (ডিজেল: ৳${trip.fuelCost.toLocaleString()}, টোল: ৳${trip.tollCost.toLocaleString()}, চালকের ভাতা: ৳${trip.driverAllowance.toLocaleString()})
+নিট লাভ: ৳ ${netTripProfit.toLocaleString()}
+বকেয়া: ৳ ${trip.outstandingDue.toLocaleString()}
+স্ট্যাটাস: ${trip.status === 'completed' ? 'সম্পন্ন (Delivered)' : 'চলমান (On Highway)'}
+তারিখ: ${trip.date}
+========================================
+`.trim();
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(textSummary);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    } catch (e) {
+      console.error('Clipboard copy error:', e);
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/75 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto overflow-hidden print:border-none print:shadow-none print:m-0 print:w-full print:max-w-none text-slate-800 dark:text-slate-200">
+        {/* Top Control Bar (Hidden when printing) */}
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 print:hidden">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-600 text-white shadow-xs">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                {bn ? 'কাজের অর্ডার ও পরিবহন চালান (Work Order & Trip Challan)' : 'Work Order & Trip Consignment Challan'}
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {bn
+                  ? 'গাড়ির ট্রিপ চালান, মাল কার কাছে যাচ্ছে এবং কার থেকে আনা হচ্ছে তার পূর্ণ বিবরণী'
+                  : 'Trip consignment, consignor/consignee party, route, expenses and profit summary'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopySummary}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 transition-colors shadow-2xs"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              <span>{copied ? (bn ? 'কপি হয়েছে' : 'Copied') : bn ? 'তথ্য কপি' : 'Copy Text'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>{bn ? 'প্রিন্ট / PDF ডাউনলোড' : 'Print / Download'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ml-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* PRINTABLE CHALLAN & WORK ORDER BODY                            */}
+        {/* Matches Client Format in Image 2 (Style Wise PO Summary Report) */}
+        {/* ============================================================== */}
+        <div className="p-6 sm:p-8 space-y-6 bg-white dark:bg-slate-900 print:p-8 print:bg-white text-slate-900 dark:text-slate-100 print:text-black">
+          {/* Header Title & Address */}
+          <div className="text-center space-y-1 pb-2 border-b border-slate-200 dark:border-slate-800 print:border-black">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 print:text-black">
+              <Truck className="h-4 w-4" />
+              <span>{businessName} — Fleet Logistics Division</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white print:text-black">
+              Style Wise PO Summary Report & Consignment Challan
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium print:text-slate-700">
+              {bn
+                ? 'ঠিকানা: কর্পোরেট অফিস ও এগ্রো হাব, ঢাকা-চট্টগ্রাম মহাসড়ক, বাংলাদেশ | ফোন: +880 1711-000000 | ইমেইল: logistics@regardsagro.com'
+                : 'Address: Central Agro Logistics Hub, Dhaka-Chattogram Highway, Bangladesh | Phone: +880 1711-000000'}
+            </p>
+          </div>
+
+          {/* ============================================================== */}
+          {/* 2-COLUMN WORK ORDER KEY-VALUE METADATA BOX                     */}
+          {/* Left: Transport Meta | Right: Consignor / Consignee Parties    */}
+          {/* ============================================================== */}
+          <div className="border-2 border-slate-900 dark:border-slate-700 print:border-black rounded-lg overflow-hidden text-xs">
+            <div className="bg-slate-100 dark:bg-slate-800 print:bg-slate-200 py-2 px-4 text-center font-bold uppercase tracking-wider border-b-2 border-slate-900 dark:border-slate-700 print:border-black text-slate-900 dark:text-slate-100 print:text-black">
+              {bn ? 'কাজের অর্ডার ও পরিবহন বিবরণী (Work Order)' : 'Work Order & Consignment Note'}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x-2 divide-slate-900 dark:divide-slate-700 print:divide-black">
+              {/* Left Column: Work Order Details */}
+              <div className="p-4 space-y-2 bg-white dark:bg-slate-900/50 print:bg-white">
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    WORK ORDER NO
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.tripOrVehicleCode}
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    ISSUE DATE
+                  </span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.date}
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    DELIVERY DATE
+                  </span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
+                    : {deliveryDate}
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    CONTACT PERSON
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.driverName} ({bn ? 'চালক ও প্রতিনিধি' : 'Driver & In-Charge'})
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    MOBILE NUMBER
+                  </span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
+                    : +880 1712-345678
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    VEHICLE REG NO
+                  </span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400 print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.registrationNumber} ({trip.vehicleType || 'Heavy Truck'})
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Column: Buyer (কার কাছে যাচ্ছে) & Supplier (কার থেকে আনছে) */}
+              <div className="p-4 space-y-2 bg-emerald-50/30 dark:bg-slate-900/50 print:bg-white">
+                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
+                    {bn ? 'BUYER NAME (কার কাছে যাচ্ছে)' : 'BUYER / CONSIGNEE'}
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.customerName || (bn ? 'চট্টগ্রাম পাইকারি আড়ত ও ডেলিভারি হাব' : 'Chittagong Wholesale Terminal')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    {bn ? 'SUPPLIER (কার থেকে আনছে)' : 'SUPPLIER / CONSIGNOR'}
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {businessName} (ফিড মিল ও কেন্দ্রীয় খামার কমপ্লেক্স)
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    ATTENTION
+                  </span>
+                  <span className="font-medium text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
+                    : {bn ? 'বিভাগীয় ইনচার্জ / ডিপো রিসিভার' : 'Depot Incharge & Receiver'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    RECEIVER MOBILE
+                  </span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
+                    : +880 1700-112233
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    ORIGIN ADDRESS (উৎস)
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.origin} ({bn ? 'মাল তোলার স্থান' : 'Loading Point'})
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5">
+                  <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
+                    DELIVERY DESTINATION
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.destination} ({trip.distanceKm} {bn ? 'কি.মি. দূরত্ব' : 'KM'})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* CONSIGNMENT BREAKDOWN TABLE (Soft green styled table)           */}
+          {/* Matches Screenshot 2 Header & Columns                          */}
+          {/* ============================================================== */}
+          <div className="border border-slate-300 dark:border-slate-700 print:border-black rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-emerald-100/80 dark:bg-emerald-950/70 print:bg-slate-200 text-slate-800 dark:text-slate-100 print:text-black font-bold border-b border-slate-300 dark:border-slate-700 print:border-black">
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center w-12">
+                      JOB
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                      {bn ? 'মালের বিবরণ (Cargo / Style)' : 'Cargo / Style Details'}
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                      PO / Ref No
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                      {bn ? 'রুট ও গাড়ি' : 'Route & Vehicle'}
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
+                      WO QTY
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
+                      UOM
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right">
+                      {bn ? 'ভাড়া / রেট' : 'Freight Fare'}
+                    </th>
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right">
+                      {bn ? 'খরচ (ডিজেল+টোল+ভাতা)' : 'Trip Cost'}
+                    </th>
+                    <th className="py-2.5 px-3 text-right">
+                      {bn ? 'নিট লাভ (Profit)' : 'Net Profit'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700 print:divide-slate-300 font-medium">
+                  <tr>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold">
+                      #01
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                      <div className="font-bold text-slate-900 dark:text-white print:text-black">
+                        {trip.cargoDetails || (bn ? 'খামারের মুরগি, মাছ ও পশুখাদ্য পরিবহন' : 'Farm Livestock & Feed Consignment')}
+                      </div>
+                      <div className="text-[11px] text-slate-500 print:text-slate-600">
+                        {bn ? 'নিরাপদ পরিবহন ও সঠিক তাপমাত্রায় রক্ষিত' : 'Safe commercial transport load'}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black font-mono">
+                      PO-TRIP-{trip.tripOrVehicleCode}
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                      <div className="font-semibold">
+                        {trip.origin} ➔ {trip.destination}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        {trip.registrationNumber} · {trip.driverName}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold">
+                      1 Lot / 5,500 kg
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
+                      Trip
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">
+                      {formatBDT(trip.tripRevenue)}
+                    </td>
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono text-slate-700 dark:text-slate-300 print:text-black">
+                      {formatBDT(totalTripCost)}
+                      <div className="text-[10px] text-slate-400 print:text-slate-500">
+                        ডিজেল: {formatBDT(trip.fuelCost)} | টোল: {formatBDT(trip.tollCost)}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-bold">
+                      <span
+                        className={
+                          netTripProfit >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400 print:text-black'
+                            : 'text-red-600 print:text-black'
+                        }
+                      >
+                        {formatBDT(netTripProfit)}
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Grand Total Row matching client screenshot */}
+                  <tr className="bg-slate-100/90 dark:bg-slate-800 font-bold border-t-2 border-slate-900 dark:border-slate-700 print:border-black print:bg-slate-100">
+                    <td
+                      colSpan={4}
+                      className="py-2.5 px-4 text-right uppercase tracking-wider border-r border-slate-300 dark:border-slate-700 print:border-black"
+                    >
+                      Grand Total:
+                    </td>
+                    <td className="py-2.5 px-3 text-center border-r border-slate-300 dark:border-slate-700 print:border-black font-mono">
+                      1 Trip
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
+                      -
+                    </td>
+                    <td className="py-2.5 px-3 text-right border-r border-slate-300 dark:border-slate-700 print:border-black font-mono text-emerald-800 dark:text-emerald-400 print:text-black">
+                      {formatBDT(trip.tripRevenue)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right border-r border-slate-300 dark:border-slate-700 print:border-black font-mono text-slate-700 dark:text-slate-300 print:text-black">
+                      {formatBDT(totalTripCost)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-emerald-800 dark:text-emerald-400 print:text-black">
+                      {formatBDT(netTripProfit)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* IN WORD, NOTE & REMARKS SECTION                                */}
+          {/* Matches Screenshot 2 exactly                                   */}
+          {/* ============================================================== */}
+          <div className="space-y-2 text-xs">
+            <div className="flex items-start gap-2">
+              <span className="font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black whitespace-nowrap">
+                IN WORD:
+              </span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300 print:text-black italic">
+                {numberToWords(trip.tripRevenue)} ({trip.tripRevenue.toLocaleString()} টাকা মাত্র)
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <span className="font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black whitespace-nowrap">
+                NOTE:
+              </span>
+              <span className="text-slate-600 dark:text-slate-400 print:text-slate-700">
+                {bn
+                  ? 'উৎস স্থল থেকে মাল বোঝাই করে সিলগালা অবস্থায় ডেলিভারি গ্রহীতার নিকট পৌঁছে দিতে হবে। ডেলিভারি পয়েন্টে চালানের মূল কপিতে স্বাক্ষর ও সিল ব্যতীত পণ্য খালাস করা যাবে না।'
+                  : 'Consignment must be delivered safely in sealed condition. Receiver signature and company stamp required upon discharge.'}
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <span className="font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black whitespace-nowrap">
+                REMARKS:
+              </span>
+              <span className="text-slate-600 dark:text-slate-400 print:text-slate-700 font-mono">
+                {bn
+                  ? `ট্রিপ স্ট্যাটাস: ${trip.status === 'completed' ? 'সম্পন্ন (Completed & Received)' : 'হাইওয়েতে চলমান (On Highway)'} | বকেয়া ভাড়া: ${formatBDT(trip.outstandingDue)} | গেটপাস নং: GP-${trip.tripOrVehicleCode}`
+                  : `Trip Status: ${trip.status} | Outstanding Fare: ${formatBDT(trip.outstandingDue)}`}
+              </span>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* 5-BOX SIGNATURE APPROVAL BLOCK                                 */}
+          {/* PREPARED BY | CHECKED BY | ASST./MANAGER | HOD | ED            */}
+          {/* Exact structure from user's image 2                            */}
+          {/* ============================================================== */}
+          <div className="pt-12 sm:pt-16 grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6 text-center text-xs">
+            <div className="space-y-1">
+              <div className="border-t-2 border-slate-900 dark:border-slate-600 print:border-black pt-1.5 font-bold uppercase tracking-wider text-[11px] text-slate-900 dark:text-slate-200 print:text-black">
+                PREPARED BY
+              </div>
+              <div className="text-[10px] text-slate-500 print:text-slate-600">
+                {trip.driverName} (ড্রাইভার / স্টাফ)
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="border-t-2 border-slate-900 dark:border-slate-600 print:border-black pt-1.5 font-bold uppercase tracking-wider text-[11px] text-slate-900 dark:text-slate-200 print:text-black">
+                CHECKED BY
+              </div>
+              <div className="text-[10px] text-slate-500 print:text-slate-600">
+                {bn ? 'ট্রিপ সুপারভাইজার' : 'Trip Supervisor'}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="border-t-2 border-slate-900 dark:border-slate-600 print:border-black pt-1.5 font-bold uppercase tracking-wider text-[11px] text-slate-900 dark:text-slate-200 print:text-black">
+                ASST. / MANAGER
+              </div>
+              <div className="text-[10px] text-slate-500 print:text-slate-600">
+                Md. Sahin Miah (ম্যানেজার)
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="border-t-2 border-slate-900 dark:border-slate-600 print:border-black pt-1.5 font-bold uppercase tracking-wider text-[11px] text-slate-900 dark:text-slate-200 print:text-black">
+                HOD LOGISTICS
+              </div>
+              <div className="text-[10px] text-slate-500 print:text-slate-600">
+                {bn ? 'বিভাগীয় প্রধান (লজিস্টিকস)' : 'Head of Fleet Ops'}
+              </div>
+            </div>
+
+            <div className="space-y-1 col-span-2 sm:col-span-1">
+              <div className="border-t-2 border-slate-900 dark:border-slate-600 print:border-black pt-1.5 font-bold uppercase tracking-wider text-[11px] text-slate-900 dark:text-slate-200 print:text-black">
+                ED / SUPER ADMIN
+              </div>
+              <div className="text-[10px] text-slate-500 print:text-slate-600">
+                {bn ? 'ব্যবস্থাপনা পরিচালক / চেয়ারম্যান' : 'Executive Director'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

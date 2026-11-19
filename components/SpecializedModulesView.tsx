@@ -23,6 +23,11 @@ import {
   Briefcase,
   UserCheck,
   Award,
+  Eye,
+  Printer,
+  Copy,
+  Check,
+  FileText,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -54,11 +59,49 @@ import FishManagementModule from './FishManagementModule';
 import TransportManagementModule from './TransportManagementModule';
 import MonthFilterBar, { MonthFilterValue, matchesMonthFilter } from './MonthFilterBar';
 import UserProfileCardModal, { UserProfileData } from './UserProfileCardModal';
+import TripChallanModal from './TripChallanModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
   return clean === '' ? 0 : Number(clean);
 };
+
+function numberToWords(amount: number): string {
+  if (amount === 0) return 'Zero Taka Only';
+  const units = [
+    '',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function convert(n: number): string {
+    if (n < 20) return units[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + units[n % 10] : '');
+    if (n < 1000) return units[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+    return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '');
+  }
+  return convert(Math.abs(amount)) + ' Taka Only';
+}
 
 interface SpecializedModulesViewProps {
   activeBusiness: ErpBusiness;
@@ -286,6 +329,9 @@ export default function SpecializedModulesView({
     new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })
   );
   const [isPayingSalary, setIsPayingSalary] = useState(false);
+
+  // Trip Challan / Work Order Modal State
+  const [selectedTripChallan, setSelectedTripChallan] = useState<ErpTransportOp | null>(null);
 
   const notify = (msg: string) => {
     setStatusMessage(msg);
@@ -1870,6 +1916,7 @@ export default function SpecializedModulesView({
                   <th className="py-3 px-4 text-right">{bn ? 'মোট খরচ (ডিজেল+টোল+ড্রাইভার)' : 'Total Cost (Fuel+Toll+Driver)'}</th>
                   <th className="py-3 px-4 text-right">{bn ? 'ট্রিপের ভাড়া (Revenue)' : 'Freight Revenue'}</th>
                   <th className="py-3 px-4 text-right">{bn ? 'ট্রিপে নিট লাভ' : 'Net Trip Profit'}</th>
+                  <th className="py-3 px-4 text-center">{bn ? 'অ্যাকশন (চালান)' : 'Action (Challan)'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -1931,6 +1978,17 @@ export default function SpecializedModulesView({
                         >
                           {formatBDT(tripProfit)}
                         </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTripChallan(trp)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-700 text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap"
+                          title={bn ? 'চালান ও কাজের অর্ডার রিপোর্ট দেখুন' : 'View Work Order & Challan'}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>{bn ? 'ভিউ চালান' : 'View Challan'}</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -2623,6 +2681,15 @@ export default function SpecializedModulesView({
         isOpen={Boolean(viewingProfile)}
         onClose={() => setViewingProfile(null)}
         profile={viewingProfile}
+        lang={lang}
+      />
+
+      {/* Trip Challan & Work Order Modal */}
+      <TripChallanModal
+        isOpen={Boolean(selectedTripChallan)}
+        onClose={() => setSelectedTripChallan(null)}
+        trip={selectedTripChallan}
+        businessName={activeBusiness.nameBn || activeBusiness.name}
         lang={lang}
       />
     </div>

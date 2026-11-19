@@ -263,6 +263,34 @@ export default function AgroErpApp() {
 
   const openActorProfile = useCallback(
     (actorEmail?: string, fallbackName?: string, fallbackRole?: string) => {
+      // 1. If viewing self (the currently logged-in admin/user)
+      if (user && (!actorEmail || actorEmail === user.email || actorEmail === 'admin')) {
+        setViewingProfile({
+          id: user.id,
+          name: user.displayName || 'Sahin Miah',
+          displayName: user.displayName || 'Sahin Miah',
+          email: user.email,
+          role: user.role,
+          designation:
+            user.designation ||
+            (user.role === 'super_admin'
+              ? 'ব্যবসা স্বত্বাধিকারী ও চেয়ারম্যান'
+              : user.role === 'super_manager'
+              ? 'প্রধান জেনারেল ম্যানেজার (COO)'
+              : 'বিভাগীয় ইনচার্জ'),
+          phone: user.phone || '+880 1711-000000',
+          nidNumber: user.nidNumber || '19902692019000142',
+          photoUrl: user.photoUrl,
+          address: user.address || 'ঢাকা, বাংলাদেশ',
+          emergencyContact: user.emergencyContact || '+880 1711-112233',
+          joiningDate: user.lastLoginAt,
+          status: user.status || 'active',
+          businessNames: ['সকল ৫টি ব্যবসায়িক ইউনিট'],
+        });
+        return;
+      }
+
+      // 2. If matching other registered users
       const matchedUser = erpUsers.find((u) => u.email === actorEmail);
       if (matchedUser) {
         setViewingProfile({
@@ -294,6 +322,8 @@ export default function AgroErpApp() {
         });
         return;
       }
+
+      // 3. If matching stakeholders / employees
       const matchedStk = stakeholders.find(
         (s) => s.id === actorEmail || s.name.toLowerCase() === fallbackName?.toLowerCase()
       );
@@ -316,8 +346,10 @@ export default function AgroErpApp() {
         });
         return;
       }
+
+      // Fallback
       setViewingProfile({
-        id: 'actor-' + (actorEmail || 'admin'),
+        id: (user && (actorEmail === user.email || !actorEmail)) ? user.id : 'actor-' + (actorEmail || 'admin'),
         name: fallbackName || user?.displayName || 'Sahin Miah',
         displayName: fallbackName || user?.displayName || 'Sahin Miah',
         email: actorEmail || user?.email || 'admin@regardsagro.com',
@@ -344,12 +376,16 @@ export default function AgroErpApp() {
     async (updated: Partial<UserProfileData>) => {
       try {
         const resolvedName = updated.name || updated.displayName;
+        const targetUserId = updated.id || user?.id;
+        const targetEmail = updated.email || user?.email;
+
         const res = await fetch('/api/erp/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'updateUserProfile',
-            userId: updated.id || user?.id,
+            userId: targetUserId,
+            email: targetEmail,
             displayName: resolvedName,
             phone: updated.phone,
             nidNumber: updated.nidNumber,
@@ -361,33 +397,41 @@ export default function AgroErpApp() {
           }),
         });
         if (res.ok) {
-          if (user && (updated.id === user.id || !updated.id)) {
+          const isSelf = !updated.id || (user && (updated.id === user.id || updated.email === user.email));
+          if (isSelf && user) {
+            const nextPhoto = updated.photoUrl !== undefined ? updated.photoUrl : user.photoUrl;
+            if (nextPhoto && typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('krishi_saved_photo_' + user.id, nextPhoto);
+                localStorage.setItem('krishi_saved_photo_self', nextPhoto);
+              } catch {}
+            }
             setUser((prev) =>
               prev
                 ? {
                     ...prev,
                     displayName: resolvedName || prev.displayName,
-                    phone: updated.phone || prev.phone,
-                    nidNumber: updated.nidNumber || prev.nidNumber,
-                    designation: updated.designation || prev.designation,
-                    address: updated.address || prev.address,
-                    emergencyContact: updated.emergencyContact || prev.emergencyContact,
-                    photoUrl: updated.photoUrl !== undefined ? updated.photoUrl : prev.photoUrl,
+                    phone: updated.phone !== undefined ? updated.phone : prev.phone,
+                    nidNumber: updated.nidNumber !== undefined ? updated.nidNumber : prev.nidNumber,
+                    designation: updated.designation !== undefined ? updated.designation : prev.designation,
+                    address: updated.address !== undefined ? updated.address : prev.address,
+                    emergencyContact: updated.emergencyContact !== undefined ? updated.emergencyContact : prev.emergencyContact,
+                    photoUrl: nextPhoto,
                   }
                 : null
             );
           }
           setErpUsers((prev) =>
             prev.map((u) =>
-              u.id === updated.id
+              u.id === targetUserId || u.email === targetEmail
                 ? {
                     ...u,
                     displayName: resolvedName || u.displayName,
-                    phone: updated.phone || u.phone,
-                    nidNumber: updated.nidNumber || u.nidNumber,
-                    designation: updated.designation || u.designation,
-                    address: updated.address || u.address,
-                    emergencyContact: updated.emergencyContact || u.emergencyContact,
+                    phone: updated.phone !== undefined ? updated.phone : u.phone,
+                    nidNumber: updated.nidNumber !== undefined ? updated.nidNumber : u.nidNumber,
+                    designation: updated.designation !== undefined ? updated.designation : u.designation,
+                    address: updated.address !== undefined ? updated.address : u.address,
+                    emergencyContact: updated.emergencyContact !== undefined ? updated.emergencyContact : u.emergencyContact,
                     photoUrl: updated.photoUrl !== undefined ? updated.photoUrl : u.photoUrl,
                   }
                 : u
@@ -444,6 +488,17 @@ export default function AgroErpApp() {
         setNotifications(json.data.notifications || []);
         setAuditLogs(json.data.auditLogs || []);
         setErpUsers(json.data.erpUsers || []);
+        if (json.user) {
+          const cachedPhoto =
+            typeof window !== 'undefined'
+              ? localStorage.getItem('krishi_saved_photo_' + json.user.id) ||
+                localStorage.getItem('krishi_saved_photo_self')
+              : null;
+          setUser({
+            ...json.user,
+            photoUrl: json.user.photoUrl || cachedPhoto || undefined,
+          });
+        }
         if (json.data.businesses?.length > 0) {
           setQuickBizId((prev) => prev || json.data!.businesses[0].id);
         }
@@ -469,9 +524,18 @@ export default function AgroErpApp() {
         if (!active) return;
         setHasSuperAdmin(Boolean(json.hasSuperAdmin));
         if (json.user) {
-          setUser(json.user);
-          setUserRole(json.user.role);
-          setAssignedBusinessFilter(json.user.assignedBusinesses || 'ALL');
+          const cachedPhoto =
+            typeof window !== 'undefined'
+              ? localStorage.getItem('krishi_saved_photo_' + json.user.id) ||
+                localStorage.getItem('krishi_saved_photo_self')
+              : null;
+          const userWithPhoto: AuthenticatedErpUser = {
+            ...json.user,
+            photoUrl: json.user.photoUrl || cachedPhoto || undefined,
+          };
+          setUser(userWithPhoto);
+          setUserRole(userWithPhoto.role);
+          setAssignedBusinessFilter(userWithPhoto.assignedBusinesses || 'ALL');
         } else {
           setUser(null);
         }
