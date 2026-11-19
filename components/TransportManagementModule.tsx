@@ -441,63 +441,82 @@ export default function TransportManagementModule({
           </div>
         </div>
 
-        {/* Vehicle & Trip Selector Pills */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">
-            গাড়ি ও ট্রিপ নির্বাচন করুন:
-          </span>
-          {filteredOps.map((o) => {
-            const isSelected = selectedOp?.id === o.id;
-            return (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => setSelectedOpId(o.id)}
-                className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 ${
-                  isSelected
-                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-emerald-600 dark:border-emerald-500 shadow-xs'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
-                }`}
+        {/* Modern Dropdown & Quick Fleet/Trip Selector Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-emerald-200/70 dark:border-emerald-900/40">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 whitespace-nowrap">
+              <Truck className="h-4 w-4 text-emerald-600" />
+              <span>{bn ? 'গাড়ি ও ট্রিপ নির্বাচন (Select Fleet/Trip):' : 'Select Fleet/Trip:'}</span>
+            </label>
+
+            <div className="relative min-w-[280px] max-w-md flex-1">
+              <select
+                value={selectedOp?.id || ''}
+                onChange={(e) => setSelectedOpId(e.target.value)}
+                className="w-full pl-3 pr-8 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer"
               >
-                <span className="font-mono font-bold">{o.tripOrVehicleCode}</span>
-                <span>({o.origin} → {o.destination})</span>
-              </button>
-            );
-          })}
+                {filteredOps.length === 0 ? (
+                  <option value="" disabled>{bn ? 'কোনো ট্রিপ পাওয়া যায়নি' : 'No trips found'}</option>
+                ) : (
+                  filteredOps.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      [{o.tripOrVehicleCode}] {o.registrationNumber} ({o.origin} → {o.destination}) — {o.status === 'completed' ? (bn ? 'সম্পন্ন' : 'Completed') : o.status}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
+              {bn ? `মোট ${ops.length}টি গাড়ি/ট্রিপ` : `Total ${ops.length} Trips`}
+            </span>
+          </div>
 
           {selectedOp && (
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => {
-                triggerConfirmDelete({
-                  title: bn ? 'গাড়ি ও ট্রিপ রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Vehicle / Trip',
-                  message: bn
-                    ? `আপনি কি নিশ্চিতভাবে এই ট্রিপ রেকর্ডটি (${selectedOp.tripOrVehicleCode}: ${selectedOp.origin} → ${selectedOp.destination}) ডিলিট করতে চান?`
-                    : `Are you sure you want to delete trip ${selectedOp.tripOrVehicleCode}?`,
-                  itemName: `${selectedOp.tripOrVehicleCode} (${selectedOp.registrationNumber} - চালক: ${selectedOp.driverName})`,
-                  onConfirm: async () => {
-                    setIsSubmitting(true);
-                    try {
-                      await deleteTransportOp(selectedOp.id);
-                      triggerGlobalToast(
-                        bn ? `${selectedOp.tripOrVehicleCode} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedOp.tripOrVehicleCode} deleted!`,
-                        'delete'
-                      );
-                      onNotify(bn ? `${selectedOp.tripOrVehicleCode} ডিলিট সম্পন্ন!` : `Trip deleted!`);
-                    } catch (err: any) {
-                      triggerGlobalToast(err?.message || 'Delete failed', 'info');
-                    } finally {
-                      setIsSubmitting(false);
-                    }
-                  },
-                });
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-xs ml-auto cursor-pointer"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>{bn ? 'ট্রিপ ডিলিট (Delete)' : 'Delete Trip'}</span>
-            </button>
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* Selected Trip Mini Summary Card */}
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-2xs">
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedOp.tripOrVehicleCode}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{selectedOp.registrationNumber}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{selectedOp.origin} → {selectedOp.destination}</span>
+              </div>
+
+              {/* Delete Trip Button */}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  triggerConfirmDelete({
+                    title: bn ? 'গাড়ি ও ট্রিপ রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Vehicle / Trip',
+                    message: bn
+                      ? `আপনি কি নিশ্চিতভাবে এই ট্রিপ রেকর্ডটি (${selectedOp.tripOrVehicleCode}: ${selectedOp.origin} → ${selectedOp.destination}) ডিলিট করতে চান? এর সাথে যুক্ত সমস্ত তথ্য মুছে যাবে।`
+                      : `Are you sure you want to delete trip ${selectedOp.tripOrVehicleCode}?`,
+                    itemName: `${selectedOp.tripOrVehicleCode} (${selectedOp.registrationNumber} - চালক: ${selectedOp.driverName})`,
+                    onConfirm: async () => {
+                      setIsSubmitting(true);
+                      try {
+                        await deleteTransportOp(selectedOp.id);
+                        triggerGlobalToast(
+                          bn ? `${selectedOp.tripOrVehicleCode} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedOp.tripOrVehicleCode} deleted!`,
+                          'delete'
+                        );
+                        onNotify(bn ? `${selectedOp.tripOrVehicleCode} ডিলিট সম্পন্ন!` : `Trip deleted!`);
+                      } catch (err: any) {
+                        triggerGlobalToast(err?.message || 'Delete failed', 'info');
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    },
+                  });
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-2xs cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{bn ? 'মুছুন' : 'Delete'}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

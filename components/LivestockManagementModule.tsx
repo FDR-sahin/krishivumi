@@ -20,6 +20,9 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
+  Scan,
+  Printer,
+  X,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -43,6 +46,7 @@ import {
   triggerGlobalToast,
   triggerConfirmDelete,
 } from './GlobalToastAndConfirmModal';
+import LivestockBarcodeScannerModal from './LivestockBarcodeScannerModal';
 
 const parseNum = (val: string): number => {
   const clean = val.replace(/^0+(?=\d)/, '');
@@ -94,6 +98,8 @@ export default function LivestockManagementModule({
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [selectedAnimalId, setSelectedAnimalId] = useState<string>(animals[0]?.id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [showEarTagModal, setShowEarTagModal] = useState(false);
 
   // Filter animals by Tag ID, Name, Breed, Parent Tag, Health Status
   const filteredAnimals = useMemo(() => {
@@ -940,72 +946,98 @@ export default function LivestockManagementModule({
           </div>
         </div>
 
-        {/* Animal Tag Selector Pills */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">
-            {isCattle ? 'গরুর Digital ID সিলেক্ট করুন:' : 'ছাগলের Digital ID সিলেক্ট করুন:'}
-          </span>
-          {filteredAnimals.map((a) => {
-            const isSelected = selectedAnimal?.id === a.id;
-            return (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => setSelectedAnimalId(a.id)}
-                className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-2 ${
-                  isSelected
-                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-emerald-600 dark:border-emerald-500 shadow-xs'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-400'
-                }`}
-              >
-                <span className="font-mono font-bold">{a.animalTag}</span>
-                <span>({a.name})</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
-                    isSelected
-                      ? 'bg-emerald-500/20 text-emerald-200'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  {a.currentWeightKg} কেজি
-                </span>
-              </button>
-            );
-          })}
-
-          {selectedAnimal && (
+        {/* Modern Dropdown & Quick Animal Selector Bar with Barcode Scanner */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-emerald-200/70 dark:border-emerald-900/40">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
             <button
               type="button"
-              disabled={isSubmitting}
-              onClick={() => {
-                triggerConfirmDelete({
-                  title: bn ? 'পশুর রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Animal',
-                  message: bn
-                    ? `আপনি কি নিশ্চিতভাবে এই পশুর রেকর্ডটি (${selectedAnimal.animalTag}) ডিলিট করতে চান?`
-                    : `Are you sure you want to delete animal record ${selectedAnimal.animalTag}?`,
-                  itemName: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed})`,
-                  onConfirm: async () => {
-                    setIsSubmitting(true);
-                    try {
-                      await deleteLivestockAnimal(selectedAnimal.id);
-                      triggerGlobalToast(
-                        bn ? `${selectedAnimal.animalTag} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedAnimal.animalTag} deleted!`,
-                        'delete'
-                      );
-                      onNotify(bn ? `${selectedAnimal.animalTag} ডিলিট সম্পন্ন!` : `Record deleted!`);
-                    } catch (err: any) {
-                      triggerGlobalToast(err?.message || 'Delete failed', 'info');
-                    } finally {
-                      setIsSubmitting(false);
-                    }
-                  },
-                });
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-xs ml-auto cursor-pointer"
+              onClick={() => setIsScannerOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+              title={bn ? 'ক্যামেরা অথবা বারকোড স্ক্যানার গান দিয়ে স্ক্যান করুন' : 'Scan Tag with Camera or Barcode Gun'}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>{bn ? 'রেকর্ড ডিলিট (Delete)' : 'Delete Animal'}</span>
+              <Scan className="h-4 w-4" />
+              <span>{bn ? 'বারকোড স্ক্যানার' : 'Scan Barcode/QR'}</span>
             </button>
+
+            <div className="relative min-w-[260px] max-w-md flex-1">
+              <select
+                value={selectedAnimal?.id || ''}
+                onChange={(e) => setSelectedAnimalId(e.target.value)}
+                className="w-full pl-3 pr-8 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer"
+              >
+                {filteredAnimals.length === 0 ? (
+                  <option value="" disabled>{bn ? 'কোনো পশু পাওয়া যায়নি' : 'No animal found'}</option>
+                ) : (
+                  filteredAnimals.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      [{a.animalTag}] {a.name} · {a.breed} · {a.currentWeightKg} কেজি ({a.healthStatus || 'সুস্থ'})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
+              {bn ? `মোট ${animals.length}টি ${isCattle ? 'গরু' : 'ছাগল'}` : `Total ${animals.length} ${isCattle ? 'Cattle' : 'Goats'}`}
+            </span>
+          </div>
+
+          {selectedAnimal && (
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Selected Animal Mini Info Pill */}
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-2xs">
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedAnimal.animalTag}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{selectedAnimal.name}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{selectedAnimal.currentWeightKg} কেজি</span>
+              </div>
+
+              {/* View/Print Ear Tag & Barcode Modal Button */}
+              <button
+                type="button"
+                onClick={() => setShowEarTagModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
+                title={bn ? 'বারকোড ইয়ার ট্যাগ স্লিপ দেখুন ও প্রিন্ট করুন' : 'View & Print Barcode Ear Tag'}
+              >
+                <Printer className="h-3.5 w-3.5 text-emerald-600" />
+                <span>{bn ? 'বারকোড ট্যাগ' : 'Ear Tag'}</span>
+              </button>
+
+              {/* Delete Animal Button */}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  triggerConfirmDelete({
+                    title: bn ? 'পশুর রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Animal',
+                    message: bn
+                      ? `আপনি কি নিশ্চিতভাবে এই পশুর রেকর্ডটি (${selectedAnimal.animalTag}) ডিলিট করতে চান? এর সাথে যুক্ত যাবতীয় তথ্য মুছে যাবে।`
+                      : `Are you sure you want to delete animal record ${selectedAnimal.animalTag}?`,
+                    itemName: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed})`,
+                    onConfirm: async () => {
+                      setIsSubmitting(true);
+                      try {
+                        await deleteLivestockAnimal(selectedAnimal.id);
+                        triggerGlobalToast(
+                          bn ? `${selectedAnimal.animalTag} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedAnimal.animalTag} deleted!`,
+                          'delete'
+                        );
+                        onNotify(bn ? `${selectedAnimal.animalTag} ডিলিট সম্পন্ন!` : `Record deleted!`);
+                      } catch (err: any) {
+                        triggerGlobalToast(err?.message || 'Delete failed', 'info');
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    },
+                  });
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-2xs cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{bn ? 'মুছুন' : 'Delete'}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1125,7 +1157,26 @@ export default function LivestockManagementModule({
                   </p>
                 </div>
               </div>
-              <QrCode className="h-8 w-8 text-slate-400" />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 transition-colors cursor-pointer"
+                  title={bn ? 'ক্যামেরা অথবা বারকোড স্ক্যানার গান দিয়ে স্ক্যান করুন' : 'Scan via Camera or Barcode Gun'}
+                >
+                  <Scan className="h-4 w-4" />
+                  <span>{bn ? 'স্ক্যান' : 'Scan'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEarTagModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
+                  title={bn ? 'বারকোড ইয়ার ট্যাগ স্লিপ প্রিন্ট করুন' : 'Print Barcode Ear Tag'}
+                >
+                  <Printer className="h-4 w-4 text-emerald-600" />
+                  <span>{bn ? 'স্লিপ' : 'Slip'}</span>
+                </button>
+              </div>
             </div>
 
             {selectedAnimal ? (
@@ -2646,6 +2697,141 @@ export default function LivestockManagementModule({
           </div>
         </div>
       )}
+
+      {/* =====================================================================
+          EAR TAG & BARCODE SLIP MODAL (PRINTABLE)
+         ===================================================================== */}
+      {showEarTagModal && selectedAnimal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Printer className="h-5 w-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {bn ? 'পশুর ডিজিটাল বারকোড ও ইয়ার ট্যাগ স্লিপ' : 'Animal Barcode & Ear Tag Slip'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEarTagModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Printable Tag Badge */}
+            <div className="border-2 border-dashed border-amber-300 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800 rounded-xl p-5 space-y-4 text-center">
+              <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wider pb-1 border-b border-amber-200 dark:border-amber-900/50">
+                <span>{activeBusiness.name}</span>
+                <span>Enterprise Agro ERP</span>
+              </div>
+
+              <div>
+                <div className="text-3xl font-mono font-black tracking-widest text-slate-900 dark:text-slate-100 py-1">
+                  {selectedAnimal.animalTag}
+                </div>
+                <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                  {selectedAnimal.name} ({selectedAnimal.breed})
+                </div>
+              </div>
+
+              {/* High-Contrast Visual Barcode Graphic */}
+              <div className="bg-white p-3 rounded-lg border border-slate-300 dark:border-slate-700 inline-block shadow-xs">
+                <svg className="w-64 h-16 mx-auto" viewBox="0 0 260 60">
+                  {[
+                    2, 5, 2, 8, 3, 4, 2, 7, 3, 5, 2, 9, 4, 3, 2, 6, 3, 5, 2, 8, 4, 2, 3, 7, 2, 6,
+                    3, 4, 2, 8, 3, 5, 2, 7, 4, 3, 2, 8, 3, 6, 2, 5, 4, 2, 3, 7, 2, 6, 3, 5,
+                  ].map((bar, i) => (
+                    <rect
+                      key={i}
+                      x={i * 5 + 4}
+                      y="4"
+                      width={bar > 4 ? 3 : 1.5}
+                      height="44"
+                      fill="#0f172a"
+                    />
+                  ))}
+                  <text
+                    x="130"
+                    y="56"
+                    textAnchor="middle"
+                    className="font-mono text-[10px] font-bold"
+                    fill="#334155"
+                  >
+                    *{selectedAnimal.animalTag}*
+                  </text>
+                </svg>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-left text-xs bg-white/80 dark:bg-slate-900/80 p-3 rounded-lg border border-amber-200 dark:border-amber-900/50">
+                <div>
+                  <span className="text-slate-500 block text-[10px]">{bn ? 'জাত ও লিঙ্গ' : 'Breed & Gender'}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {selectedAnimal.breed} ({selectedAnimal.gender})
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">{bn ? 'বর্তমান ওজন' : 'Current Weight'}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {selectedAnimal.currentWeightKg} কেজি
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">{bn ? 'কেনার / জন্ম তারিখ' : 'Birth/Purchase Date'}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {selectedAnimal.purchaseDate}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">{bn ? 'স্বাস্থ্য অবস্থা' : 'Health Status'}</span>
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    {selectedAnimal.healthStatus || 'সুস্থ'}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 leading-tight">
+                {bn
+                  ? '💡 পরামর্শ: কানের হলুদ ট্যাগে বা কলার ট্যাগে এই বারকোড বা কিউআর কোডটি প্রিন্ট করে লাগান। ক্যামেরা বা স্ক্যানার গান দিয়ে মুহূর্তেই তথ্য পাওয়া যাবে।'
+                  : 'Attach this barcode to ear tag or neck collar for instant scanning via camera or barcode gun.'}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowEarTagModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                {bn ? 'বন্ধ করুন' : 'Close'}
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
+              >
+                <Printer className="h-4 w-4" />
+                <span>{bn ? 'ট্যাগ স্লিপ প্রিন্ট করুন (Print)' : 'Print Ear Tag'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          CAMERA & HARDWARE BARCODE / QR SCANNER MODAL
+         ===================================================================== */}
+      <LivestockBarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        animals={animals}
+        onSelectAnimal={(animalId) => {
+          setSelectedAnimalId(animalId);
+        }}
+        species={isCattle ? 'cattle' : 'goat'}
+        lang={lang}
+      />
     </div>
   );
 }
