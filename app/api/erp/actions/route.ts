@@ -1555,6 +1555,101 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, photoUrl: updates.photoUrl });
       }
 
+      case 'createChartOfAccount': {
+        if (!isSuperAdmin && !perms.canPostAccounting) {
+          return NextResponse.json(
+            { ok: false, error: 'RBAC Denied: Only authorized users can create accounts.' },
+            { status: 403 }
+          );
+        }
+        const name = cap(payload.name, 120);
+        const code = cap(payload.code, 32);
+        const accountType = payload.accountType as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+        const subType = cap(payload.subType || 'general', 64);
+        const businessId = cap(payload.businessId || 'ALL', 64);
+        const openingBalance = Math.max(0, Number(payload.openingBalance) || 0);
+
+        if (!name || !code) {
+          return NextResponse.json({ ok: false, error: 'Account code and name are required.' }, { status: 400 });
+        }
+
+        const existing = await db.collection('accounts').findOne({
+          ownerId,
+          $or: [{ code }, { name }],
+        });
+        if (existing) {
+          return NextResponse.json(
+            { ok: false, error: 'An account with this code or name already exists.' },
+            { status: 400 }
+          );
+        }
+
+        const accId = cleanId(`acc-${accountType}`);
+        await db.collection('accounts').insertOne({
+          _id: accId,
+          code,
+          name,
+          accountType,
+          subType,
+          businessId,
+          balance: openingBalance,
+          currency: 'BDT',
+          isActive: true,
+          ownerId,
+          createdAt: now,
+          updatedAt: now,
+        } as unknown as never);
+
+        if (openingBalance > 0) {
+          const eqAcc = await db
+            .collection('accounts')
+            .findOne({ ownerId, accountType: 'equity' });
+          if (eqAcc) {
+            await db
+              .collection('accounts')
+              .updateOne(
+                { _id: eqAcc._id },
+                { $set: { balance: Number(eqAcc.balance) + openingBalance, updatedAt: now } }
+              );
+          }
+          const isDebitNormal = accountType === 'asset' || accountType === 'expense';
+          await db.collection('journal_entries').insertOne({
+            _id: cleanId('je'),
+            referenceNo: `OPN-${Date.now().toString().slice(-5)}`,
+            date: new Date().toISOString().split('T')[0],
+            businessId,
+            businessName: businessId === 'ALL' ? 'Consolidated HQ' : 'Business Unit',
+            transactionType: 'income',
+            category: 'Opening Balance / Initial Capital',
+            description: `Opening balance registered for ${name}`,
+            debitAccountId: isDebitNormal ? accId : eqAcc ? String(eqAcc._id) : 'EQUITY',
+            debitAccountName: isDebitNormal ? name : eqAcc ? String(eqAcc.name) : 'Sponsor Equity',
+            creditAccountId: isDebitNormal ? (eqAcc ? String(eqAcc._id) : 'EQUITY') : accId,
+            creditAccountName: isDebitNormal ? (eqAcc ? String(eqAcc.name) : 'Sponsor Equity') : name,
+            amount: openingBalance,
+            paymentStatus: 'paid',
+            dueAmount: 0,
+            counterpartyName: 'Owner / Opening Capital',
+            status: 'posted',
+            reversedByEntryId: '',
+            ownerId,
+            createdAt: now,
+            updatedAt: now,
+          } as unknown as never);
+        }
+
+        await writeAuditLog({
+          action: 'CREATE_CHART_OF_ACCOUNT',
+          module: 'Central Accounting',
+          businessId,
+          details: `Created ${accountType.toUpperCase()} account "${name}" (${code}) with opening balance BDT ${openingBalance}`,
+          severity: 'info',
+          actorEmail,
+          ownerId,
+        });
+        return NextResponse.json({ ok: true, result: accId });
+      }
+
       case 'createTreasuryAccount': {
         if (!isSuperAdmin && !perms.canPostAccounting) {
           return NextResponse.json(

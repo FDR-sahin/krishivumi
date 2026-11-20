@@ -317,6 +317,17 @@ export async function seedInitialErpDataIfEmpty(
   return callErpAction<boolean>('seedInitialErpDataIfEmpty', { uid, email, displayName });
 }
 
+export async function createChartOfAccount(input: {
+  code: string;
+  name: string;
+  accountType: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+  subType?: string;
+  businessId?: string;
+  openingBalance?: number;
+}): Promise<string> {
+  return callErpAction<string>('createChartOfAccount', input);
+}
+
 export async function createTreasuryAccount(input: {
   name: string;
   subType: 'cash' | 'bank';
