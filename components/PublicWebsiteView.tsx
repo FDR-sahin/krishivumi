@@ -97,7 +97,7 @@ export default function PublicWebsiteView({
     }
   };
 
-  const bn = lang === 'bn';
+  const bn = false;
 
   const verticals = [
     {

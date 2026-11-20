@@ -21,18 +21,18 @@ export interface PayrollCycleInfo {
 }
 
 const MONTH_NAMES_BN = [
-  'জানুয়ারি',
-  'ফেব্রুয়ারি',
-  'মার্চ',
-  'এপ্রিল',
-  'মে',
-  'জুন',
-  'জুলাই',
-  'আগস্ট',
-  'সেপ্টেম্বর',
-  'অক্টোবর',
-  'নভেম্বর',
-  'ডিসেম্বর',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const MONTH_NAMES_EN = [
@@ -97,35 +97,34 @@ export function getPayrollCycleInfo(
     : monthlySalary;
 
   let cycleStatus: 'paid' | 'accruing' | 'due_for_payout' | 'overdue' = 'accruing';
-  let statusBadgeBn = 'কার্যকাল চলমান';
-  let statusBadgeEn = 'Accruing';
+  let statusBadgeBn = statusBadgeEn;
   let statusColor = 'text-blue-700 bg-blue-500/10 border-blue-500/20';
 
   if (paidAmountThisPeriod >= payableForCurrentMonth && payableForCurrentMonth > 0) {
     cycleStatus = 'paid';
-    statusBadgeBn = `✓ ${currentMonthNameBn} পরিশোধিত (${formatBDT(paidAmountThisPeriod)})`;
     statusBadgeEn = `✓ ${currentMonthNameEn} Paid (${formatBDT(paidAmountThisPeriod)})`;
+    statusBadgeBn = statusBadgeEn;
     statusColor = 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
   } else if (paidAmountThisPeriod > 0) {
     cycleStatus = 'due_for_payout';
     const remainingDue = payableForCurrentMonth - paidAmountThisPeriod;
-    statusBadgeBn = `আংশিক প্রদত্ত (বাকি ${formatBDT(remainingDue)})`;
     statusBadgeEn = `Partial (Remaining ${formatBDT(remainingDue)})`;
+    statusBadgeBn = statusBadgeEn;
     statusColor = 'text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20';
   } else if (isThreeDaysBeforeMonthEnd) {
     cycleStatus = 'due_for_payout';
-    statusBadgeBn = `🔔 বেতন প্রদানের সময় হয়েছে (${formatBDT(payableForCurrentMonth)})`;
     statusBadgeEn = `🔔 Payroll Due Now (${formatBDT(payableForCurrentMonth)})`;
+    statusBadgeBn = statusBadgeEn;
     statusColor = 'text-amber-700 dark:text-amber-300 bg-amber-500/15 border-amber-500/30 animate-pulse';
   } else if (isJoinedCurrentMonth) {
     cycleStatus = 'accruing';
-    statusBadgeBn = `চলমান কার্যদিবস: ${daysWorkedInCurrentMonth} দিন (${formatBDT(payableForCurrentMonth)})`;
     statusBadgeEn = `Active Days: ${daysWorkedInCurrentMonth}d (${formatBDT(payableForCurrentMonth)})`;
+    statusBadgeBn = statusBadgeEn;
     statusColor = 'text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/20';
   } else {
     cycleStatus = 'accruing';
-    statusBadgeBn = `${currentMonthNameBn} মাসের কার্যকাল চলমান`;
     statusBadgeEn = `${currentMonthNameEn} Month in Progress`;
+    statusBadgeBn = statusBadgeEn;
     statusColor = 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700';
   }
 
@@ -227,18 +226,18 @@ export function getEnterprisePayrollSummary(
       bizNameBn: biz.nameBn || biz.name,
       staffCount: bizStaff.length,
       totalBudget: bSalary,
-      managerName: biz.managerName || bizMgr?.displayName || 'মোঃ রফিকুল ইসলাম',
+      managerName: biz.managerName || bizMgr?.displayName || 'Md. Rafiqul Islam',
       managerSalary: mMgrSalary,
     };
   });
 
-  const monthBn = MONTH_NAMES_BN[currentMonth];
+  const monthBn = MONTH_NAMES_EN[currentMonth];
   const monthEn = MONTH_NAMES_EN[currentMonth];
 
-  const alertTitleBn = `🔔 মাসিক বেতন পরিশোধের সময় হয়েছে (${monthBn} ২০২৬)`;
+  const alertTitleBn = alertTitleEn;
   const alertTitleEn = `🔔 Monthly Payroll Due Notice (${monthEn} 2026)`;
 
-  const alertMessageBn = `চলতি মাসের আর মাত্র ${Math.max(1, daysRemaining)} দিন বাকি! ৫টি ব্যবসা ও ৫ জন বিজনেস ম্যানেজারের মোট ${activeStaff.length + activeManagers.length} জন জনবলের সর্বমোট বেতন ${formatBDT(grandTotalMonthlyPayroll)} পরিশোধের সময় হয়েছে। ক্যাশ ভল্ট ও ব্যাংক ব্যালেন্স যাচাই করে পে-রোল অনুমোদন দিন।`;
+  const alertMessageBn = alertMessageEn;
   const alertMessageEn = `Only ${Math.max(1, daysRemaining)} days remaining this month! Total payroll of ${formatBDT(grandTotalMonthlyPayroll)} across ${activeStaff.length + activeManagers.length} staff & division managers is ready for executive approval and disbursement.`;
 
   return {

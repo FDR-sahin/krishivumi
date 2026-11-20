@@ -41,7 +41,7 @@ export default function AuthModal({
 
   if (!isOpen) return null;
 
-  const bn = lang === 'bn';
+  const bn = false;
   const isSetupMode = !hasSuperAdmin;
 
   const handleSubmit = async (e: React.FormEvent) => {

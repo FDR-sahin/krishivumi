@@ -57,14 +57,14 @@ export default function UserProfileCardModal({
   profile,
   canEdit = false,
   onSave,
-  lang = 'bn',
+  lang = 'en',
 }: UserProfileCardModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const bn = lang === 'bn';
+  const bn = false;
 
   // Editable Form State
   const [name, setName] = useState('');

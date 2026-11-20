@@ -69,9 +69,9 @@ export default function FishManagementModule({
   ownerId,
   actorEmail,
   onNotify,
-  lang = 'bn',
+  lang = 'en',
 }: FishManagementModuleProps) {
-  const bn = lang === 'bn';
+  const bn = false;
   const notify = (msg: string) => {
     onNotify(msg);
     triggerGlobalToast(msg, 'success');

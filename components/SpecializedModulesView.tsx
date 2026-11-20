@@ -157,7 +157,7 @@ export default function SpecializedModulesView({
   lang = 'en',
 }: SpecializedModulesViewProps) {
   const tpl = activeBusiness.templateType;
-  const bn = tpl === 'transport' ? false : lang === 'bn';
+  const bn = false;
   const [localMonthFilter, setLocalMonthFilter] = useState<MonthFilterValue>({
     year: 'ALL',
     month: 'ALL',
@@ -464,13 +464,9 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setShowAddStaffModal(false);
-      notify(
-        bn
-          ? `কর্মী "${stfName}" সফলভাবে ${activeBusiness.nameBn || activeBusiness.name}-এ যুক্ত হয়েছে!`
-          : `Staff "${stfName}" successfully hired for ${activeBusiness.name}!`
-      );
+      notify(`Staff "${stfName}" successfully hired for ${activeBusiness.name}!`);
     } catch (err) {
-      notify(err instanceof Error ? err.message : 'কর্মী যুক্ত করতে সমস্যা হয়েছে।');
+      notify(err instanceof Error ? err.message : 'Error adding staff.');
     } finally {
       setIsSavingStaff(false);
     }
@@ -485,13 +481,9 @@ export default function SpecializedModulesView({
       activeBusiness.managerName = newMgrName.trim();
       if (newMgrPhone.trim()) activeBusiness.contactPhone = newMgrPhone.trim();
       setShowAppointMgrModal(false);
-      notify(
-        bn
-          ? `"${newMgrName}"-কে ${activeBusiness.nameBn || activeBusiness.name}-এর নতুন ইন-চার্জ ম্যানেজার নিয়োগ দেওয়া হয়েছে!`
-          : `Appointed "${newMgrName}" as manager for ${activeBusiness.name}!`
-      );
+      notify(`Appointed "${newMgrName}" as manager for ${activeBusiness.name}!`);
     } catch (err) {
-      notify(err instanceof Error ? err.message : 'ম্যানেজার নিয়োগ করতে সমস্যা হয়েছে।');
+      notify(err instanceof Error ? err.message : 'Error assigning manager.');
     } finally {
       setIsSavingMgr(false);
     }
@@ -516,10 +508,10 @@ export default function SpecializedModulesView({
           referenceNo: `PAY-${Date.now().toString().slice(-6)}`,
           date: new Date().toISOString().split('T')[0],
           businessId: activeBusiness.id,
-          businessName: activeBusiness.nameBn || activeBusiness.name,
+          businessName: activeBusiness.name,
           transactionType: 'payroll',
-          category: 'বেতন ও পারিশ্রমিক (Payroll)',
-          description: `${salaryTarget.name} (${salaryTarget.designationOrCategory})-এর ${salaryMonthLabel} মাসের বেতন পরিশোধ`,
+          category: 'Salary & Wages (Payroll)',
+          description: `${salaryTarget.name} (${salaryTarget.designationOrCategory}) - ${salaryMonthLabel} Salary`,
           debitAccountId: payrollAccount.id,
           debitAccountName: payrollAccount.name,
           creditAccountId: payingWallet.id,
@@ -534,13 +526,9 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setSalaryTarget(null);
-      notify(
-        bn
-          ? `${salaryTarget.name}-এর বেতন বাবদ ${formatBDT(salaryPaymentAmount)} সফলভাবে পরিশোধ হয়েছে!`
-          : `Disbursed ${formatBDT(salaryPaymentAmount)} payroll to ${salaryTarget.name}!`
-      );
+      notify(`Disbursed ${formatBDT(salaryPaymentAmount)} payroll to ${salaryTarget.name}!`);
     } catch (err) {
-      notify(err instanceof Error ? err.message : 'বেতন পরিশোধ করতে সমস্যা হয়েছে।');
+      notify(err instanceof Error ? err.message : 'Error disbursing salary.');
     } finally {
       setIsPayingSalary(false);
     }
@@ -579,8 +567,8 @@ export default function SpecializedModulesView({
           businessId: activeBusiness.id,
           businessName: activeBusiness.name,
           transactionType: isSale ? 'sale' : 'expense',
-          category: qCategory || (isSale ? 'পণ্য বিক্রি (Product Sale)' : 'খামার খরচ (Farm Expense)'),
-          description: qDesc || `${isSale ? 'বিক্রি' : 'খরচ'} - ${activeBusiness.name}`,
+          category: qCategory || (isSale ? 'Product / Commodity Sale' : 'Operational Farm Expense'),
+          description: qDesc || `${isSale ? 'Revenue' : 'Expense'} - ${activeBusiness.name}`,
           debitAccountId: isSale ? cashOrBank.id : expAcc.id,
           debitAccountName: isSale ? cashOrBank.name : expAcc.name,
           creditAccountId: isSale ? revAcc.id : cashOrBank.id,
@@ -588,7 +576,7 @@ export default function SpecializedModulesView({
           amount: Number(qAmount),
           paymentStatus: Number(qDueAmount) > 0 ? 'partial' : 'paid',
           dueAmount: Number(qDueAmount) || 0,
-          counterpartyName: qCounterparty || (isSale ? 'পাইকারি ক্রেতা' : 'সাপ্লায়ার'),
+          counterpartyName: qCounterparty || (isSale ? 'Wholesale Customer' : 'Supplier / Vendor'),
         },
         accounts,
         ownerId,
@@ -596,7 +584,7 @@ export default function SpecializedModulesView({
       );
       setShowQuickTxModal(null);
       notify(
-        `${activeBusiness.name}-এ ${isSale ? 'বিক্রি/আয়' : 'খরচ'} বাবদ ${formatBDT(Number(qAmount))} সফলভাবে হিসাবভুক্ত হয়েছে!`
+        `${activeBusiness.name}: ${isSale ? 'Revenue' : 'Expense'} of ${formatBDT(Number(qAmount))} recorded successfully!`
       );
     } catch (err) {
       console.error(err);
@@ -642,7 +630,7 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setShowAddModal(false);
-      notify(`নতুন মুরগির ব্যাচ (${pBatchCode}) সফলভাবে চালু হয়েছে!`);
+      notify(`New poultry flock batch (${pBatchCode}) started successfully!`);
     } catch (err) {
       console.error(err);
       triggerGlobalToast(String(err), 'error');
@@ -672,8 +660,8 @@ export default function SpecializedModulesView({
           feedCost: Number(lFeedCost),
           medicineAndVetCost: species === 'goat' ? 950 : 6500,
           vaccinationHistory:
-            species === 'goat' ? 'পিপিআর (PPR) ও গোট পক্স টিকা দেওয়া হয়েছে' : 'ক্ষুরা রোগ (FMD) ও তড়কা টিকা দেওয়া হয়েছে',
-          breedingAndOffspringNotes: species === 'goat' ? 'সুস্থ প্রজননক্ষম' : 'ডাক্তারি পরীক্ষা স্বাভাবিক',
+            species === 'goat' ? 'PPR & Goat Pox vaccines administered' : 'FMD & Anthrax vaccines administered',
+          breedingAndOffspringNotes: species === 'goat' ? 'Healthy reproductive' : 'Veterinary check normal',
           parentTag: lParentTag,
           totalMilkLiters: Number(lMilkLiters),
           milkSalesRevenue: Number(lMilkRev),
@@ -684,7 +672,7 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setShowAddModal(false);
-      notify(`নতুন পশুর রেকর্ড (${lTag}) সফলভাবে যুক্ত হয়েছে!`);
+      notify(`New livestock record (${lTag}) registered successfully!`);
     } catch (err) {
       console.error(err);
       triggerGlobalToast(String(err), 'error');
@@ -706,7 +694,7 @@ export default function SpecializedModulesView({
           areaDecimals: Number(fArea),
           depthFeet: 6.0,
           location: activeBusiness.location,
-          waterQualityNotes: 'pH: 7.6 | অক্সিজেন (DO): 6.5 mg/L | পানির অবস্থা ভালো',
+          waterQualityNotes: 'pH: 7.6 | Dissolved Oxygen (DO): 6.5 mg/L | Water clear',
           fishSpecies: fSpecies,
           stockingDate: new Date().toISOString().split('T')[0],
           initialQuantity: Number(fInitQty),
@@ -768,7 +756,7 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setShowAddModal(false);
-      notify(`নতুন ট্রিপের হিসাব (${tCode}) যুক্ত হয়েছে!`);
+      notify(`New transport trip (${tCode}) recorded successfully!`);
     } catch (err) {
       console.error(err);
       triggerGlobalToast(String(err), 'error');
@@ -1985,7 +1973,7 @@ export default function SpecializedModulesView({
                                 },
                                 actorEmail
                               );
-                              notify(`${animal.animalTag}-এর ওজন (+${gain} কেজি) ও খাবার খরচ আপডেট হয়েছে!`);
+                              notify(`${animal.animalTag} weight (+${gain} kg) and feed cost updated!`);
                             }}
                             className="px-2.5 py-1.5 text-xs font-semibold rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
                           >
@@ -2847,9 +2835,9 @@ export default function SpecializedModulesView({
             {tpl === 'custom' && (
               <div className="space-y-3 text-xs">
                 <p className="text-slate-600 dark:text-slate-300">
-                  কাস্টম ব্যবসায় প্রতিদিনের বিক্রি বা খরচ যোগ করতে উপরের সবুজ{' '}
-                  <strong>&ldquo;+ বিক্রি / আয় লিখুন&rdquo;</strong> অথবা হলুদ{' '}
-                  <strong>&ldquo;+ খরচ লিখুন&rdquo;</strong> বাটন ব্যবহার করুন।
+                  To record daily sales or expenses for this enterprise unit, use the green{' '}
+                  <strong>&ldquo;+ Record Sale&rdquo;</strong> or amber{' '}
+                  <strong>&ldquo;+ Record Expense&rdquo;</strong> buttons above.
                 </p>
               </div>
             )}

@@ -123,7 +123,7 @@ export default function AccountingAndLedgerTab({
   onRefreshData,
   onSetActiveSlip,
 }: AccountingAndLedgerTabProps) {
-  const bn = lang === 'bn';
+  const bn = false;
 
   // 1. RBAC Business Assignment
   const isBusinessManager = userRole === 'business_manager';

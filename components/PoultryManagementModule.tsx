@@ -77,9 +77,9 @@ export default function PoultryManagementModule({
   ownerId,
   actorEmail,
   onNotify,
-  lang = 'bn',
+  lang = 'en',
 }: PoultryManagementModuleProps) {
-  const bn = lang === 'bn';
+  const bn = false;
   const notify = (msg: string) => {
     onNotify(msg);
     triggerGlobalToast(msg, 'success');

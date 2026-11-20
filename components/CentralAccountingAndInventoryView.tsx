@@ -275,9 +275,9 @@ export default function CentralAccountingAndInventoryView({
   onChangeMonthFilter,
   currentUser,
   currentUserPhoto,
-  lang = 'bn',
+  lang = 'en',
 }: CentralAccountingAndInventoryViewProps) {
-  const bn = lang === 'bn';
+  const bn = false;
   const fullBusinessList = React.useMemo(() => {
     const raw = allBusinesses && allBusinesses.length > 0 ? allBusinesses : businesses;
     const seen = new Set<string>();
@@ -407,7 +407,7 @@ export default function CentralAccountingAndInventoryView({
   // Executive Report Modal State (Super Manager & Super Admin)
   const [showExecutiveReportModal, setShowExecutiveReportModal] = useState(false);
   const [executiveReportRemarks, setExecutiveReportRemarks] = useState(
-    'মাননীয় মালিক মহোদয়, বিগত মাসে আমাদের ৫টি ব্যবসায়িক ইউনিট (পোল্ট্রি, ডেইরি ও গরু মোটাতাজাকরণ, ছাগল খামার, মৎস্য প্রকল্প ও বাণিজ্যিক ট্রাক) সুশৃঙ্খলভাবে পরিচালিত হয়েছে। লাভ, ব্যয় ও খামার পরিচালন সমন্বিত হিসাব আপনার সদয় পর্যালোচনার জন্য পেশ করা হলো।'
+    'Honorable Owner, all 5 business divisions (Poultry, Cattle, Goat, Fish, and Fleet Transport) operated smoothly over the preceding cycle. The audited consolidated profit, expense, and operating returns are presented for your executive review.'
   );
   const [isSendingReport, setIsSendingReport] = useState(false);
 
@@ -615,7 +615,7 @@ export default function CentralAccountingAndInventoryView({
 
   // Terminate Stakeholder Modal State
   const [terminatingStakeholder, setTerminatingStakeholder] = useState<ErpStakeholder | null>(null);
-  const [terminationReason, setTerminationReason] = useState('কাজে অবহেলা / খামারের প্রয়োজন সমাপ্তি');
+  const [terminationReason, setTerminationReason] = useState('Work contract completed / operational restructuring');
   const [isTerminatingStakeholder, setIsTerminatingStakeholder] = useState(false);
 
   // Edit Stakeholder Modal State
@@ -893,7 +893,7 @@ export default function CentralAccountingAndInventoryView({
       // 1. Super Manager (COO - oversees all 5 businesses and reports to owner)
       await createErpUserAccount(
         {
-          displayName: 'জনাব তারেক মাহমুদ (প্রধান জেনারেল ম্যানেজার - COO)',
+          displayName: 'Tarek Mahmud (Chief Operating Officer - COO)',
           email: 'coo.tarek@krishivumi.bd',
           role: 'super_manager',
           assignedBusinesses: 'ALL',
@@ -908,7 +908,7 @@ export default function CentralAccountingAndInventoryView({
       // 2. Business Manager for Poultry
       await createErpUserAccount(
         {
-          displayName: 'মোঃ রফিকুল ইসলাম (পোল্ট্রি খামার ম্যানেজার)',
+          displayName: 'Md. Rafiqul Islam (Poultry Farm Manager)',
           email: 'rafiq.poultry@krishivumi.bd',
           role: 'business_manager',
           assignedBusinesses: poultryBiz ? poultryBiz.id : 'ALL',
@@ -926,7 +926,7 @@ export default function CentralAccountingAndInventoryView({
       // 3. Business Manager for Livestock
       await createErpUserAccount(
         {
-          displayName: 'ডাঃ কামরুল হাসান (গরু ও ছাগল খামার ইনচার্জ)',
+          displayName: 'Dr. Kamrul Hasan (Livestock & Dairy In-Charge)',
           email: 'kamrul.livestock@krishivumi.bd',
           role: 'business_manager',
           assignedBusinesses: cattleBiz ? cattleBiz.id : 'ALL',
@@ -944,7 +944,7 @@ export default function CentralAccountingAndInventoryView({
       // 4. Employee under Poultry
       await createErpUserAccount(
         {
-          displayName: 'তানভীর আহমেদ (খামার হিসাব সহকারী / Data Entry)',
+          displayName: 'Tanvir Ahmed (Farm Data Entry & Accounts)',
           email: 'tanvir.staff@krishivumi.bd',
           role: 'employee',
           assignedBusinesses: poultryBiz ? poultryBiz.id : 'ALL',
@@ -963,17 +963,17 @@ export default function CentralAccountingAndInventoryView({
             {
               stakeholderType: 'employee',
               code: 'EMP-701',
-              name: 'আব্দুল আলিম (পোল্ট্রি শেড সহকারী)',
+              name: 'Abdul Alim (Poultry Shed Assistant)',
               phone: '+880 1712-445566',
               email: 'alim.poultry@krishivumi.bd',
-              address: 'শেড নং ১, গাজীপুর খামার',
+              address: 'Shed 1, Gazipur Complex',
               businessId: poultryBiz.id,
               businessName: poultryBiz.nameBn || poultryBiz.name,
-              designationOrCategory: 'পোল্ট্রি শেড সহকারী',
+              designationOrCategory: 'Poultry Shed Assistant',
               monthlySalaryOrCreditLimit: 22000,
               outstandingBalance: 0,
               status: 'active',
-              appointedBy: 'মোঃ রফিকুল ইসলাম (পোল্ট্রি ম্যানেজার)',
+              appointedBy: 'Md. Rafiqul Islam (Poultry Manager)',
               appointedByRole: 'business_manager',
               appointedAt: new Date().toISOString(),
             },
@@ -986,17 +986,17 @@ export default function CentralAccountingAndInventoryView({
             {
               stakeholderType: 'employee',
               code: 'EMP-702',
-              name: 'সফিকুল ইসলাম (ডেইরি কেয়ারটেকার)',
+              name: 'Safiqul Islam (Dairy Caretaker)',
               phone: '+880 1819-334455',
               email: 'safiq.cattle@krishivumi.bd',
-              address: 'শেড নং ২, ডেইরি ইউনিট',
+              address: 'Shed 2, Dairy Unit',
               businessId: cattleBiz.id,
               businessName: cattleBiz.nameBn || cattleBiz.name,
-              designationOrCategory: 'ডেইরি ও মিল্কিং ইনচার্জ',
+              designationOrCategory: 'Dairy & Milking Caretaker',
               monthlySalaryOrCreditLimit: 24000,
               outstandingBalance: 0,
               status: 'active',
-              appointedBy: 'ডাঃ কামরুল হাসান (গরু খামার ইনচার্জ)',
+              appointedBy: 'Dr. Kamrul Hasan (Livestock Lead)',
               appointedByRole: 'business_manager',
               appointedAt: new Date().toISOString(),
             },
@@ -1006,9 +1006,9 @@ export default function CentralAccountingAndInventoryView({
         }
       }
 
-      showNotice('৪ স্তরের পূর্ণাঙ্গ টিম (প্রধান ম্যানেজার, বিজনেস ম্যানেজারগণ ও কর্মী) তৈরি হয়েছে! লগইন পাসওয়ার্ড: Krishi@1234');
+      showNotice('Hierarchical staff roster seeded successfully! Default password: Krishi@1234');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'ডেমো ইউজার তৈরি করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error generating demo team.');
     } finally {
       setIsSavingUser(false);
     }
@@ -1018,16 +1018,16 @@ export default function CentralAccountingAndInventoryView({
     setIsSendingReport(true);
     try {
       await createNotificationRecord({
-        title: '📊 প্রধান ম্যানেজারের পক্ষ থেকে নতুন কার্যবিবরণী ও লাভ-ক্ষতি রিপোর্ট',
-        message: `মাননীয় মালিক মহোদয়, প্রধান জেনারেল ম্যানেজার কর্তৃক ৫টি ব্যবসার সমন্বিত লাভ-ক্ষতি ও কার্যবিবরণী রিপোর্ট পেশ করা হয়েছে। প্রধান ম্যানেজারের মন্তব্য: "${executiveReportRemarks.slice(0, 160)}..."`,
+        title: '📊 Executive General Manager P&L & Operations Report',
+        message: `Honorable Owner, COO has submitted the consolidated operations & audited profit report. Remarks: "${executiveReportRemarks.slice(0, 160)}..."`,
         category: 'executive_report',
         priority: 'high',
         businessId: 'ALL',
       });
-      showNotice('মালিকের ইনবক্সে অফিসিয়াল কার্যবিবরণী ও লাভ-ক্ষতি রিপোর্ট সফলভাবে পেশ করা হয়েছে!');
+      showNotice('Executive operations report successfully delivered to Owner inbox!');
       setShowExecutiveReportModal(false);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'রিপোর্ট পাঠাতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error sending report.');
     } finally {
       setIsSendingReport(false);
     }
@@ -1123,7 +1123,7 @@ export default function CentralAccountingAndInventoryView({
     await postDoubleEntryTransaction(payload, accounts, ownerId, actorEmail);
     setShowVoucherModal(false);
     showNotice(
-      `সফলভাবে ভাউচার ${payload.referenceNo} (${formatBDT(payload.amount)}) সংরক্ষণ করা হয়েছে!`
+      `Voucher ${payload.referenceNo} (${formatBDT(payload.amount)}) saved successfully!`
     );
   };
 
@@ -1166,9 +1166,9 @@ export default function CentralAccountingAndInventoryView({
       });
       const accName = treasuryWallets.find((w) => w.id === depAccountId)?.name || 'Account';
       setShowDepositModal(false);
-      showNotice(`${accName}-এ ${formatBDT(Number(depAmount))} সফলভাবে জমা করা হয়েছে!`);
+      showNotice(`${formatBDT(Number(depAmount))} deposited successfully to ${accName}!`);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'টাকা জমা করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error depositing funds.');
     } finally {
       setIsDepositing(false);
     }
@@ -1178,7 +1178,7 @@ export default function CentralAccountingAndInventoryView({
     e.preventDefault();
     setErrorMsg(null);
     if (!trFromId || !trToId || trFromId === trToId) {
-      setErrorMsg('অনুগ্রহ করে দুটি ভিন্ন অ্যাকাউন্ট (কোথা থেকে এবং কোথায়) নির্বাচন করুন।');
+      setErrorMsg('Please select two different accounts (Source and Destination).');
       return;
     }
     const fromAcc = accounts.find((a) => a.id === trFromId);
@@ -1197,7 +1197,7 @@ export default function CentralAccountingAndInventoryView({
           transactionType: isCashToBank ? 'cash_to_bank' : 'bank_to_cash',
           category: `${fromAcc.name} → ${toAcc.name}`,
           description:
-            trNote.trim() || `${fromAcc.name} থেকে ${toAcc.name}-এ ফান্ড ট্রান্সফার`,
+            trNote.trim() || `Fund transfer from ${fromAcc.name} to ${toAcc.name}`,
           // Debit = Destination (adds money to To Account), Credit = Source (subtracts from From Account)
           debitAccountId: toAcc.id,
           debitAccountName: toAcc.name,
@@ -1214,10 +1214,10 @@ export default function CentralAccountingAndInventoryView({
       );
       setShowTransferModal(false);
       showNotice(
-        `${fromAcc.name} থেকে ${formatBDT(Number(trAmount))} সরিয়ে ${toAcc.name}-এ জমা করা হয়েছে!`
+        `Transferred ${formatBDT(Number(trAmount))} from ${fromAcc.name} to ${toAcc.name}!`
       );
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'ট্রান্সফার করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error transferring funds.');
     } finally {
       setIsTransferring(false);
     }
@@ -1237,9 +1237,9 @@ export default function CentralAccountingAndInventoryView({
       setShowNewAccountModal(false);
       setNewAccName('');
       setNewAccOpening(0);
-      showNotice(`নতুন ${newAccType === 'cash' ? 'ক্যাশ' : 'ব্যাংক'} অ্যাকাউন্ট "${newAccName}" তৈরি হয়েছে!`);
+      showNotice(`Created new ${newAccType === 'cash' ? 'Cash' : 'Bank'} account "${newAccName}"!`);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error creating account.');
     } finally {
       setIsCreatingAcc(false);
     }
@@ -1251,9 +1251,9 @@ export default function CentralAccountingAndInventoryView({
     try {
       await resetDemoLedgerToZero();
       setShowResetConfirm(false);
-      showNotice('সব ডেমো ব্যালেন্স ও স্যাম্পল লেনদেন ৳০ করা হয়েছে। এখন আপনি নিজের আসল হিসাব যোগ করতে পারবেন!');
+      showNotice('All demo balances and test transactions reset to BDT 0. Ready for real transactions!');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'রিসেট করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error resetting balances.');
     } finally {
       setIsResettingLedger(false);
     }
@@ -1301,7 +1301,7 @@ export default function CentralAccountingAndInventoryView({
           designationOrCategory: stkRoleCat.trim(),
           monthlySalaryOrCreditLimit: Number(stkSalaryOrLimit),
         });
-        showNotice(`"${stkName}"-এর তথ্য সফলভাবে সংশোধন করা হয়েছে!`);
+        showNotice(`Profile for "${stkName}" updated successfully!`);
       } else {
         await createStakeholderRecord(
           {
@@ -1325,13 +1325,13 @@ export default function CentralAccountingAndInventoryView({
           actorEmail
         );
         showNotice(
-          `নতুন ${
+          `Successfully registered new ${
             stkType === 'employee'
-              ? 'কর্মচারী'
+              ? 'Employee'
               : stkType === 'customer'
-              ? 'ক্রেতা/পাইকার'
-              : 'সাপ্লায়ার'
-          } "${stkName}" সফলভাবে নিয়োগ/যুক্ত করা হয়েছে!`
+              ? 'Wholesale Customer'
+              : 'Supplier'
+          } "${stkName}"!`
         );
       }
       setShowStkModal(false);
@@ -1339,7 +1339,7 @@ export default function CentralAccountingAndInventoryView({
       setStkName('');
       setStkBalance(0);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'স্টেকহোল্ডার সংরক্ষণ করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error saving stakeholder.');
     } finally {
       setIsSavingStakeholder(false);
     }
@@ -1351,12 +1351,12 @@ export default function CentralAccountingAndInventoryView({
     try {
       await updateStakeholderRecord(terminatingStakeholder.id, {
         status: 'terminated',
-        notes: terminationReason.trim() || 'খামারের প্রয়োজনীয়তা সমাপ্ত',
+        notes: terminationReason.trim() || 'Service completed',
       });
-      showNotice(`কর্মী "${terminatingStakeholder.name}"-কে বরখাস্ত/বাদ দেওয়া হয়েছে।`);
+      showNotice(`Staff member "${terminatingStakeholder.name}" has been terminated.`);
       setTerminatingStakeholder(null);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'কর্মী বাদ দিতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error removing staff.');
     } finally {
       setIsTerminatingStakeholder(false);
     }
@@ -1369,23 +1369,23 @@ export default function CentralAccountingAndInventoryView({
     setStkType('employee');
     setStkName('');
     setStkPhone('+880 1711-000000');
-    setStkAddress('গাজীপুর কমপ্লেক্স, বাংলাদেশ');
+    setStkAddress('Gazipur Complex, Bangladesh');
     setStkBizId(bId);
 
     if (biz?.templateType === 'transport' || biz?.name?.toLowerCase().includes('transport') || biz?.nameBn?.includes('ট্রাক')) {
-      setStkRoleCat('হেভি ট্রাক ড্রাইভার (Heavy Vehicle Driver)');
+      setStkRoleCat('Heavy Truck Driver');
       setStkSalaryOrLimit(28000);
     } else if (biz?.templateType === 'fish' || biz?.nameBn?.includes('মৎস্য')) {
-      setStkRoleCat('পুকুর ও মাছের খাদ্য ইনচার্জ');
+      setStkRoleCat('Pond & Aquaculture Lead');
       setStkSalaryOrLimit(22000);
     } else if (biz?.templateType === 'cattle' || biz?.nameBn?.includes('পশু')) {
-      setStkRoleCat('দুগ্ধ দোহন ও পশু পরিচর্যা কর্মী');
+      setStkRoleCat('Milking & Cattle Caretaker');
       setStkSalaryOrLimit(20000);
     } else if (biz?.templateType === 'goat' || biz?.nameBn?.includes('ছাগল')) {
-      setStkRoleCat('ছাগল প্রজনন ও যত্নকর্মী');
+      setStkRoleCat('Goat Breeding & Caretaker');
       setStkSalaryOrLimit(18000);
     } else {
-      setStkRoleCat('শেড ইনচার্জ / ফার্ম কর্মী');
+      setStkRoleCat('Shed In-Charge / Farm Staff');
       setStkSalaryOrLimit(20000);
     }
     setShowStkModal(true);
@@ -1396,7 +1396,7 @@ export default function CentralAccountingAndInventoryView({
       (b) => b.templateType === 'transport' || b.name?.toLowerCase().includes('transport') || b.nameBn?.includes('ট্রাক')
     );
     if (!transportBiz) {
-      showNotice('ট্রাক ও পরিবহন ব্যবসা পাওয়া যায়নি।');
+      showNotice('Truck & Transport Business not found.');
       return;
     }
     try {
@@ -1404,13 +1404,13 @@ export default function CentralAccountingAndInventoryView({
         {
           stakeholderType: 'employee',
           code: `DRV-${Date.now().toString().slice(-4)}`,
-          name: 'মোঃ রফিকুল ইসলাম (হেভি ট্রাক ড্রাইভার)',
+          name: 'Md. Rafiqul Islam (Heavy Truck Driver)',
           phone: '+880 1718-552233',
           email: 'rafiq.driver@krishivumi.bd',
-          address: 'গাজীপুর সেন্ট্রাল ট্রাক ডিপো',
+          address: 'Gazipur Central Truck Depot',
           businessId: transportBiz.id,
           businessName: transportBiz.nameBn || transportBiz.name,
-          designationOrCategory: 'হেভি ট্রাক ড্রাইভার (লাইসেন্স নং: DH-84920)',
+          designationOrCategory: 'Heavy Truck Driver (License: DH-84920)',
           monthlySalaryOrCreditLimit: 28000,
           outstandingBalance: 0,
           status: 'active',
@@ -1425,13 +1425,13 @@ export default function CentralAccountingAndInventoryView({
         {
           stakeholderType: 'employee',
           code: `HLP-${(Date.now() + 1).toString().slice(-4)}`,
-          name: 'মোঃ কামাল হোসেন (ট্রাক হেলপার)',
+          name: 'Md. Kamal Hossain (Truck Helper)',
           phone: '+880 1812-774411',
           email: 'kamal.helper@krishivumi.bd',
-          address: 'শ্রীপুর ফিড লোডিং ইয়ার্ড',
+          address: 'Sreepur Feed Depot',
           businessId: transportBiz.id,
           businessName: transportBiz.nameBn || transportBiz.name,
-          designationOrCategory: 'ট্রাক হেলপার ও লোডিং খালাসি',
+          designationOrCategory: 'Truck Helper & Cargo Loading Staff',
           monthlySalaryOrCreditLimit: 15000,
           outstandingBalance: 0,
           status: 'active',
@@ -1442,9 +1442,9 @@ export default function CentralAccountingAndInventoryView({
         ownerId,
         actorEmail
       );
-      showNotice('ট্রাক ও পরিবহন ব্যবসার জন্য ১ জন হেভি ড্রাইভার ও ১ জন হেলপার সফলভাবে যুক্ত হয়েছে!');
+      showNotice('Added 1 Heavy Driver and 1 Helper for Truck & Transport Business!');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'ট্রাক স্টাফ যুক্ত করতে ব্যর্থ হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to add transport staff.');
     }
   };
 
@@ -1469,7 +1469,7 @@ export default function CentralAccountingAndInventoryView({
     setStkPayDate(new Date().toISOString().split('T')[0]);
     setStkPayNote(
       target.stakeholderType === 'employee'
-        ? `${formatMonthFilterLabel(activeMonthFilter, true)} বেতন`
+        ? `${formatMonthFilterLabel(activeMonthFilter, false)} Salary`
         : ''
     );
   };
@@ -1484,18 +1484,18 @@ export default function CentralAccountingAndInventoryView({
       if (stkPayTarget.stakeholderType === 'employee') {
         const formulaParts: string[] = [];
         if (salaryDaysWorked !== 30) {
-          formulaParts.push(`হাজিরা: ${salaryDaysWorked}/30 দিন`);
+          formulaParts.push(`Attendance: ${salaryDaysWorked}/30 days`);
         }
         if (salaryBonus > 0) {
-          formulaParts.push(`বোনাস/খোরাকি: +৳${salaryBonus}`);
+          formulaParts.push(`Bonus: +BDT ${salaryBonus}`);
         }
         if (salaryDeduction > 0) {
-          formulaParts.push(`কর্তন: -৳${salaryDeduction}`);
+          formulaParts.push(`Deduction: -BDT ${salaryDeduction}`);
         }
         const formulaText = formulaParts.length > 0 ? ` [${formulaParts.join(', ')}]` : '';
         finalNote = finalNote
           ? `${finalNote}${formulaText}`
-          : `${formatMonthFilterLabel(activeMonthFilter, true)} বেতন${formulaText}`;
+          : `${formatMonthFilterLabel(activeMonthFilter, false)} Salary${formulaText}`;
       }
 
       const refNo = await settleStakeholderPayment({
@@ -1507,10 +1507,10 @@ export default function CentralAccountingAndInventoryView({
       });
       const actionText =
         stkPayTarget.stakeholderType === 'employee'
-          ? 'বেতন প্রদান'
+          ? 'Salary Payment'
           : stkPayTarget.stakeholderType === 'customer'
-          ? 'বাকি টাকা আদায়'
-          : 'বাকি টাকা পরিশোধ';
+          ? 'Due Collection'
+          : 'Payable Settlement';
       const walletAcc = treasuryWallets.find((w) => w.id === stkPayWalletId) || accounts.find((a) => a.id === stkPayWalletId);
 
       // Immediately generate printable slip
@@ -1522,20 +1522,20 @@ export default function CentralAccountingAndInventoryView({
         recipientName: stkPayTarget.name,
         designation: stkPayTarget.designationOrCategory,
         recipientPhone: stkPayTarget.phone,
-        appointedBy: stkPayTarget.appointedBy || 'মালিক কর্তৃক সরাসরি',
+        appointedBy: stkPayTarget.appointedBy || 'Executive Owner Direct',
         amount: Number(stkPayAmount),
-        paymentMethod: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
-        note: finalNote || `${formatMonthFilterLabel(activeMonthFilter, true)} ${actionText}`,
+        paymentMethod: walletAcc ? walletAcc.name : 'Cash in Hand',
+        note: finalNote || `${formatMonthFilterLabel(activeMonthFilter, false)} ${actionText}`,
         totalAmount: Number(stkPayAmount),
         enteredBy: actorEmail,
       });
 
       setStkPayTarget(null);
       showNotice(
-        `${stkPayTarget.name}-এর ${formatBDT(Number(stkPayAmount))} ${actionText} সম্পন্ন! স্লিপটি নিচে তৈরি হয়েছে।`
+        `${actionText} of ${formatBDT(Number(stkPayAmount))} for ${stkPayTarget.name} completed! Printable slip generated below.`
       );
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'পেমেন্ট সম্পন্ন করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error processing payment.');
     } finally {
       setIsSettlingStk(false);
     }
@@ -1545,12 +1545,12 @@ export default function CentralAccountingAndInventoryView({
     if (!mgrPayTarget) return;
     const finalAmount = Math.max(0, Number(mgrPayAmount) + Number(mgrPayBonus) - Number(mgrPayDeduction));
     if (finalAmount <= 0) {
-      setErrorMsg('বেতনের পরিমাণ শূন্য হতে পারে না।');
+      setErrorMsg('Salary amount cannot be zero.');
       return;
     }
     const targetWalletId = mgrPayWalletId || treasuryWallets[0]?.id || accounts[0]?.id;
     if (!targetWalletId) {
-      setErrorMsg('অনুগ্রহ করে বেতন পরিশোধের ক্যাশ ভল্ট বা ব্যাংক একাউন্ট নির্বাচন করুন।');
+      setErrorMsg('Please select a payment wallet or bank account.');
       return;
     }
 
@@ -1565,7 +1565,7 @@ export default function CentralAccountingAndInventoryView({
         ) || accounts.find((a) => a.accountType === 'expense');
 
       if (!expenseAcc) {
-        throw new Error('বেতন খরচের লেজার একাউন্ট পাওয়া যায়নি।');
+        throw new Error('Payroll expense ledger account not found.');
       }
 
       const assignedBiz = mgrPayTarget.assignedBusinesses || 'ALL';
@@ -1576,26 +1576,26 @@ export default function CentralAccountingAndInventoryView({
 
       const refNo = `MGR-PAY-${Date.now().toString().slice(-6)}`;
       const formulaParts: string[] = [];
-      if (mgrPayBonus > 0) formulaParts.push(`বোনাস: +৳${mgrPayBonus}`);
-      if (mgrPayDeduction > 0) formulaParts.push(`কর্তন: -৳${mgrPayDeduction}`);
+      if (mgrPayBonus > 0) formulaParts.push(`Bonus: +BDT ${mgrPayBonus}`);
+      if (mgrPayDeduction > 0) formulaParts.push(`Deduction: -BDT ${mgrPayDeduction}`);
       const formulaText = formulaParts.length > 0 ? ` [${formulaParts.join(', ')}]` : '';
       const finalNote = mgrPayNote
         ? `${mgrPayNote}${formulaText}`
-        : `${formatMonthFilterLabel(activeMonthFilter, true)} বিজনেস ম্যানেজার রিম্যুনারেশন${formulaText}`;
+        : `${formatMonthFilterLabel(activeMonthFilter, false)} Division Manager Remuneration${formulaText}`;
 
       const walletAcc = treasuryWallets.find((w) => w.id === targetWalletId) || accounts.find((a) => a.id === targetWalletId);
 
       await postDoubleEntryTransaction(
         {
           businessId: bizId,
-          businessName: assignedBiz === 'ALL' ? 'RegardsAgro Enterprise' : `বিভাগীয় প্রধান — ${assignedBiz}`,
+          businessName: assignedBiz === 'ALL' ? 'RegardsAgro Enterprise' : `Division Lead — ${assignedBiz}`,
           debitAccountId: expenseAcc.id,
           debitAccountName: expenseAcc.name,
           creditAccountId: targetWalletId,
-          creditAccountName: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
+          creditAccountName: walletAcc ? walletAcc.name : 'Cash in Hand',
           amount: finalAmount,
           date: mgrPayDate,
-          description: `বিজনেস ম্যানেজার বেতন প্রদান — ${mgrPayTarget.displayName} (${finalNote})`,
+          description: `Division Manager Remuneration — ${mgrPayTarget.displayName} (${finalNote})`,
           referenceNo: refNo,
           transactionType: 'payroll',
           category: 'payroll',
@@ -1613,13 +1613,13 @@ export default function CentralAccountingAndInventoryView({
         type: 'salary_payslip',
         slipNo: refNo,
         date: mgrPayDate,
-        businessName: assignedBiz === 'ALL' ? 'RegardsAgro Enterprise' : `বিভাগীয় প্রধান — ${assignedBiz}`,
+        businessName: assignedBiz === 'ALL' ? 'RegardsAgro Enterprise' : `Division Lead — ${assignedBiz}`,
         recipientName: mgrPayTarget.displayName,
-        designation: 'বিজনেস ম্যানেজার (Division Manager)',
+        designation: 'Division Manager',
         recipientPhone: mgrPayTarget.phone || '+880 1711-000000',
-        appointedBy: 'জেনারেল ম্যানেজার ও সুপার অ্যাডমিন',
+        appointedBy: 'General Manager & Super Admin',
         amount: finalAmount,
-        paymentMethod: walletAcc ? walletAcc.name : 'ক্যাশ ইন হ্যান্ড',
+        paymentMethod: walletAcc ? walletAcc.name : 'Cash in Hand',
         note: finalNote,
         totalAmount: finalAmount,
         enteredBy: actorEmail,
@@ -1627,10 +1627,10 @@ export default function CentralAccountingAndInventoryView({
 
       setMgrPayTarget(null);
       showNotice(
-        `${mgrPayTarget.displayName}-কে ${formatBDT(finalAmount)} বেতন সফলভাবে পরিশোধ করা হয়েছে এবং অফিসিয়াল ভাউচার তৈরি হয়েছে!`
+        `Disbursed ${formatBDT(finalAmount)} manager salary to ${mgrPayTarget.displayName}! Printable slip generated below.`
       );
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'ম্যানেজার বেতন পরিশোধ ব্যর্থ হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Error disbursing manager salary.');
     } finally {
       setIsSettlingMgr(false);
     }

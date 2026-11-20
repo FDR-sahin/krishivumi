@@ -100,7 +100,7 @@ export default function SalaryManagementTab({
   onOpenProfile,
   onSetActiveSlip,
 }: SalaryManagementTabProps) {
-  const bn = lang === 'bn';
+  const bn = false;
 
   // 1. Role-based Business List
   const isBusinessManager = userRole === 'business_manager';

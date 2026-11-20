@@ -128,8 +128,8 @@ export function triggerConfirmDelete(payload: ConfirmDeletePayload) {
   window.dispatchEvent(event);
 }
 
-export default function GlobalToastAndConfirmModal({ lang = 'bn' }: { lang?: 'bn' | 'en' }) {
-  const bn = lang === 'bn';
+export default function GlobalToastAndConfirmModal({ lang = 'en' }: { lang?: 'bn' | 'en' }) {
+  const bn = false;
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirmPayload, setConfirmPayload] = useState<ConfirmDeletePayload | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

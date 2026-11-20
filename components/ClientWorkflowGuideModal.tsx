@@ -30,9 +30,9 @@ interface ClientWorkflowGuideModalProps {
 export default function ClientWorkflowGuideModal({
   isOpen,
   onClose,
-  lang = 'bn',
+  lang = 'en',
 }: ClientWorkflowGuideModalProps) {
-  const bn = lang === 'bn';
+  const bn = false;
   const [activeTab, setActiveTab] = useState<string>('super_admin');
 
   if (!isOpen) return null;

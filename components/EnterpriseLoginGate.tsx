@@ -43,7 +43,7 @@ export default function EnterpriseLoginGate({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const bn = lang === 'bn';
+  const bn = false;
   const isSetupMode = !hasSuperAdmin;
 
   const handleSubmit = async (e: React.FormEvent) => {

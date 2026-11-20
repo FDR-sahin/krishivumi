@@ -119,7 +119,7 @@ export default function GodownAndStockTab({
   onRefreshData,
   onSetActiveSlip,
 }: GodownAndStockTabProps) {
-  const bn = lang === 'bn';
+  const bn = false;
 
   // 1. Role-based Business Filtering
   const isBusinessManager = userRole === 'business_manager';

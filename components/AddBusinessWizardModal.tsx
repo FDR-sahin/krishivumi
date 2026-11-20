@@ -265,12 +265,12 @@ export default function AddBusinessWizardModal({
               </label>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { name: 'Dairy Products & Ghee Plant', nameBn: 'ডেইরি প্রোডাক্টস', cat: 'Dairy Processing', icon: 'Factory' },
-                  { name: 'Fish Feed Mill Business', nameBn: 'ফিশ ফিড মিল', cat: 'Feed Manufacturing', icon: 'Factory' },
-                  { name: 'Auto Rice Mill & Trading', nameBn: 'রাইস ট্রেডিং ও মিল', cat: 'Grain Trading', icon: 'Wheat' },
-                  { name: 'Agricultural Land & Seed Estate', nameBn: 'কৃষি জমি ও বীজ প্রকল্প', cat: 'Crop & Land', icon: 'Wheat' },
-                  { name: 'Vegetable & Cold Storage Wholesale', nameBn: 'সবজি ও পাইকারি বাজার', cat: 'Wholesale Trading', icon: 'Store' },
-                  { name: 'Agro Retail Superstore', nameBn: 'অ্যাগ্রো রিটেইল চেইন', cat: 'Retail Business', icon: 'Store' },
+                  { name: 'Dairy Products & Ghee Plant', nameBn: 'Dairy Products & Ghee Plant', cat: 'Dairy Processing', icon: 'Factory' },
+                  { name: 'Fish Feed Mill Business', nameBn: 'Fish Feed Mill Business', cat: 'Feed Manufacturing', icon: 'Factory' },
+                  { name: 'Auto Rice Mill & Trading', nameBn: 'Auto Rice Mill & Trading', cat: 'Grain Trading', icon: 'Wheat' },
+                  { name: 'Agricultural Land & Seed Estate', nameBn: 'Agricultural Land & Seed Estate', cat: 'Crop & Land', icon: 'Wheat' },
+                  { name: 'Vegetable & Cold Storage Wholesale', nameBn: 'Vegetable & Cold Storage Wholesale', cat: 'Wholesale Trading', icon: 'Store' },
+                  { name: 'Agro Retail Superstore', nameBn: 'Agro Retail Superstore', cat: 'Retail Business', icon: 'Store' },
                 ].map((preset) => (
                   <button
                     key={preset.name}
@@ -323,13 +323,13 @@ export default function AddBusinessWizardModal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Business Name (Bangla)
+                Business Display Name
               </label>
               <input
                 type="text"
                 value={nameBn}
                 onChange={(e) => setNameBn(e.target.value)}
-                placeholder="যেমন: ফিশ ফিড ব্যবসা"
+                placeholder="e.g. Fish Feed Processing Business"
                 className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
               />
             </div>

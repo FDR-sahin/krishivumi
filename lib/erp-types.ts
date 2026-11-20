@@ -459,7 +459,7 @@ export const BUSINESS_TEMPLATES: {
   {
     templateType: 'poultry',
     title: 'Poultry Farming',
-    titleBn: 'পোল্ট্রি ফার্মিং',
+    titleBn: 'Poultry Farming',
     category: 'Livestock & Poultry',
     iconName: 'Bird',
     defaultModules: ['batch_management', 'daily_mortality', 'feed_schedule', 'vaccine_medicine', 'grading_sales', 'accounting', 'inventory'],
@@ -469,7 +469,7 @@ export const BUSINESS_TEMPLATES: {
   {
     templateType: 'cattle',
     title: 'Cattle Farming',
-    titleBn: 'গবাদি পশু খামার',
+    titleBn: 'Cattle Farming',
     category: 'Dairy & Beef Fattening',
     iconName: 'Beef',
     defaultModules: ['individual_animal', 'milk_production', 'vet_vaccination', 'breeding_pregnancy', 'calf_tracking', 'accounting', 'inventory'],
@@ -479,7 +479,7 @@ export const BUSINESS_TEMPLATES: {
   {
     templateType: 'goat',
     title: 'Goat Farming',
-    titleBn: 'ছাগল পালন খামার',
+    titleBn: 'Goat Farming',
     category: 'Small Ruminant Livestock',
     iconName: 'ShieldCheck',
     defaultModules: ['individual_goat', 'family_tree', 'kids_management', 'health_vaccination', 'weight_growth', 'accounting', 'inventory'],
@@ -489,7 +489,7 @@ export const BUSINESS_TEMPLATES: {
   {
     templateType: 'fish',
     title: 'Fish Farming',
-    titleBn: 'মৎস্য চাষ প্রকল্প',
+    titleBn: 'Fish Farming',
     category: 'Aquaculture & Fisheries',
     iconName: 'Fish',
     defaultModules: ['pond_management', 'production_cycle', 'water_quality', 'fingerling_stocking', 'harvest_sales', 'accounting', 'inventory'],
@@ -499,7 +499,7 @@ export const BUSINESS_TEMPLATES: {
   {
     templateType: 'transport',
     title: 'Truck & Transport Business',
-    titleBn: 'ট্রাক ও পরিবহন ব্যবসা',
+    titleBn: 'Truck & Transport Business',
     category: 'Logistics & Fleet',
     iconName: 'Truck',
     defaultModules: ['vehicle_fleet', 'trip_ledger', 'document_expiry', 'fuel_toll_tracking', 'maintenance_service', 'accounting', 'inventory'],
@@ -509,7 +509,7 @@ export const BUSINESS_TEMPLATES: {
   {
     templateType: 'custom',
     title: 'Dairy Products / Agro Processing',
-    titleBn: 'ডেইরি ও অ্যাগ্রো প্রসেসিং',
+    titleBn: 'Dairy Products / Agro Processing',
     category: 'Agro Processing & Trading',
     iconName: 'Factory',
     defaultModules: ['production_batches', 'quality_control', 'cold_chain_inventory', 'b2b_wholesale', 'accounting', 'inventory'],

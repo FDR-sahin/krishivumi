@@ -30,9 +30,9 @@ export default function LivestockBarcodeScannerModal({
   animals,
   onSelectAnimal,
   species,
-  lang = 'bn',
+  lang = 'en',
 }: LivestockBarcodeScannerModalProps) {
-  const bn = lang === 'bn';
+  const bn = false;
   const isCattle = species === 'cattle';
 
   const [scanInput, setScanInput] = useState('');

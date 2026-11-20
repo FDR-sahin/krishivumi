@@ -39,13 +39,13 @@ export function matchesMonthFilter(
   return true;
 }
 
-export function formatMonthFilterLabel(filter: MonthFilterValue, bn = true): string {
+export function formatMonthFilterLabel(filter: MonthFilterValue, bn = false): string {
   if (filter.year === 'ALL' && filter.month === 'ALL') {
-    return bn ? 'সব ১২ মাস (সর্বমোট)' : 'All 12 Months (All Time)';
+    return 'All 12 Months (All Time)';
   }
   const mObj = MONTHS_12.find((m) => m.code === filter.month);
-  const mLabel = mObj ? (bn ? mObj.fullBn : mObj.fullEn) : bn ? 'সব মাস' : 'All Months';
-  const yLabel = filter.year === 'ALL' ? (bn ? 'সব বছর' : 'All Years') : filter.year;
+  const mLabel = mObj ? mObj.fullEn : 'All Months';
+  const yLabel = filter.year === 'ALL' ? 'All Years' : filter.year;
   return `${mLabel} · ${yLabel}`;
 }
 
@@ -55,7 +55,7 @@ interface MonthFilterBarProps {
   bn?: boolean;
 }
 
-export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilterBarProps) {
+export default function MonthFilterBar({ value, onChange, bn = false }: MonthFilterBarProps) {
   const isFiltered = value.year !== 'ALL' || value.month !== 'ALL';
 
   return (
@@ -67,10 +67,10 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
           </div>
           <div>
             <span className="font-bold text-slate-900 dark:text-white">
-              {bn ? 'আর্থিক সময়কাল ফিল্টার:' : 'Financial Period:'}
+              Financial Period:
             </span>{' '}
             <span className="font-bold text-emerald-600 dark:text-emerald-400 ml-1">
-              {formatMonthFilterLabel(value, bn)}
+              {formatMonthFilterLabel(value, false)}
             </span>
           </div>
         </div>
@@ -83,7 +83,7 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
             className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-2xs focus:border-emerald-500 focus:outline-none"
             aria-label="Filter by Year"
           >
-            <option value="ALL">{bn ? 'সব বছর (All Years)' : 'All Years'}</option>
+            <option value="ALL">All Years</option>
             <option value="2026">Year 2026</option>
             <option value="2025">Year 2025</option>
             <option value="2027">Year 2027</option>
@@ -102,10 +102,10 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
             className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer shadow-2xs focus:border-emerald-500 focus:outline-none"
             aria-label="Filter by Month"
           >
-            <option value="ALL">{bn ? 'সব ১২ মাস (All 12 Months)' : 'All 12 Months'}</option>
+            <option value="ALL">All 12 Months</option>
             {MONTHS_12.map((m) => (
               <option key={m.code} value={m.code}>
-                {bn ? `${m.fullBn} (${m.code})` : `${m.fullEn} (${m.code})`}
+                {m.fullEn} ({m.code})
               </option>
             ))}
           </select>
@@ -117,7 +117,7 @@ export default function MonthFilterBar({ value, onChange, bn = true }: MonthFilt
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>{bn ? 'রিসেট' : 'Reset'}</span>
+              <span>Reset</span>
             </button>
           )}
         </div>
