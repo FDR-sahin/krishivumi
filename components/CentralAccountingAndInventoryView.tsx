@@ -1824,7 +1824,11 @@ export default function CentralAccountingAndInventoryView({
   return (
     <div className="space-y-6">
       {activeSection !== 'security' && (
-        <MonthFilterBar value={activeMonthFilter} onChange={setMonthFilter} bn={true} />
+        <MonthFilterBar
+          value={activeMonthFilter}
+          onChange={setMonthFilter}
+          bn={activeSection === 'reports' ? false : true}
+        />
       )}
       {toastMsg && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 px-4 py-3 text-xs font-medium text-emerald-800 dark:text-emerald-200">
@@ -4138,36 +4142,36 @@ export default function CentralAccountingAndInventoryView({
         );
 
         return (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Header & Export Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
               <div>
                 <div className="flex items-center gap-2">
                   <FileBarChart className="h-5 w-5 text-emerald-600" />
                   <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
-                    লাভ-ক্ষতি রিপোর্ট ও খাতভিত্তিক বিশ্লেষণ ({formatMonthFilterLabel(activeMonthFilter, true)})
+                    Profit & Loss and Sector Analytics ({formatMonthFilterLabel(activeMonthFilter, false)})
                   </h1>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  কোন ব্যবসায় এবং কোন খাতে (খাবার, ওষুধ, ডিজেল, বেতন) কত টাকা খরচ ও লাভ হচ্ছে তা কার্ড আকারে দেখুন।
+                  Business-wise performance, expense & revenue breakdowns, and financial health summary.
                 </p>
               </div>
               <div className="flex items-center gap-2.5 no-print">
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   <Download className="h-4 w-4" />
-                  CSV ডাউনলোড
+                  Download CSV
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 rounded-xl hover:bg-slate-800"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 rounded-xl hover:bg-slate-800 cursor-pointer"
                 >
                   <Printer className="h-4 w-4" />
-                  প্রিন্ট / PDF
+                  Print / PDF
                 </button>
               </div>
             </div>
@@ -4177,7 +4181,7 @@ export default function CentralAccountingAndInventoryView({
               <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/90 to-white dark:from-emerald-950/40 dark:to-slate-900 p-5 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                    সর্বমোট বিক্রি ও আয়
+                    Total Revenue & Sales
                   </span>
                   <div className="h-8 w-8 rounded-xl bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                     <TrendingUp className="h-4 w-4" />
@@ -4187,14 +4191,14 @@ export default function CentralAccountingAndInventoryView({
                   {formatBDT(totalPeriodRev)}
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {revenueCategories.length}টি আয়ের খাত থেকে প্রাপ্ত
+                  From {revenueCategories.length} revenue streams
                 </div>
               </div>
 
               <div className="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-gradient-to-br from-rose-50/90 to-white dark:from-rose-950/30 dark:to-slate-900 p-5 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-rose-800 dark:text-rose-300">
-                    সর্বমোট খরচ ও বেতন
+                    Total Expenses & Payroll
                   </span>
                   <div className="h-8 w-8 rounded-xl bg-rose-600/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">
                     <TrendingDown className="h-4 w-4" />
@@ -4204,7 +4208,7 @@ export default function CentralAccountingAndInventoryView({
                   {formatBDT(totalPeriodExp)}
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  খামার খরচ: {formatBDT(totalPeriodOpExp)} · বেতন: {formatBDT(totalPeriodPayroll)}
+                  OpEx: {formatBDT(totalPeriodOpExp)} · Payroll: {formatBDT(totalPeriodPayroll)}
                 </div>
               </div>
 
@@ -4217,7 +4221,7 @@ export default function CentralAccountingAndInventoryView({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-white/90">
-                    {totalPeriodNet >= 0 ? 'সর্বমোট নিট লাভ (Net Profit)' : 'সর্বমোট নিট ক্ষতি (Net Loss)'}
+                    {totalPeriodNet >= 0 ? 'Net Profit' : 'Net Loss'}
                   </span>
                   <div className="h-8 w-8 rounded-xl bg-white/20 text-white flex items-center justify-center">
                     <Coins className="h-4 w-4" />
@@ -4227,14 +4231,14 @@ export default function CentralAccountingAndInventoryView({
                   {formatBDT(totalPeriodNet)}
                 </div>
                 <div className="text-[11px] font-semibold text-white/90">
-                  লাভের হার (Margin): {profitMarginPct}%
+                  Net Margin: {profitMarginPct}%
                 </div>
               </div>
 
               <div className="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/90 to-white dark:from-amber-950/30 dark:to-slate-900 p-5 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                    মোট বাকি পাওনা (Due)
+                    Total Receivables (Due)
                   </span>
                   <div className="h-8 w-8 rounded-xl bg-amber-600/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                     <Wallet className="h-4 w-4" />
@@ -4244,23 +4248,23 @@ export default function CentralAccountingAndInventoryView({
                   {formatBDT(totalPeriodDue)}
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  ক্রেতাদের কাছে বকেয়া রয়েছে
+                  Uncollected customer balance
                 </div>
               </div>
             </div>
 
-            {/* 2. BUSINESS-WISE P&L CARDS GRID */}
+            {/* 2. BUSINESS-WISE P&L CARDS GRID (COMPACT & SLEEK) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                  কোন ব্যবসায় কত আয়, খরচ ও লাভ/ক্ষতি (Business-Wise P&L Cards)
+                <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                  Business-Wise P&L Overview
                 </h2>
                 <span className="text-xs font-mono text-slate-500">
-                  {businesses.length}টি ব্যবসা
+                  {businesses.length} Business Units
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {businesses.map((biz) => {
                   const bEntries = periodJournals.filter((j) => j.businessId === biz.id);
                   const rev = bEntries
@@ -4279,142 +4283,123 @@ export default function CentralAccountingAndInventoryView({
                   const margin = rev > 0 ? ((net / rev) * 100).toFixed(0) : '0';
                   const expRatioPct = rev > 0 ? Math.min(100, Math.round((exp / rev) * 100)) : exp > 0 ? 100 : 0;
 
-                  // Top 3 expense categories inside this business
-                  const bizExpCatsMap: Record<string, number> = {};
-                  for (const j of bEntries) {
-                    if (
-                      j.transactionType === 'expense' ||
-                      j.transactionType === 'purchase' ||
-                      j.transactionType === 'payroll'
-                    ) {
-                      bizExpCatsMap[j.category] = (bizExpCatsMap[j.category] || 0) + j.amount;
-                    }
-                  }
-                  const topBizExpenses = Object.entries(bizExpCatsMap)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3);
-
                   return (
                     <div
                       key={biz.id}
-                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:z-30 shadow-2xs flex flex-col justify-between relative"
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all relative overflow-visible flex flex-col justify-between p-3.5 space-y-2.5"
                     >
                       <div
-                        className={`h-1.5 w-full rounded-t-2xl ${
+                        className={`h-1 w-full rounded-t-xl absolute top-0 left-0 right-0 ${
                           net >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
                         }`}
                       />
-                      <div className="p-5 space-y-4">
-                        {/* Card Header */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-[11px] font-mono font-bold text-slate-400">
-                              {biz.code} · {biz.location}
-                            </div>
-                            <h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-                              {biz.nameBn || biz.name}
-                            </h3>
+
+                      {/* Header Line */}
+                      <div className="flex items-start justify-between gap-2 pt-0.5">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                            {biz.name}
+                          </h3>
+                          <div className="text-[10px] font-mono text-slate-400 truncate">
+                            {biz.code} · {biz.location}
                           </div>
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
-                              net > 0
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                : net < 0
-                                ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                        </div>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
+                            net > 0
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : net < 0
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                          }`}
+                        >
+                          {net >= 0 ? `+${margin}%` : `${margin}%`} Net
+                        </span>
+                      </div>
+
+                      {/* 3-Column Stats Box */}
+                      <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2 text-xs">
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-medium">Revenue</div>
+                          <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-[13px] mt-0.5 truncate">
+                            {formatBDT(rev)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-medium">Expenses</div>
+                          <div className="font-mono font-bold text-rose-600 dark:text-rose-400 text-xs sm:text-[13px] mt-0.5 truncate">
+                            {formatBDT(exp)}
+                          </div>
+                        </div>
+                        <div className="group/profit relative text-right cursor-help">
+                          <div className="text-[10px] text-slate-500 font-medium flex items-center justify-end gap-1">
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                net >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                              }`}
+                            />
+                            <span>{net >= 0 ? 'Net Profit' : 'Net Loss'}</span>
+                          </div>
+                          <div
+                            className={`font-mono font-extrabold text-xs sm:text-[13px] mt-0.5 truncate ${
+                              net >= 0
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
                             }`}
                           >
-                            {net >= 0 ? `লাভ ${margin}%` : `ক্ষতি ${margin}%`}
-                          </span>
-                        </div>
-
-                        {/* 3-Column Income / Expense / Net Profit */}
-                        <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-xs">
-                          <div>
-                            <div className="text-[10px] text-slate-500">আয় / বিক্রি</div>
-                            <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                              {formatBDT(rev)}
-                            </div>
+                            {formatBDT(net)}
                           </div>
-                          <div>
-                            <div className="text-[10px] text-slate-500">মোট খরচ</div>
-                            <div className="font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-                              {formatBDT(exp)}
-                            </div>
-                          </div>
-                          <div className="group/profit relative text-right cursor-help p-1 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors">
-                            <div className="text-[10px] text-slate-500 flex items-center justify-end gap-1">
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  net >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-                                }`}
-                              />
-                              <span>{net >= 0 ? 'নিট লাভ' : 'নিট ক্ষতি'}</span>
-                            </div>
-                            <div
-                              className={`font-mono font-extrabold mt-0.5 ${
-                                net >= 0
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : 'text-rose-600 dark:text-rose-400'
-                              }`}
-                            >
-                              {formatBDT(net)}
-                            </div>
 
-                            {/* Floating Hover Card above Net Profit */}
-                            <div className="absolute bottom-full right-0 mb-2 w-64 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-1 group-hover/profit:translate-y-0 pointer-events-none z-50">
-                              <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-xl p-3 shadow-2xl border border-emerald-500/30 text-left space-y-2">
-                                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                                  <span className="text-xs font-bold text-slate-100 truncate">
-                                    {biz.nameBn || biz.name}
-                                  </span>
-                                  <span
-                                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
-                                      net >= 0
-                                        ? 'bg-emerald-500/20 text-emerald-300'
-                                        : 'bg-rose-500/20 text-rose-300'
-                                    }`}
-                                  >
-                                    মার্জিন: {margin}%
-                                  </span>
-                                </div>
-                                <div className="text-center py-0.5">
-                                  <div className="text-[10px] text-slate-400">প্রকৃত লাভ/ক্ষতি</div>
-                                  <div
-                                    className={`text-lg font-black font-mono ${
-                                      net >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                                    }`}
-                                  >
-                                    {formatBDT(net)}
-                                  </div>
-                                </div>
-                                <div className="bg-slate-950/80 rounded-lg p-2 space-y-1 text-[11px] font-mono">
-                                  <div className="flex justify-between text-slate-300">
-                                    <span>বিক্রি/আয়:</span>
-                                    <span className="text-emerald-400 font-bold">+{formatBDT(rev)}</span>
-                                  </div>
-                                  <div className="flex justify-between text-slate-300">
-                                    <span>মোট খরচ:</span>
-                                    <span className="text-amber-300 font-bold">-{formatBDT(exp)}</span>
-                                  </div>
+                          {/* Hover Card in English */}
+                          <div className="absolute bottom-full right-0 mb-2 w-60 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-1 group-hover/profit:translate-y-0 pointer-events-none z-50">
+                            <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-xl p-3 shadow-2xl border border-emerald-500/30 text-left space-y-2">
+                              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                                <span className="text-xs font-bold text-slate-100 truncate">
+                                  {biz.name}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                    net >= 0
+                                      ? 'bg-emerald-500/20 text-emerald-300'
+                                      : 'bg-rose-500/20 text-rose-300'
+                                  }`}
+                                >
+                                  {margin}% Margin
+                                </span>
+                              </div>
+                              <div className="text-center py-0.5">
+                                <div className="text-[10px] text-slate-400">Actual Net P&L</div>
+                                <div
+                                  className={`text-base font-black font-mono ${
+                                    net >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                                  }`}
+                                >
+                                  {formatBDT(net)}
                                 </div>
                               </div>
-                              <div className="w-0 h-0 border-x-6 border-x-transparent border-t-6 border-t-slate-900 dark:border-t-slate-950 ml-auto mr-4 -mt-0.5" />
+                              <div className="bg-slate-950/80 rounded-lg p-2 space-y-1 text-[11px] font-mono">
+                                <div className="flex justify-between text-slate-300">
+                                  <span>Revenue:</span>
+                                  <span className="text-emerald-400 font-bold">+{formatBDT(rev)}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-300">
+                                  <span>Expenses:</span>
+                                  <span className="text-rose-400 font-bold">-{formatBDT(exp)}</span>
+                                </div>
+                              </div>
                             </div>
+                            <div className="w-0 h-0 border-x-6 border-x-transparent border-t-6 border-t-slate-900 dark:border-t-slate-950 ml-auto mr-4 -mt-0.5" />
                           </div>
                         </div>
+                      </div>
 
-                        {/* Expense-to-Revenue Visual Bar */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-slate-500">
-                            <span>আয়ের তুলনায় খরচ ({expRatioPct}%)</span>
-                            {due > 0 && (
-                              <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">
-                                বাকি: {formatBDT(due)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-emerald-100 dark:bg-slate-800 overflow-hidden">
+                      {/* Thin Progress bar & due indicator */}
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 pt-0.5">
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <span className="shrink-0 font-medium text-slate-500 dark:text-slate-400">
+                            Cost Ratio: {expRatioPct}%
+                          </span>
+                          <div className="h-1.5 flex-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
                                 expRatioPct >= 100
@@ -4427,32 +4412,11 @@ export default function CentralAccountingAndInventoryView({
                             />
                           </div>
                         </div>
-
-                        {/* Top Expense Categories Inside This Business */}
-                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                          <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                            এই ব্যবসার খরচের খাতসমূহ:
-                          </div>
-                          {topBizExpenses.length === 0 ? (
-                            <div className="text-[11px] text-slate-400">এই সময়ে কোনো খরচ নেই</div>
-                          ) : (
-                            <div className="space-y-1">
-                              {topBizExpenses.map(([cat, amt]) => (
-                                <div
-                                  key={cat}
-                                  className="flex items-center justify-between text-[11px]"
-                                >
-                                  <span className="text-slate-700 dark:text-slate-300 truncate pr-2">
-                                    • {cat}
-                                  </span>
-                                  <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
-                                    {formatBDT(amt)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        {due > 0 && (
+                          <span className="font-mono font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                            Due: {formatBDT(due)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -4460,154 +4424,212 @@ export default function CentralAccountingAndInventoryView({
               </div>
             </div>
 
-            {/* 3. CATEGORY-WISE EXPENSE & REVENUE BREAKDOWN CARDS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Expense Breakdown by Category */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            {/* 3. EXCEL-STYLE SECTOR BREAKDOWN TABLES (EXPENSE & REVENUE) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Table A: Expense by Sector */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-                      <PieChart className="h-4 w-4" />
+                    <div className="h-7 w-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+                      <PieChart className="h-3.5 w-3.5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                        কোন খাতে কত টাকা খরচ হয়েছে (Expense by Sector)
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        Expense by Sector (Cost Breakdown)
                       </h3>
-                      <p className="text-[11px] text-slate-500">
-                        খাবার, ওষুধ, ডিজেল, মেরামত ও বেতন খাতের হিসাব
+                      <p className="text-[10px] text-slate-500">
+                        {expenseCategories.length} categories recorded
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-bold text-rose-600">
-                    {formatBDT(totalPeriodExp)}
+                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1 rounded-lg border border-rose-200/50 dark:border-rose-900/50">
+                    Total: {formatBDT(totalPeriodExp)}
                   </span>
                 </div>
 
-                {expenseCategories.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    নির্বাচিত সময়ে কোনো খরচের এন্ট্রি নেই
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {expenseCategories.map((item) => {
-                      const pct =
-                        totalPeriodExp > 0
-                          ? Math.round((item.amount / totalPeriodExp) * 100)
-                          : 0;
-                      return (
-                        <div
-                          key={`${item.category}-${item.businessName}`}
-                          className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2"
-                        >
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <div className="min-w-0">
-                              <div className="font-bold text-slate-900 dark:text-white truncate">
+                {/* Excel Table Container with Scrollbar */}
+                <div className="max-h-64 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 select-none z-10">
+                      <tr>
+                        <th className="py-2 px-2.5 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
+                        <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Sector / Category</th>
+                        <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Business Unit</th>
+                        <th className="py-2 px-2.5 text-center border-r border-slate-200 dark:border-slate-700">Txns</th>
+                        <th className="py-2 px-2.5 text-right border-r border-slate-200 dark:border-slate-700">Share</th>
+                        <th className="py-2 px-3 text-right">Amount (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {expenseCategories.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                            No expense records found for this period.
+                          </td>
+                        </tr>
+                      ) : (
+                        expenseCategories.map((item, idx) => {
+                          const pct =
+                            totalPeriodExp > 0
+                              ? ((item.amount / totalPeriodExp) * 100).toFixed(1)
+                              : '0.0';
+                          return (
+                            <tr
+                              key={`${item.category}-${item.businessName}`}
+                              className="hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-colors"
+                            >
+                              <td className="py-1.5 px-2.5 text-center font-mono text-[11px] text-slate-400 border-r border-slate-100 dark:border-slate-800">
+                                {idx + 1}
+                              </td>
+                              <td className="py-1.5 px-3 font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800">
                                 {item.category}
-                              </div>
-                              <div className="text-[11px] text-slate-500">
-                                {item.businessName} · {item.count}টি লেনদেন
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="font-mono font-extrabold text-rose-600 dark:text-rose-400">
+                              </td>
+                              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 truncate max-w-[140px]">
+                                {item.businessName}
+                              </td>
+                              <td className="py-1.5 px-2.5 text-center font-mono text-slate-500 border-r border-slate-100 dark:border-slate-800">
+                                {item.count}
+                              </td>
+                              <td className="py-1.5 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
+                                {pct}%
+                              </td>
+                              <td className="py-1.5 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
                                 {formatBDT(item.amount)}
-                              </div>
-                              <div className="text-[10px] font-mono text-slate-500">
-                                মোট খরচের {pct}%
-                              </div>
-                            </div>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-rose-500"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                    {expenseCategories.length > 0 && (
+                      <tfoot className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/90 font-bold border-t border-slate-200 dark:border-slate-700 text-xs">
+                        <tr>
+                          <td colSpan={3} className="py-2 px-3 text-slate-700 dark:text-slate-200">
+                            Total ({expenseCategories.length} Categories)
+                          </td>
+                          <td className="py-2 px-2.5 text-center font-mono text-slate-600 dark:text-slate-400">
+                            {expenseCategories.reduce((s, c) => s + c.count, 0)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
+                            100%
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-rose-600 dark:text-rose-400">
+                            {formatBDT(totalPeriodExp)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
               </div>
 
-              {/* Revenue Breakdown by Category */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              {/* Table B: Revenue by Sector */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                      <TrendingUp className="h-4 w-4" />
+                    <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <TrendingUp className="h-3.5 w-3.5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                        কোন খাত থেকে কত টাকা আয় হয়েছে (Revenue by Sector)
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        Revenue by Sector (Income Streams)
                       </h3>
-                      <p className="text-[11px] text-slate-500">
-                        মুরগি, দুধ, গরু-ছাগল, মাছ ও ট্রাক ভাড়া আয়ের হিসাব
+                      <p className="text-[10px] text-slate-500">
+                        {revenueCategories.length} revenue streams recorded
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-bold text-emerald-600">
-                    {formatBDT(totalPeriodRev)}
+                  <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200/50 dark:border-emerald-900/50">
+                    Total: {formatBDT(totalPeriodRev)}
                   </span>
                 </div>
 
-                {revenueCategories.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    নির্বাচিত সময়ে কোনো আয়ের এন্ট্রি নেই
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {revenueCategories.map((item) => {
-                      const pct =
-                        totalPeriodRev > 0
-                          ? Math.round((item.amount / totalPeriodRev) * 100)
-                          : 0;
-                      return (
-                        <div
-                          key={`${item.category}-${item.businessName}`}
-                          className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2"
-                        >
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <div className="min-w-0">
-                              <div className="font-bold text-slate-900 dark:text-white truncate">
+                {/* Excel Table Container with Scrollbar */}
+                <div className="max-h-64 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 select-none z-10">
+                      <tr>
+                        <th className="py-2 px-2.5 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
+                        <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Stream / Category</th>
+                        <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Business Unit</th>
+                        <th className="py-2 px-2.5 text-center border-r border-slate-200 dark:border-slate-700">Txns</th>
+                        <th className="py-2 px-2.5 text-right border-r border-slate-200 dark:border-slate-700">Share</th>
+                        <th className="py-2 px-3 text-right">Amount (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {revenueCategories.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                            No revenue records found for this period.
+                          </td>
+                        </tr>
+                      ) : (
+                        revenueCategories.map((item, idx) => {
+                          const pct =
+                            totalPeriodRev > 0
+                              ? ((item.amount / totalPeriodRev) * 100).toFixed(1)
+                              : '0.0';
+                          return (
+                            <tr
+                              key={`${item.category}-${item.businessName}`}
+                              className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors"
+                            >
+                              <td className="py-1.5 px-2.5 text-center font-mono text-[11px] text-slate-400 border-r border-slate-100 dark:border-slate-800">
+                                {idx + 1}
+                              </td>
+                              <td className="py-1.5 px-3 font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800">
                                 {item.category}
-                              </div>
-                              <div className="text-[11px] text-slate-500">
-                                {item.businessName} · {item.count}টি লেনদেন
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                              </td>
+                              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 truncate max-w-[140px]">
+                                {item.businessName}
+                              </td>
+                              <td className="py-1.5 px-2.5 text-center font-mono text-slate-500 border-r border-slate-100 dark:border-slate-800">
+                                {item.count}
+                              </td>
+                              <td className="py-1.5 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
+                                {pct}%
+                              </td>
+                              <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                                 {formatBDT(item.amount)}
-                              </div>
-                              <div className="text-[10px] font-mono text-slate-500">
-                                মোট আয়ের {pct}%
-                              </div>
-                            </div>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-emerald-500"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                    {revenueCategories.length > 0 && (
+                      <tfoot className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/90 font-bold border-t border-slate-200 dark:border-slate-700 text-xs">
+                        <tr>
+                          <td colSpan={3} className="py-2 px-3 text-slate-700 dark:text-slate-200">
+                            Total ({revenueCategories.length} Streams)
+                          </td>
+                          <td className="py-2 px-2.5 text-center font-mono text-slate-600 dark:text-slate-400">
+                            {revenueCategories.reduce((s, c) => s + c.count, 0)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
+                            100%
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                            {formatBDT(totalPeriodRev)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
               </div>
             </div>
 
-            {/* 4. 12-Month Breakdown Table (Jan to Dec) */}
+            {/* 4. 12-Month Financial Performance & Trends Table (Jan to Dec) */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
               <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    ১২ মাসের মাসিক আয়-ব্যয় ও লাভ-ক্ষতি তুলনা ({activeMonthFilter.year === 'ALL' ? '2026' : activeMonthFilter.year})
+                    12-Month Financial Performance & Trends ({activeMonthFilter.year === 'ALL' ? '2026' : activeMonthFilter.year})
                   </h2>
                   <p className="text-xs text-slate-500">
-                    যেকোনো মাসে ক্লিক করলে পুরো রিপোর্ট ওই মাসের হিসাবে আপডেট হবে
+                    Click any month row to filter the entire financial report by that month
                   </p>
                 </div>
               </div>
@@ -4615,12 +4637,12 @@ export default function CentralAccountingAndInventoryView({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
-                      <th className="py-3 px-4">মাস (Month)</th>
-                      <th className="py-3 px-4 text-right">বিক্রি ও আয়</th>
-                      <th className="py-3 px-4 text-right">খামার/ব্যবসা খরচ</th>
-                      <th className="py-3 px-4 text-right">বেতন (Payroll)</th>
-                      <th className="py-3 px-4 text-right">বাকি (Due)</th>
-                      <th className="py-3 px-4 text-right">নিট লাভ / ক্ষতি</th>
+                      <th className="py-3 px-4">Month</th>
+                      <th className="py-3 px-4 text-right">Revenue & Sales</th>
+                      <th className="py-3 px-4 text-right">OpEx / Farm Cost</th>
+                      <th className="py-3 px-4 text-right">Payroll</th>
+                      <th className="py-3 px-4 text-right">Receivables (Due)</th>
+                      <th className="py-3 px-4 text-right">Net Profit / Loss</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -4654,7 +4676,7 @@ export default function CentralAccountingAndInventoryView({
                           }`}
                         >
                           <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
-                            {m.fullBn} ({m.shortEn} {targetYear})
+                            {m.fullEn} ({m.shortEn} {targetYear})
                           </td>
                           <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
                             {formatBDT(rev)}
