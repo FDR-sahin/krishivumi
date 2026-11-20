@@ -879,42 +879,74 @@ export default function AgroErpApp() {
     currentPage * pageSize
   );
 
+  const toEnglishCategory = (cat?: string): string => {
+    if (!cat) return 'General Operation';
+    const c = cat.trim();
+    if (c.includes('বাচ্চা') && c.includes('ক্রয়')) return 'Day-Old Chicks (DOC) Purchase';
+    if (c.includes('বাচ্চা')) return 'Chicks / Flock Purchase';
+    if (c.includes('খাবার') || c.includes('ফিড')) return 'Animal Feed & Nutrition';
+    if (c.includes('ওষুধ') || c.includes('ভ্যাকসিন') || c.includes('চিকিৎসা')) return 'Veterinary & Vaccines';
+    if (c.includes('বেতন') || c.includes('মজুরি') || c.includes('রিম্যুনারেশন')) return 'Staff Salaries & Wages';
+    if (c.includes('ডিজেল') || c.includes('জ্বালানী') || c.includes('ফুয়েল')) return 'Diesel & Fuel';
+    if (c.includes('টোল') || c.includes('ঘাট')) return 'Highway Tolls & Transit';
+    if (c.includes('চালক') || c.includes('ড্রাইভার')) return 'Driver Allowance';
+    if (c.includes('মেরামত') || c.includes('সার্ভিসিং')) return 'Equipment Maintenance';
+    if (c.includes('ডিম') && c.includes('বিক্রি')) return 'Egg Sales Revenue';
+    if (c.includes('মুরগি') && c.includes('বিক্রি')) return 'Broiler & Poultry Sales';
+    if (c.includes('দুধ') && c.includes('বিক্রি')) return 'Dairy & Fresh Milk Sales';
+    if (c.includes('মাছ') && c.includes('বিক্রি')) return 'Fish Harvest Sales';
+    if (c.includes('গরু') && c.includes('বিক্রি')) return 'Cattle & Live Bull Sales';
+    if (c.includes('ছাগল') && c.includes('বিক্রি')) return 'Goat & Meat Sales';
+    if (c.includes('ট্রাক') || c.includes('ভাড়া') || c.includes('ট্রিপ')) return 'Commercial Freight Revenue';
+    if (c.includes('বিক্রি') || c.includes('আয়')) return c.replace(/বিক্রি|আয়/g, 'Sales / Revenue');
+    if (c.includes('খরচ') || c.includes('ব্যয়')) return c.replace(/খরচ|ব্যয়/g, 'Operational Cost');
+    return c;
+  };
+
+  const toEnglishBusinessName = (name?: string, bizId?: string): string => {
+    if (!name && !bizId) return 'General Business Unit';
+    const found = businesses.find((b) => b.id === bizId || b.name === name || b.nameBn === name);
+    if (found?.name) return found.name;
+    if (!name) return 'Business Unit';
+    if (name.includes('পোল্ট্রি') || name.toLowerCase().includes('poultry')) return 'Poultry Farming';
+    if (name.includes('গবাদি') || name.includes('গরু') || name.includes('ডেইরি') || name.toLowerCase().includes('cattle')) return 'Cattle Farming';
+    if (name.includes('ছাগল') || name.toLowerCase().includes('goat')) return 'Goat Farming';
+    if (name.includes('মৎস্য') || name.includes('মাছ') || name.toLowerCase().includes('fish')) return 'Fish Farming';
+    if (name.includes('ট্রাক') || name.includes('পরিবহন') || name.toLowerCase().includes('trans')) return 'Truck & Transport Business';
+    return name;
+  };
+
   const businessChartData = useMemo(() => {
     return accessibleBusinesses.map((b) => {
       const m = businessMetricsMap[b.id] || { revenue: 0, expense: 0, profit: 0 };
-      const label = bn
-        ? b.nameBn || b.name.replace(' Business', '').replace(' Farming', '')
-        : b.name.replace(' Business', '').replace(' Farming', '');
+      const label = b.name.replace(' Business', '').replace(' Farming', '');
       return {
         name: label,
-        [bn ? 'আয়' : 'Revenue']: m.revenue,
-        [bn ? 'খরচ' : 'Expense']: m.expense,
-        [bn ? 'নিট লাভ' : 'Net Profit']: m.profit,
+        Revenue: m.revenue,
+        Expense: m.expense,
+        'Net Profit': m.profit,
       };
     });
-  }, [accessibleBusinesses, businessMetricsMap, bn]);
+  }, [accessibleBusinesses, businessMetricsMap]);
 
   const cashFlowChartData = useMemo(() => {
     const byDate: Record<string, Record<string, string | number>> = {};
-    const inflowKey = bn ? 'জমা' : 'Inflow';
-    const outflowKey = bn ? 'খরচ' : 'Outflow';
-
     for (const j of monthFilteredJournals) {
       if (j.status !== 'posted') continue;
       const d = j.date || '2026-11-01';
-      if (!byDate[d]) byDate[d] = { date: d.slice(5), [inflowKey]: 0, [outflowKey]: 0 };
+      if (!byDate[d]) byDate[d] = { date: d.slice(5), Inflow: 0, Outflow: 0 };
       if (j.transactionType === 'sale' || j.transactionType === 'income') {
-        byDate[d][inflowKey] = Number(byDate[d][inflowKey]) + j.amount;
+        byDate[d].Inflow = Number(byDate[d].Inflow) + j.amount;
       } else if (
         j.transactionType === 'expense' ||
         j.transactionType === 'purchase' ||
         j.transactionType === 'payroll'
       ) {
-        byDate[d][outflowKey] = Number(byDate[d][outflowKey]) + j.amount;
+        byDate[d].Outflow = Number(byDate[d].Outflow) + j.amount;
       }
     }
     return Object.values(byDate).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  }, [monthFilteredJournals, bn]);
+  }, [monthFilteredJournals]);
 
   const payrollSummary = useMemo(
     () => getEnterprisePayrollSummary(stakeholders, erpUsers, accessibleBusinesses, new Date(), simulatePayrollAlert),
@@ -969,26 +1001,24 @@ export default function AgroErpApp() {
       const m = businessMetricsMap[b.id] || { revenue: 0 };
       const rawRev = m.revenue || 0;
       const share = totalRev > 0 ? Math.round((rawRev / totalRev) * 100) : 0;
-      const label = bn ? b.nameBn || b.name : b.name;
+      const label = b.name
+        .replace(' Business', '')
+        .replace(' Farming', '');
       return {
-        name: label
-          .replace(' Business', '')
-          .replace(' Farming', '')
-          .replace(' ব্যবসা', '')
-          .replace(' খামার', ''),
+        name: label,
         value: rawRev,
         share: `${share}%`,
         color: palette[idx % palette.length],
       };
     });
-  }, [accessibleBusinesses, businessMetricsMap, bn]);
+  }, [accessibleBusinesses, businessMetricsMap]);
 
   // 3. Top 5 Products / Streams by Sales (Aggregated from real sales/income journals)
   const topProductsData = useMemo(() => {
     const salesMap: Record<string, number> = {};
     for (const j of postedJournals) {
       if (j.transactionType === 'sale' || j.transactionType === 'income') {
-        const key = j.category || j.description || (bn ? 'পণ্য বিক্রয়' : 'Product Sales');
+        const key = toEnglishCategory(j.category) || 'Product Sales';
         salesMap[key] = (salesMap[key] || 0) + (j.amount || 0);
       }
     }
@@ -999,7 +1029,7 @@ export default function AgroErpApp() {
       sales,
       pct: formatCompactBDT(sales),
     }));
-  }, [postedJournals, bn]);
+  }, [postedJournals]);
 
   // 4. Receivables Aging (Donut Chart - Real aging calculated from due dates)
   const receivablesAgingData = useMemo(() => {
@@ -1066,7 +1096,7 @@ export default function AgroErpApp() {
         j.transactionType === 'purchase' ||
         j.transactionType === 'payroll'
       ) {
-        const cat = j.category || (bn ? 'অন্যান্য ব্যয়' : 'Other Expenses');
+        const cat = toEnglishCategory(j.category) || 'Other Expenses';
         expByCat[cat] = (expByCat[cat] || 0) + (j.amount || 0);
         totalExp += (j.amount || 0);
       }
@@ -1076,7 +1106,7 @@ export default function AgroErpApp() {
     if (entries.length === 0) {
       return [
         {
-          name: bn ? 'কোনো ব্যয় নেই' : 'No Expenses',
+          name: 'No Expenses',
           value: 0,
           share: '0%',
           color: '#94A3B8',
@@ -1770,45 +1800,15 @@ export default function AgroErpApp() {
 
           {/* VIEW 1: MAIN EXECUTIVE DASHBOARD */}
           {activeNav === 'dashboard' && (
-            <div className="space-y-6 relative">
+            <div className="space-y-5 relative">
               {/* Subtle Atmospheric Agro Watermark (Jolchap) Background */}
               <div
                 aria-hidden="true"
-                className="pointer-events-none fixed inset-0 z-0 opacity-[0.04] dark:opacity-[0.03] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50 pointer-events-none"
+                className="pointer-events-none fixed inset-0 z-0 opacity-[0.04] dark:opacity-[0.03] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50"
                 style={{ backgroundImage: `url('/images/agro_fields_brand.jpg')` }}
               />
-              {/* 12-Month Period Filter Bar */}
-              <MonthFilterBar value={monthFilter} onChange={setMonthFilter} bn={bn} />
-
-              {/* Client Demo Master Greeting Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>
-                      {bn
-                        ? `স্বাগতম, ${user?.displayName || 'Sahin Miah'}! 👋`
-                        : `Welcome back, ${user?.displayName || 'Admin'}! 👋`}
-                    </span>
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    {bn
-                      ? 'RegardsAgro-এর ৫টি ব্যবসায়িক ডিভিশনের সমন্বিত লাইভ অপারেশন ও আর্থিক সারাংশ'
-                      : "Here's what's happening across your business units today"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <div className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>
-                      {monthFilter.month === 'ALL'
-                        ? bn
-                          ? 'চলতি বছর (২০২৬)'
-                          : 'This Year (2026)'
-                        : `${monthFilter.month} ${monthFilter.year !== 'ALL' ? monthFilter.year : ''}`}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {/* 12-Month Period Filter Bar (English) */}
+              <MonthFilterBar value={monthFilter} onChange={setMonthFilter} bn={false} />
 
               {/* 6 TOP EXECUTIVE KPI CARDS (Matching Client Demo SaaS Layout) */}
               <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 sm:gap-4">
@@ -1816,7 +1816,7 @@ export default function AgroErpApp() {
                 <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      <span>{bn ? 'মোট রাজস্ব (Total Rev)' : 'Total Revenue'}</span>
+                      <span>Total Revenue</span>
                       <Coins className="h-3.5 w-3.5 text-teal-600" />
                     </div>
                     <div className="mt-2 text-lg sm:text-xl font-black font-mono text-slate-900 dark:text-white truncate">
@@ -1833,7 +1833,7 @@ export default function AgroErpApp() {
                 <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      <span>{bn ? 'মোট লাভ (Gross Profit)' : 'Gross Profit'}</span>
+                      <span>Gross Profit</span>
                       <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
                     </div>
                     <div className="mt-2 text-lg sm:text-xl font-black font-mono text-slate-900 dark:text-white truncate">
@@ -1867,7 +1867,7 @@ export default function AgroErpApp() {
                 <div className="group/profit relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover:shadow-xl hover:border-emerald-500/50 transition-all flex flex-col justify-between cursor-help hover:z-40">
                   <div>
                     <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      <span>{bn ? 'নিট মুনাফা (Net Profit)' : 'Net Profit'}</span>
+                      <span>Net Profit</span>
                       <Coins className="h-3.5 w-3.5 text-emerald-600" />
                     </div>
                     <div className="mt-2 text-lg sm:text-xl font-black font-mono text-emerald-600 dark:text-emerald-400 truncate">
@@ -1880,7 +1880,7 @@ export default function AgroErpApp() {
                       <span>+15.4% vs last month</span>
                     </div>
                     <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 hidden sm:inline">
-                      {bn ? 'মাউস রাখুন' : 'Hover info'}
+                      Hover info
                     </span>
                   </div>
 
@@ -1891,19 +1891,19 @@ export default function AgroErpApp() {
                         <div className="flex items-center gap-1.5">
                           <Coins className="h-4 w-4 text-emerald-400" />
                           <span className="text-xs font-bold text-slate-100">
-                            {bn ? 'কনসোলিডেটেড নিট মুনাফা' : 'Consolidated Net Profit'}
+                            Consolidated Net Profit
                           </span>
                         </div>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                           {executiveMetrics.revenue > 0
-                            ? `${((executiveMetrics.netProfit / executiveMetrics.revenue) * 100).toFixed(1)}% ${bn ? 'মার্জিন' : 'Margin'}`
-                            : '০% মার্জিন'}
+                            ? `${((executiveMetrics.netProfit / executiveMetrics.revenue) * 100).toFixed(1)}% Margin`
+                            : '0% Margin'}
                         </span>
                       </div>
 
                       <div className="text-center py-1 bg-slate-800/40 rounded-xl border border-slate-800">
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          {bn ? 'সকল খামার ও ব্যবসার নিট লাভ' : 'Total Profit Across All Units'}
+                          Total Profit Across All Units
                         </div>
                         <div className="text-2xl font-black font-mono tracking-tight text-emerald-400 mt-0.5">
                           {formatBDT(executiveMetrics.netProfit)}
@@ -1912,15 +1912,15 @@ export default function AgroErpApp() {
 
                       <div className="bg-slate-950/80 rounded-xl p-2.5 space-y-1.5 text-xs font-mono border border-slate-800">
                         <div className="flex items-center justify-between text-slate-300">
-                          <span className="text-[11px] font-sans">{bn ? 'সর্বমোট বিক্রি (Total Revenue):' : 'Revenue:'}</span>
+                          <span className="text-[11px] font-sans">Revenue:</span>
                           <span className="font-bold text-emerald-400">+{formatBDT(executiveMetrics.revenue)}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300">
-                          <span className="text-[11px] font-sans">{bn ? 'মোট ব্যয় (Total Expenses):' : 'Expenses:'}</span>
+                          <span className="text-[11px] font-sans">Expenses:</span>
                           <span className="font-bold text-amber-300">-{formatBDT(kpiTotals.totalExpenses || (executiveMetrics.revenue - executiveMetrics.netProfit))}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300 pt-1 border-t border-slate-800/80">
-                          <span className="text-[11px] font-sans">{bn ? 'মোট লাভ (Gross Profit):' : 'Gross Profit:'}</span>
+                          <span className="text-[11px] font-sans">Gross Profit:</span>
                           <span className="font-bold text-slate-200">{formatBDT(executiveMetrics.grossProfit)}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300">
@@ -1930,8 +1930,8 @@ export default function AgroErpApp() {
                       </div>
 
                       <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                        <span>{bn ? 'স্বয়ংক্রিয় ব্যালান্সড লেজার' : 'Audited GL'}</span>
-                        <span className="text-emerald-400 font-semibold">{bn ? '১০০% নির্ভুল' : 'Verified'}</span>
+                        <span>Audited General Ledger</span>
+                        <span className="text-emerald-400 font-semibold">100% Reconciled</span>
                       </div>
                     </div>
                     {/* Center downward pointer */}
@@ -1943,7 +1943,7 @@ export default function AgroErpApp() {
                 <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      <span>{bn ? 'মোট চালান / অর্ডার' : 'Total Orders'}</span>
+                      <span>Total Orders</span>
                       <Package className="h-3.5 w-3.5 text-indigo-600" />
                     </div>
                     <div className="mt-2 text-lg sm:text-xl font-black font-mono text-slate-900 dark:text-white">
@@ -1952,7 +1952,7 @@ export default function AgroErpApp() {
                   </div>
                   <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md w-fit">
                     <TrendingUp className="h-3 w-3" />
-                    <span>{executiveMetrics.totalOrders > 0 ? (bn ? `${executiveMetrics.totalOrders}টি অর্ডার নথিবদ্ধ` : `${executiveMetrics.totalOrders} recorded orders`) : (bn ? 'কোনো অর্ডার নেই' : '0 orders')}</span>
+                    <span>{executiveMetrics.totalOrders > 0 ? `${executiveMetrics.totalOrders} recorded orders` : '0 orders'}</span>
                   </div>
                 </div>
 
@@ -1960,7 +1960,7 @@ export default function AgroErpApp() {
                 <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      <span>{bn ? 'বকেয়া / অনুমোদন বাকি' : 'Pending Approvals'}</span>
+                      <span>Pending Approvals</span>
                       <Clock className="h-3.5 w-3.5 text-amber-600" />
                     </div>
                     <div className="mt-2 text-lg sm:text-xl font-black font-mono text-amber-600 dark:text-amber-400">
@@ -1968,22 +1968,22 @@ export default function AgroErpApp() {
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md w-fit">
-                    <span>{executiveMetrics.pendingApprovals > 0 ? (bn ? `${executiveMetrics.pendingApprovals}টি লেনদেনে বকেয়া` : `${executiveMetrics.pendingApprovals} pending dues`) : (bn ? 'কোনো বকেয়া নেই' : '0 pending')}</span>
+                    <span>{executiveMetrics.pendingApprovals > 0 ? `${executiveMetrics.pendingApprovals} pending dues` : '0 pending'}</span>
                   </div>
                 </div>
               </section>
 
-              {/* ROW 1 ANALYTICS CHARTS (Revenue Trend, Revenue by Unit, Top 5 Products) */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* ROW 1 ANALYTICS CHARTS (Revenue Trend, Revenue by Unit, Top 5 Products) - COMPACT HEIGHT */}
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* 1. Revenue Trend (YTD) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{bn ? 'রাজস্ব ট্রেন্ড (Revenue Trend YTD)' : 'Revenue Trend (YTD)'}</span>
+                      <span>Revenue Trend (YTD)</span>
                       <span className="text-[10px] font-mono text-slate-400">2026</span>
                     </h3>
                   </div>
-                  <div className="h-52 w-full mt-4">
+                  <div className="h-40 w-full mt-3">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={revenueTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <defs>
@@ -1997,7 +1997,7 @@ export default function AgroErpApp() {
                         <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} tickFormatter={(v) => formatCompactBDT(Number(v))} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#F8FAFC', fontSize: '11px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
-                          formatter={(v: any) => [formatBDT(Number(v)), bn ? 'মাসিক আয়' : 'Monthly Rev']}
+                          formatter={(v: any) => [formatBDT(Number(v)), 'Monthly Revenue']}
                         />
                         <Area type="monotone" dataKey="revenue" stroke="#0D9488" strokeWidth={2.5} fillOpacity={1} fill="url(#revenueTeal)" dot={{ r: 3, fill: '#0D9488' }} />
                       </AreaChart>
@@ -2006,23 +2006,23 @@ export default function AgroErpApp() {
                 </div>
 
                 {/* 2. Revenue by Business Unit (YTD Donut) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{bn ? 'বিভাগ অনুযায়ী আয় (Revenue by Business Unit)' : 'Revenue by Business Unit (YTD)'}</span>
-                      <span className="text-[10px] font-mono text-slate-400">5 Divisions</span>
+                      <span>Revenue by Business Unit (YTD)</span>
+                      <span className="text-[10px] font-mono text-slate-400">5 Units</span>
                     </h3>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
-                    <div className="h-44 w-44 relative shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+                    <div className="h-36 w-36 relative shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={businessUnitDonutData}
                             dataKey="value"
                             nameKey="name"
-                            innerRadius={52}
-                            outerRadius={74}
+                            innerRadius={40}
+                            outerRadius={60}
                             paddingAngle={3}
                             stroke="none"
                           >
@@ -2037,16 +2037,16 @@ export default function AgroErpApp() {
                           {formatCompactBDT(executiveMetrics.revenue)}
                         </span>
                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                          {bn ? 'সর্বমোট' : 'Total Rev'}
+                          Total Revenue
                         </span>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5 w-full text-xs">
+                    <div className="space-y-1 w-full text-xs">
                       {businessUnitDonutData.map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 truncate">
-                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                             <span className="text-slate-600 dark:text-slate-400 text-[11px] truncate">{item.name}</span>
                           </div>
                           <span className="font-mono font-bold text-slate-900 dark:text-slate-200 text-[11px] shrink-0">{item.share}</span>
@@ -2057,55 +2057,55 @@ export default function AgroErpApp() {
                 </div>
 
                 {/* 3. Top 5 Products / Streams by Sales (Horizontal Bar Chart) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{bn ? 'শীর্ষ ৫টি পণ্য / সেবা (Top 5 Products by Sales)' : 'Top 5 Products / Streams by Sales (YTD)'}</span>
+                      <span>Top 5 Products / Streams by Sales (YTD)</span>
                       <span className="text-[10px] font-mono text-slate-400">Volume</span>
                     </h3>
                   </div>
-                  <div className="h-52 w-full mt-3 flex items-center justify-center">
+                  <div className="h-40 w-full mt-2 flex items-center justify-center">
                     {topProductsData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart layout="vertical" data={topProductsData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                        <BarChart layout="vertical" data={topProductsData} margin={{ top: 5, right: 25, left: 5, bottom: 5 }}>
                           <XAxis type="number" hide />
                           <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#64748B' }} width={120} />
                           <Tooltip
                             contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#F8FAFC', fontSize: '11px' }}
-                            formatter={(v: any) => [formatBDT(Number(v)), bn ? 'বিক্রি' : 'Sales']}
+                            formatter={(v: any) => [formatBDT(Number(v)), 'Sales']}
                           />
-                          <Bar dataKey="sales" fill="#0D9488" radius={[0, 6, 6, 0]} barSize={16} />
+                          <Bar dataKey="sales" fill="#0D9488" radius={[0, 4, 4, 0]} barSize={14} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="text-center text-xs text-slate-400 py-12">
-                        {bn ? 'এখনো কোনো পণ্য বা সেবা বিক্রির ভাউচার যুক্ত করা হয়নি' : 'No sales or income transactions posted yet'}
+                      <div className="text-center text-xs text-slate-400 py-8">
+                        No sales or income transactions posted yet
                       </div>
                     )}
                   </div>
                 </div>
               </section>
 
-              {/* ROW 2 ANALYTICS CHARTS (Receivables Aging, Orders vs Revenue, Expenses by Category) */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* ROW 2 ANALYTICS CHARTS (Receivables Aging, Orders vs Revenue, Expenses by Category) - COMPACT HEIGHT */}
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* 4. Receivables Aging (YTD Donut) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{bn ? 'বকেয়ার বয়স অনুপাত (Receivables Aging)' : 'Receivables Aging (YTD)'}</span>
-                      <span className="text-[10px] font-mono text-slate-400">Aging Buckets</span>
+                      <span>Receivables Aging (YTD)</span>
+                      <span className="text-[10px] font-mono text-slate-400">Buckets</span>
                     </h3>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
-                    <div className="h-44 w-44 relative shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+                    <div className="h-36 w-36 relative shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={receivablesAgingData}
                             dataKey="value"
                             nameKey="name"
-                            innerRadius={52}
-                            outerRadius={74}
+                            innerRadius={40}
+                            outerRadius={60}
                             paddingAngle={3}
                             stroke="none"
                           >
@@ -2120,16 +2120,16 @@ export default function AgroErpApp() {
                           {formatCompactBDT(kpiTotals.outstandingReceivables)}
                         </span>
                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                          {bn ? 'মোট বকেয়া' : 'Total Due'}
+                          Total Due
                         </span>
                       </div>
                     </div>
 
-                    <div className="space-y-2 w-full text-xs">
+                    <div className="space-y-1.5 w-full text-xs">
                       {receivablesAgingData.map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                             <span className="text-slate-600 dark:text-slate-400 text-[11px]">{item.name}</span>
                           </div>
                           <span className="font-mono font-bold text-slate-900 dark:text-slate-200 text-[11px]">{item.share}</span>
@@ -2140,11 +2140,11 @@ export default function AgroErpApp() {
                 </div>
 
                 {/* 5. Orders vs Revenue (Composed Bar + Line Chart) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{bn ? 'অর্ডার বনাম রাজস্ব (Orders vs Revenue)' : 'Orders vs Revenue (YTD)'}</span>
-                      <div className="flex items-center gap-2.5 text-[10px] font-semibold">
+                      <span>Orders vs Revenue (YTD)</span>
+                      <div className="flex items-center gap-2 text-[10px] font-semibold">
                         <span className="flex items-center gap-1 text-teal-600 dark:text-teal-400">
                           <span className="h-2 w-2 rounded-xs bg-teal-600" /> Orders
                         </span>
@@ -2154,7 +2154,7 @@ export default function AgroErpApp() {
                       </div>
                     </h3>
                   </div>
-                  <div className="h-52 w-full mt-3">
+                  <div className="h-40 w-full mt-2">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={ordersVsRevenueData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.6} />
@@ -2164,31 +2164,31 @@ export default function AgroErpApp() {
                         <Tooltip
                           contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#F8FAFC', fontSize: '11px' }}
                         />
-                        <Bar yAxisId="left" dataKey="orders" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={12} name={bn ? 'অর্ডার' : 'Orders'} />
-                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 2.5, fill: '#3B82F6' }} name={bn ? 'রাজস্ব' : 'Revenue'} />
+                        <Bar yAxisId="left" dataKey="orders" fill="#0D9488" radius={[3, 3, 0, 0]} barSize={10} name="Orders" />
+                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={2} dot={{ r: 2, fill: '#3B82F6' }} name="Revenue" />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
                 {/* 6. Expenses by Category (YTD Donut) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                      <span>{bn ? 'ব্যয়ের খাতসমূহ (Expenses by Category)' : 'Expenses by Category (YTD)'}</span>
+                      <span>Expenses by Category (YTD)</span>
                       <span className="text-[10px] font-mono text-slate-400">Breakdown</span>
                     </h3>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
-                    <div className="h-44 w-44 relative shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+                    <div className="h-36 w-36 relative shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={expensesByCategoryData}
                             dataKey="value"
                             nameKey="name"
-                            innerRadius={52}
-                            outerRadius={74}
+                            innerRadius={40}
+                            outerRadius={60}
                             paddingAngle={3}
                             stroke="none"
                           >
@@ -2203,16 +2203,16 @@ export default function AgroErpApp() {
                           {formatCompactBDT(kpiTotals.totalExpenses)}
                         </span>
                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                          {bn ? 'মোট ব্যয়' : 'Total Exp'}
+                          Total Exp
                         </span>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5 w-full text-xs">
+                    <div className="space-y-1 w-full text-xs">
                       {expensesByCategoryData.map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 truncate">
-                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                             <span className="text-slate-600 dark:text-slate-400 text-[11px] truncate">{item.name}</span>
                           </div>
                           <span className="font-mono font-bold text-slate-900 dark:text-slate-200 text-[11px] shrink-0">{item.share}</span>
@@ -2224,14 +2224,14 @@ export default function AgroErpApp() {
               </section>
 
               {/* Executive Command Quick Actions Strip */}
-              <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-5 shadow-xs backdrop-blur-md">
+              <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-4 sm:p-5 shadow-xs backdrop-blur-md">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-                      {bn ? 'কেন্দ্রীয় কমান্ড অ্যাকশন' : 'FAST TRANSACTION COMMAND'}
+                      EXECUTIVE QUICK ACTIONS
                     </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {bn ? 'যেকোনো ডিভিশনের জন্য তাৎক্ষণিক আয়-ব্যয় এন্ট্রি বা ব্যালান্স চেক করুন' : 'Post balanced double-entry transactions or provision new agro divisions'}
+                      Record instantaneous income/expense entries or check financial health
                     </p>
                   </div>
 
@@ -2240,26 +2240,26 @@ export default function AgroErpApp() {
                       type="button"
                       onClick={() => {
                         setQuickBizId(businesses[0]?.id || '');
-                        setQuickCategory(bn ? 'পণ্য ও খামার বিক্রি' : 'Farm & Product Sales');
+                        setQuickCategory('Farm & Product Sales');
                         setDashboardQuickTxModal('sale');
                       }}
                       className="group inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-sm shadow-emerald-600/25 active:scale-98 whitespace-nowrap cursor-pointer"
                     >
                       <Plus className="h-3.5 w-3.5 transition-transform group-hover:rotate-90 duration-200" />
-                      <span>{bn ? '+ বিক্রি / আয়' : '+ Record Sale'}</span>
+                      <span>+ Record Sale</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => {
                         setQuickBizId(businesses[0]?.id || '');
-                        setQuickCategory(bn ? 'খাবার, ওষুধ ও খামার খরচ' : 'Feed, Medicine & Operating Cost');
+                        setQuickCategory('Feed, Medicine & Operating Cost');
                         setDashboardQuickTxModal('expense');
                       }}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-98 whitespace-nowrap cursor-pointer"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      <span>{bn ? '+ খরচ' : '+ Record Expense'}</span>
+                      <span>+ Record Expense</span>
                     </button>
 
                     {userRole === 'super_admin' && (
@@ -2269,7 +2269,7 @@ export default function AgroErpApp() {
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-98 whitespace-nowrap cursor-pointer"
                       >
                         <Building2 className="h-3.5 w-3.5 text-emerald-400" />
-                        <span>{bn ? 'নতুন ইউনিট' : 'New Division'}</span>
+                        <span>New Division</span>
                       </button>
                     )}
 
@@ -2279,449 +2279,56 @@ export default function AgroErpApp() {
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all active:scale-98 whitespace-nowrap cursor-pointer"
                     >
                       <FileBarChart className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>{bn ? 'P&L রিপোর্ট' : 'P&L Report'}</span>
+                      <span>P&L Reports</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 1: BUSINESS PORTFOLIO GRID */}
-              <section className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
-                      {bn
-                        ? `চলমান ব্যবসায়িক ডিভিশন পোর্টফোলিও (${filteredBusinesses.length})`
-                        : `Active Business Portfolio (${filteredBusinesses.length})`}
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {bn
-                        ? 'প্রতিটি ইউনিটের কার্ডে ক্লিক করে লাইভ অপারেশন, ব্যাচ, পাল ও ট্রিপ কনসোলে প্রবেশ করুন।'
-                        : 'Select any business unit to manage batches, livestock tags, ponds, or fleet trips.'}
-                    </p>
-                  </div>
-
-                  {/* Filter & Sort Controls */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={bizStatusFilter}
-                      onChange={(e) => {
-                        setBizStatusFilter(e.target.value as 'all' | 'active' | 'inactive');
-                        setCurrentPage(1);
-                      }}
-                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300"
-                    >
-                      <option value="all">{bn ? 'সব স্ট্যাটাস' : 'All Status'}</option>
-                      <option value="active">{bn ? 'শুধু চালু' : 'Active Only'}</option>
-                      <option value="inactive">{bn ? 'বন্ধ' : 'Inactive'}</option>
-                    </select>
-
-                    <select
-                      value={bizSortBy}
-                      onChange={(e) =>
-                        setBizSortBy(e.target.value as 'name' | 'revenue' | 'profit')
-                      }
-                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300"
-                    >
-                      <option value="revenue">{bn ? 'সর্বোচ্চ আয়' : 'Sort: Revenue'}</option>
-                      <option value="profit">{bn ? 'সর্বোচ্চ লাভ' : 'Sort: Net Profit'}</option>
-                      <option value="name">{bn ? 'নাম অনুযায়ী' : 'Sort: Name'}</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Business Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {paginatedBusinesses.map((biz) => {
-                    const metrics = businessMetricsMap[biz.id] || {
-                      revenue: 0,
-                      expense: 0,
-                      profit: 0,
-                      due: 0,
-                    };
-                    const accent = getBusinessAccent(biz.templateType);
-                    return (
-                      <div
-                        key={biz.id}
-                        onClick={() => {
-                          setSelectedBusinessId(biz.id);
-                          setActiveNav('business_detail');
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`group relative hover:z-30 cursor-pointer rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${accent.glowBorder} flex flex-col justify-between`}
-                      >
-                        {/* Top Gradient Accent Bar */}
-                        <div className={`h-1.5 w-full bg-gradient-to-r rounded-t-3xl ${accent.gradientBar}`} />
-
-                        <div className="p-6 sm:p-7 space-y-5 flex-1 flex flex-col justify-between">
-                          <div className="space-y-3.5">
-                            {/* Division Category Tag & Status Pill */}
-                            <div className="flex items-center justify-between gap-2">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border ${accent.tagBg}`}
-                              >
-                                {bn ? accent.divisionTagBn : accent.divisionTag}
-                              </span>
-
-                              <span
-                                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
-                                  biz.status === 'active'
-                                    ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
-                                    : 'text-amber-700 dark:text-amber-400 bg-amber-500/10'
-                                }`}
-                              >
-                                <span
-                                  className={`h-1.5 w-1.5 rounded-full ${
-                                    biz.status === 'active'
-                                      ? 'bg-emerald-500 animate-pulse'
-                                      : 'bg-amber-500'
-                                  }`}
-                                />
-                                {biz.status === 'active'
-                                  ? bn
-                                    ? 'সক্রিয়'
-                                    : 'Active'
-                                  : bn
-                                  ? 'স্থগিত'
-                                  : 'Paused'}
-                              </span>
-                            </div>
-
-                            {/* Identity Header */}
-                            <div className="flex items-start gap-3.5 pt-1">
-                              <div
-                                className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${accent.iconBg} transition-transform duration-300 group-hover:scale-105`}
-                              >
-                                {renderBusinessIcon(biz.iconName, 'h-6 w-6')}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <h3 className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                                  {bn ? biz.nameBn || biz.name : biz.name}
-                                </h3>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                  <span>{biz.location}</span>
-                                  <span>•</span>
-                                  <span className="font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold">
-                                    {biz.code}
-                                  </span>
-                                </div>
-                                <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 mt-1">
-                                  <span className="text-slate-400">👤 {bn ? 'ইন-চার্জ:' : 'Lead:'}</span>
-                                  <span className="text-emerald-700 dark:text-emerald-300 font-bold">
-                                    {biz.managerName || 'Md. Sahin Miah'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Description */}
-                            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                              {biz.description}
-                            </p>
-
-                            {/* Operational Capability Chips */}
-                            <div className="flex flex-wrap gap-1.5 pt-1">
-                              {(bn ? accent.chipsBn : accent.chips).map((chip, idx) => (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] font-semibold"
-                                >
-                                  {chip}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* 3-Tile Structured Financial Metric Ribbon */}
-                          <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">
-                            <div className="grid grid-cols-3 gap-2">
-                              {/* Tile 1: Sales */}
-                              <div className="p-2.5 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/15">
-                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                  <span>{bn ? 'বিক্রি' : 'Sales'}</span>
-                                </div>
-                                <div className="font-mono font-black tabular-nums text-xs text-slate-900 dark:text-white mt-1 truncate">
-                                  {formatBDT(metrics.revenue)}
-                                </div>
-                              </div>
-
-                              {/* Tile 2: Expense */}
-                              <div className="p-2.5 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15">
-                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                  <span>{bn ? 'খরচ' : 'Expense'}</span>
-                                </div>
-                                <div className="font-mono font-black tabular-nums text-xs text-slate-900 dark:text-white mt-1 truncate">
-                                  {formatBDT(metrics.expense)}
-                                </div>
-                              </div>
-
-                              {/* Tile 3: Margin / Net Profit with Interactive Hover Card */}
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedBusinessId(biz.id);
-                                  setActiveNav('business_detail');
-                                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                                className="group/profit relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:ring-2 hover:ring-emerald-500/50 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 cursor-pointer"
-                              >
-                                <div className="flex items-center justify-between gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                  <div className="flex items-center gap-1">
-                                    <span
-                                      className={`h-1.5 w-1.5 rounded-full ${
-                                        metrics.profit >= 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-                                      }`}
-                                    />
-                                    <span>{bn ? 'নিট লাভ' : 'Net Margin'}</span>
-                                  </div>
-                                  <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-black">
-                                    {metrics.revenue > 0
-                                      ? `${((metrics.profit / metrics.revenue) * 100).toFixed(0)}%`
-                                      : '0%'}
-                                  </span>
-                                </div>
-                                <div
-                                  className={`font-mono font-black tabular-nums text-xs mt-1 truncate ${
-                                    metrics.profit >= 0
-                                      ? 'text-emerald-600 dark:text-emerald-400'
-                                      : 'text-rose-600 dark:text-rose-400'
-                                  }`}
-                                >
-                                  {formatBDT(metrics.profit)}
-                                </div>
-
-                                {/* GORGEOUS FLOATING PROFIT BREAKDOWN CARD (HOVER TOOLTIP) */}
-                                <div className="absolute bottom-full right-0 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-auto z-50">
-                                  <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/30 space-y-3 ring-1 ring-white/10">
-                                    {/* Tooltip Header */}
-                                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                                      <div className="flex items-center gap-1.5 min-w-0">
-                                        <TrendingUp className="h-4 w-4 text-emerald-400" />
-                                        <span className="text-xs font-bold text-slate-100 truncate">
-                                          {bn ? `${biz.nameBn || biz.name} - লাভ বিশ্লেষণ` : `${biz.name} Profit Breakdown`}
-                                        </span>
-                                      </div>
-                                      <span
-                                        className={`px-2 py-0.5 rounded-full text-[10px] font-black font-mono shrink-0 ${
-                                          metrics.profit >= 0
-                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                                        }`}
-                                      >
-                                        {metrics.revenue > 0
-                                          ? `${metrics.profit >= 0 ? '+' : ''}${((metrics.profit / metrics.revenue) * 100).toFixed(1)}% ${bn ? 'মার্জিন' : 'Margin'}`
-                                          : '০% মার্জিন'}
-                                      </span>
-                                    </div>
-
-                                    {/* Main Net Profit Number */}
-                                    <div className="text-center py-1 bg-slate-800/40 rounded-xl border border-slate-800">
-                                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                        {bn ? 'প্রকৃত নিট মুনাফা (Net Profit)' : 'Consolidated Net Profit'}
-                                      </div>
-                                      <div
-                                        className={`text-2xl font-black font-mono tracking-tight mt-0.5 ${
-                                          metrics.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                                        }`}
-                                      >
-                                        {formatBDT(metrics.profit)}
-                                      </div>
-                                    </div>
-
-                                    {/* Financial Line items */}
-                                    <div className="bg-slate-950/80 rounded-xl p-2.5 space-y-1.5 text-xs font-mono border border-slate-800">
-                                      <div className="flex items-center justify-between text-slate-300">
-                                        <span className="flex items-center gap-1.5 text-[11px] font-sans">
-                                          <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                                          <span>{bn ? 'মোট বিক্রি / আয় (Sales)' : 'Total Sales'}</span>
-                                        </span>
-                                        <span className="font-bold text-emerald-400">+{formatBDT(metrics.revenue)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between text-slate-300">
-                                        <span className="flex items-center gap-1.5 text-[11px] font-sans">
-                                          <span className="h-2 w-2 rounded-full bg-amber-400" />
-                                          <span>{bn ? 'মোট খরচ / ব্যয় (Expense)' : 'Total Expenses'}</span>
-                                        </span>
-                                        <span className="font-bold text-amber-300">-{formatBDT(metrics.expense)}</span>
-                                      </div>
-                                      {metrics.due > 0 && (
-                                        <div className="flex items-center justify-between text-slate-400 pt-1 border-t border-slate-800/80">
-                                          <span className="text-[10px] font-sans text-amber-300/80">{bn ? 'মার্কেটে বকেয়া (Due)' : 'Receivables'}</span>
-                                          <span className="font-semibold text-amber-300/90">{formatBDT(metrics.due)}</span>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Action button inside tooltip to go directly to details */}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedBusinessId(biz.id);
-                                        setActiveNav('business_detail');
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                      }}
-                                      className="w-full py-2 px-3 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
-                                    >
-                                      <span>{bn ? 'বিস্তারিত ডিভিশন খতিয়ান ও অপারেশন খুলুন' : 'Open Detailed Workspace'}</span>
-                                      <ArrowRight className="h-3.5 w-3.5" />
-                                    </button>
-
-                                    {/* Footer Synchronized Hint */}
-                                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                                      <span className="flex items-center gap-1">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                        <span>{bn ? 'খতিয়ান থেকে লাইভ সিঙ্ক' : 'Ledger synced'}</span>
-                                      </span>
-                                      <span className="text-emerald-400 font-semibold">{bn ? 'সরাসরি রিয়েল-টাইম' : 'Real-time'}</span>
-                                    </div>
-                                  </div>
-
-                                  {/* Pointer Caret */}
-                                  <div className="w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-slate-900 dark:border-t-slate-950 ml-auto mr-8 -mt-0.5" />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Action Footer */}
-                            <div className="flex items-center justify-between pt-1">
-                              {metrics.due > 0 ? (
-                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold border border-amber-500/20">
-                                  {bn ? 'বাকি:' : 'Due:'} {formatCompactBDT(metrics.due)}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                                  {bn ? 'লেজার সিঙ্ক সক্রিয়' : 'Ledger in sync'}
-                                </span>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedBusinessId(biz.id);
-                                  setActiveNav('business_detail');
-                                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                                className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white group-hover:bg-emerald-600 group-hover:text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
-                              >
-                                <span>{bn ? 'ডিভিশন কনসোল খুলুন' : 'Open Division Console'}</span>
-                                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Provision New Business Card */}
-                  {userRole === 'super_admin' && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddBusinessWizard(true)}
-                      className="group relative rounded-3xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-white/70 dark:bg-slate-900/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 p-6 sm:p-7 transition-all duration-300 flex flex-col items-center justify-center text-center min-h-[340px] space-y-4 hover:shadow-lg"
-                    >
-                      <div className="relative">
-                        <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-all duration-300 shadow-sm group-hover:scale-110">
-                          <Plus className="h-7 w-7" />
-                        </div>
-                        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
-                      </div>
-                      <div className="space-y-1.5 max-w-xs">
-                        <div className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                          {bn ? 'নতুন ব্যবসায়িক বিভাগ যুক্ত করুন' : 'Provision New Division'}
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                          {bn
-                            ? 'ডেইরি প্রসেসিং, পোল্ট্রি হ্যাচারি, ফিড মিল, রাইস ট্রেডিং বা নিজস্ব বাণিজ্যিক ইউনিট ১-ক্লিকে ইনস্টল করুন।'
-                            : 'Launch Feed Mills, Dairy Processing, Seed Distribution, or custom agro divisions with dedicated double-entry ledgers.'}
-                        </p>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-2xs">
-                        <span>{bn ? 'ডিভিশন সেটআপ উইজার্ড' : 'Division Setup Wizard'}</span>
-                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                      </span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      disabled={currentPage <= 1}
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-semibold disabled:opacity-40"
-                    >
-                      {bn ? 'পূর্ববর্তী' : 'Prev'}
-                    </button>
-                    <span className="text-xs font-mono text-slate-500">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-semibold disabled:opacity-40"
-                    >
-                      {bn ? 'পরবর্তী' : 'Next'}
-                    </button>
-                  </div>
-                )}
-              </section>
-
-              {/* SECTION 2: SECONDARY OPERATIONAL OVERVIEW */}
-              <section className="space-y-3 pt-2">
+              {/* SECTION 2: OPERATIONAL TREASURY & WORKFORCE TELEMETRY */}
+              <section className="space-y-3 pt-1">
                 <div>
                   <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    {bn ? 'অপারেশনাল ট্রেজারি ও জনবল মনিটরিং' : 'Operational Treasury & Workforce Telemetry'}
+                    Operational Treasury & Workforce Telemetry
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
                     {
-                      label: bn ? 'অফিস ও খামার ক্যাশ তহবিল' : 'Office & Farm Cash Vault',
+                      label: 'Office & Farm Cash Vault',
                       value:
                         userRole === 'employee'
-                          ? bn
-                            ? 'সংরক্ষিত'
-                            : 'Restricted'
+                          ? 'Restricted'
                           : formatBDT(kpiTotals.cashBalance),
-                      sub: bn ? 'দৈনন্দিন নগদ পেটি ক্যাশ' : 'Daily petty cash in hand',
+                      sub: 'Daily petty cash in hand',
                       Icon: Banknote,
                       tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
                       bar: 'bg-emerald-500',
                     },
                     {
-                      label: bn ? 'কর্পোরেট ব্যাংক ব্যালেন্স' : 'Corporate Bank Balance',
+                      label: 'Corporate Bank Balance',
                       value:
                         userRole === 'employee'
-                          ? bn
-                            ? 'সংরক্ষিত'
-                            : 'Restricted'
+                          ? 'Restricted'
                           : formatBDT(kpiTotals.bankBalance),
-                      sub: bn ? 'ইসলামী ও ব্র্যাক ব্যাংক একাউন্ট' : 'Islami & BRAC Bank accounts',
+                      sub: 'Corporate bank accounts',
                       Icon: Landmark,
                       tone: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
                       bar: 'bg-indigo-500',
                     },
                     {
-                      label: bn ? 'মোট জনবল ও স্টাফ' : 'Active Workforce',
-                      value: `${kpiTotals.totalEmployees} ${bn ? 'জন' : 'Staff'}`,
-                      sub: bn ? 'ম্যানেজার, ভেট ডাক্তার ও কর্মী' : 'Managers, vets & farm crew',
+                      label: 'Active Workforce',
+                      value: `${kpiTotals.totalEmployees} Staff`,
+                      sub: 'Managers, vets & farm crew',
                       Icon: Users,
                       tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
                       bar: 'bg-violet-500',
                     },
                     {
-                      label: bn ? 'পাওনা / বাকি টাকা (Due)' : 'Receivables (Due)',
+                      label: 'Receivables (Due)',
                       value: formatBDT(kpiTotals.outstandingReceivables),
-                      sub: bn ? 'ক্রেতা ও পাইকারদের কাছে পাওনা' : 'Pending buyer settlements',
+                      sub: 'Pending buyer settlements',
                       Icon: Clock,
                       tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
                       bar: 'bg-amber-500',
@@ -2730,7 +2337,7 @@ export default function AgroErpApp() {
                   ].map((kpi) => (
                     <div
                       key={kpi.label}
-                      className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/90 p-5 shadow-xs hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+                      className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/90 p-4 shadow-xs hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
                     >
                       <div className={`absolute top-0 left-0 right-0 h-1 ${kpi.bar || 'bg-emerald-500'}`} />
                       <div className="flex items-center justify-between gap-2">
@@ -2744,7 +2351,7 @@ export default function AgroErpApp() {
                         </div>
                       </div>
                       <div
-                        className={`mt-3 text-xl sm:text-2xl font-black font-mono tabular-nums ${
+                        className={`mt-2.5 text-lg sm:text-xl font-black font-mono tabular-nums ${
                           kpi.valueColor || 'text-slate-900 dark:text-white'
                         }`}
                       >
@@ -2758,42 +2365,38 @@ export default function AgroErpApp() {
                 </div>
               </section>
 
-              {/* SECTION 3: EXECUTIVE ANALYTICS CHARTS */}
-              <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs space-y-5">
+              {/* SECTION 3: EXECUTIVE ANALYTICS CHARTS - COMPACT HEIGHT */}
+              <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        {bn
-                          ? 'ব্যবসা-ভিত্তিক আয়, ব্যয় ও মুনাফা'
-                          : 'Business-Wise Revenue, Cost & Profit'}
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        Business-Wise Revenue, Cost & Profit
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {bn
-                          ? 'প্রতিটি খামার ও পরিবহন ইউনিটের তুলনামূলক পারফরম্যান্স'
-                          : 'Comparative financial performance across active units'}
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Comparative financial performance across active units
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold font-mono text-slate-600 dark:text-slate-300">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold font-mono text-slate-600 dark:text-slate-300">
                       BDT (৳)
                     </span>
                   </div>
-                  <div className="h-72 w-full">
+                  <div className="h-52 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={businessChartData} barGap={4}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.18} vertical={false} />
                         <XAxis
                           dataKey="name"
-                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tick={{ fontSize: 10, fill: '#64748b' }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tick={{ fontSize: 10, fill: '#64748b' }}
                           tickFormatter={(v) => formatCompactBDT(Number(v))}
                           axisLine={false}
                           tickLine={false}
-                          width={58}
+                          width={52}
                         />
                         <Tooltip
                           formatter={(val: unknown) => formatBDT(Number(val))}
@@ -2802,48 +2405,46 @@ export default function AgroErpApp() {
                             borderColor: '#1e293b',
                             borderRadius: '12px',
                             color: '#f8fafc',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.35)',
                           }}
                         />
-                        <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
+                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
                         <Bar
-                          dataKey={bn ? 'আয়' : 'Revenue'}
+                          dataKey="Revenue"
                           fill="#059669"
-                          radius={[6, 6, 0, 0]}
+                          radius={[4, 4, 0, 0]}
                         />
                         <Bar
-                          dataKey={bn ? 'খরচ' : 'Expense'}
+                          dataKey="Expense"
                           fill="#64748b"
-                          radius={[6, 6, 0, 0]}
+                          radius={[4, 4, 0, 0]}
                         />
                         <Bar
-                          dataKey={bn ? 'নিট লাভ' : 'Net Profit'}
+                          dataKey="Net Profit"
                           fill="#0ea5e9"
-                          radius={[6, 6, 0, 0]}
+                          radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs space-y-5">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        {bn ? 'দৈনিক ক্যাশ-ফ্লো (জমা বনাম খরচ)' : 'Daily Treasury Cash Flow'}
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        Daily Treasury Cash Flow
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {bn
-                          ? 'তারিখ অনুযায়ী প্রতিষ্ঠানে নগদ আগমন ও ব্যয়ের ধারা'
-                          : 'Daily inflow vs outflow trajectory across all ledger entries'}
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Daily inflow vs outflow trajectory across all ledger entries
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                      {bn ? 'রিয়েল-টাইম' : 'Live Ledger'}
+                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                      Live Ledger
                     </span>
                   </div>
-                  <div className="h-72 w-full">
+                  <div className="h-52 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={cashFlowChartData}>
                         <defs>
@@ -2859,16 +2460,16 @@ export default function AgroErpApp() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.18} vertical={false} />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tick={{ fontSize: 10, fill: '#64748b' }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tick={{ fontSize: 10, fill: '#64748b' }}
                           tickFormatter={(v) => formatCompactBDT(Number(v))}
                           axisLine={false}
                           tickLine={false}
-                          width={58}
+                          width={52}
                         />
                         <Tooltip
                           formatter={(val: unknown) => formatBDT(Number(val))}
@@ -2877,21 +2478,21 @@ export default function AgroErpApp() {
                             borderColor: '#1e293b',
                             borderRadius: '12px',
                             color: '#f8fafc',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.35)',
                           }}
                         />
-                        <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
+                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
                         <Area
                           type="monotone"
-                          dataKey={bn ? 'জমা' : 'Inflow'}
+                          dataKey="Inflow"
                           stroke="#059669"
                           strokeWidth={2}
                           fill="url(#inflowGrad)"
                         />
                         <Area
                           type="monotone"
-                          dataKey={bn ? 'খরচ' : 'Outflow'}
+                          dataKey="Outflow"
                           stroke="#e11d48"
                           strokeWidth={2}
                           fill="url(#outflowGrad)"
@@ -2902,20 +2503,21 @@ export default function AgroErpApp() {
                 </div>
               </section>
 
-              {/* RECENT OPERATIONAL TRANSACTIONS & ACTOR AUDIT SECTION */}
-              <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-                <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* RECENT OPERATIONAL TRANSACTIONS & ACTOR AUDIT SECTION (45vh Scrollable Table) */}
+              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                        {bn ? 'সাম্প্রতিক আর্থিক লেনদেন ও এন্ট্রি প্রদানকারী কর্মী ট্রেইল' : 'Recent Financial Entries & Operational Actor Trail'}
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                        Recent Financial Entries & Operational Actor Trail
                       </h3>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {monthFilteredJournals.length} Records
+                      </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {bn
-                        ? 'কে কোন ব্যবসা ইউনিটে আয়/ব্যয় ইনপুট দিয়েছেন তার ছবি, নাম ও পদবিসহ লাইভ রেকর্ড (ক্লিক করে প্রোফাইল ও এনআইডি দেখুন)'
-                        : 'Live audit log of who recorded sales, expenses, and vouchers with avatar photos and designations (click to inspect profile)'}
+                      Live audit log of sales, expenses, and vouchers with avatar photos and designations (scroll inside to view all)
                     </p>
                   </div>
                   <button
@@ -2923,59 +2525,62 @@ export default function AgroErpApp() {
                     onClick={() => setActiveNav('accounting')}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline self-start sm:self-auto cursor-pointer"
                   >
-                    <span>{bn ? 'সকল খতিয়ান দেখুন' : 'Full Ledger View'}</span>
+                    <span>Full Ledger View</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* 45vh Dedicated Scrollable Table Container */}
+                <div className="max-h-[45vh] overflow-y-auto overflow-x-auto [scrollbar-width:thin] scrollbar-thin">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
+                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider z-10 select-none shadow-2xs">
                       <tr>
-                        <th className="py-3 px-4">{bn ? 'তারিখ ও ভাউচার' : 'Date / Voucher'}</th>
-                        <th className="py-3 px-4">{bn ? 'ব্যবসা ইউনিট' : 'Business Unit'}</th>
-                        <th className="py-3 px-4">{bn ? 'খাত ও বিবরণ' : 'Category & Description'}</th>
-                        <th className="py-3 px-4 text-right">{bn ? 'টাকার পরিমাণ' : 'Amount (BDT)'}</th>
-                        <th className="py-3 px-4">{bn ? 'এন্ট্রি প্রদানকারী কর্মী (Actor)' : 'Entered By (Staff)'}</th>
-                        <th className="py-3 px-4 text-center">{bn ? 'প্রোফাইল' : 'Profile'}</th>
+                        <th className="py-2.5 px-3.5">Date / Voucher</th>
+                        <th className="py-2.5 px-3.5">Business Unit</th>
+                        <th className="py-2.5 px-3.5">Category & Description</th>
+                        <th className="py-2.5 px-3.5 text-right">Amount (BDT)</th>
+                        <th className="py-2.5 px-3.5">Entered By (Staff)</th>
+                        <th className="py-2.5 px-3.5 text-center">Profile</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {monthFilteredJournals.slice(0, 8).map((j) => {
+                      {monthFilteredJournals.map((j) => {
                         const isIncome = j.transactionType === 'sale' || j.transactionType === 'income';
                         const matchedUser = erpUsers.find((u) => u.email === j.actorEmail || (j.actorName && u.displayName?.toLowerCase() === j.actorName.toLowerCase()));
                         const isSuperOrCurrent = j.actorRole === 'super_admin' || j.actorEmail === user.email || j.actorName?.toLowerCase().includes('sahin');
                         const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || (isSuperOrCurrent ? user.photoUrl : undefined);
-                        const actorName = j.actorName || matchedUser?.displayName || (j.actorEmail ? j.actorEmail.split('@')[0] : (bn ? 'সুপার অ্যাডমিন' : 'Admin'));
+                        const actorName = j.actorName || matchedUser?.displayName || (j.actorEmail ? j.actorEmail.split('@')[0] : 'Admin');
                         const actorRole = j.actorRole || matchedUser?.role || 'Staff';
-                        const actorDesignation = j.actorDesignation || matchedUser?.designation || (actorRole === 'super_admin' ? (bn ? 'ব্যবসা স্বত্বাধিকারী' : 'Owner / Super Admin') : actorRole === 'super_manager' ? (bn ? 'প্রধান জেনারেল ম্যানেজার' : 'COO') : actorRole === 'business_manager' ? (bn ? 'বিভাগীয় ইনচার্জ' : 'Branch Mgr') : (bn ? 'খামার হিসাবরক্ষক' : 'Accountant'));
+                        const actorDesignation = j.actorDesignation || matchedUser?.designation || (actorRole === 'super_admin' ? 'Owner / Super Admin' : actorRole === 'super_manager' ? 'General Manager (COO)' : actorRole === 'business_manager' ? 'Branch Manager' : 'Farm Accountant');
+                        const bizName = toEnglishBusinessName(j.businessName, j.businessId);
+                        const catName = toEnglishCategory(j.category);
 
                         return (
                           <tr key={j.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                            <td className="py-3 px-4 whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 whitespace-nowrap">
                               <div className="font-semibold text-slate-800 dark:text-slate-200">{j.date}</div>
                               <div className="font-mono text-[10px] text-slate-400">{j.referenceNo || j.id}</div>
                             </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 whitespace-nowrap">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                {j.businessName}
+                                {bizName}
                               </span>
                             </td>
-                            <td className="py-3 px-4 max-w-[240px]">
-                              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{j.category}</div>
+                            <td className="py-2.5 px-3.5 max-w-[240px]">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{catName}</div>
                               <div className="text-[11px] text-slate-500 truncate">{j.description}</div>
                             </td>
-                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
                               <span className={`font-mono font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                 {isIncome ? '+' : '-'}{formatBDT(j.amount)}
                               </span>
                             </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => openActorProfile(j.actorEmail, actorName, actorRole)}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left cursor-pointer group"
-                                title={bn ? 'প্রোফাইল ও এনআইডি কার্ড দেখুন' : 'View Profile & NID'}
+                                title="View Profile & NID"
                               >
                                 <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[11px] font-bold text-slate-700 dark:text-slate-300 ring-1 ring-slate-300 dark:ring-slate-600 overflow-hidden shrink-0 group-hover:ring-emerald-500">
                                   {actorPhoto ? (
@@ -2994,13 +2599,13 @@ export default function AgroErpApp() {
                                 </div>
                               </button>
                             </td>
-                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => openActorProfile(j.actorEmail, actorName, actorRole)}
                                 className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 text-slate-700 dark:text-slate-300 hover:text-emerald-600 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
                               >
-                                {bn ? 'কার্ড দেখুন' : 'View Card'}
+                                View Card
                               </button>
                             </td>
                           </tr>
@@ -3009,7 +2614,7 @@ export default function AgroErpApp() {
                       {monthFilteredJournals.length === 0 && (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
-                            {bn ? 'এই ফিল্টারে কোনো লেনদেন পাওয়া যায়নি' : 'No transactions recorded for this period'}
+                            No transactions recorded for this period
                           </td>
                         </tr>
                       )}
