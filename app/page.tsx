@@ -120,10 +120,10 @@ function getBusinessAccent(templateType?: string) {
         iconBg: 'bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs ring-amber-500/20',
         tagBg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
         divisionTag: 'POULTRY & BROILER HUB',
-        divisionTagBn: 'পোল্ট্রি ও ব্রয়লার হাব',
+        divisionTagBn: 'POULTRY & BROILER HUB',
         kpiHighlight: 'text-amber-600 dark:text-amber-400',
         chips: ['15,000 Bird Cap', 'Tunnel Ventilation', '4-Grade Sales'],
-        chipsBn: ['১৫,০০০ ক্যাপাসিটি', 'টানেল ভেন্টিলেশন', '৪-গ্রেডে বিক্রি'],
+        chipsBn: ['15,000 Bird Cap', 'Tunnel Ventilation', '4-Grade Sales'],
       };
     case 'cattle':
       return {
@@ -133,10 +133,10 @@ function getBusinessAccent(templateType?: string) {
         iconBg: 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs ring-emerald-500/20',
         tagBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
         divisionTag: 'DAIRY HERD & BEEF FATTENING',
-        divisionTagBn: 'ডেইরি ও ক্যাটল ডিভিশন',
+        divisionTagBn: 'DAIRY HERD & BEEF FATTENING',
         kpiHighlight: 'text-emerald-600 dark:text-emerald-400',
         chips: ['DeLaval 12-Pt Parlour', 'Holstein Dairy', 'Corn Silage'],
-        chipsBn: ['ডিলাভাল পার্লার', 'হলস্টেইন ডেইরি', 'ভুট্টা সাইলেজ'],
+        chipsBn: ['DeLaval 12-Pt Parlour', 'Holstein Dairy', 'Corn Silage'],
       };
     case 'goat':
       return {
@@ -146,10 +146,10 @@ function getBusinessAccent(templateType?: string) {
         iconBg: 'bg-gradient-to-br from-purple-500/20 via-indigo-500/15 to-purple-500/5 text-purple-600 dark:text-purple-400 border border-purple-500/30 shadow-xs ring-purple-500/20',
         tagBg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20',
         divisionTag: 'SMALL RUMINANT & PEDIGREE',
-        divisionTagBn: 'ছাগল প্রজনন ও ব্রিডিং হাব',
+        divisionTagBn: 'SMALL RUMINANT & PEDIGREE',
         kpiHighlight: 'text-purple-600 dark:text-purple-400',
         chips: ['Purebred Black Bengal', '4 Slatted Sheds', 'Sire/Dam Pedigree'],
-        chipsBn: ['ব্ল্যাক বেঙ্গল জাত', '৪টি মাচা শেড', 'বংশতালিকা ট্র্যাকিং'],
+        chipsBn: ['Purebred Black Bengal', '4 Slatted Sheds', 'Sire/Dam Pedigree'],
       };
     case 'fish':
       return {
@@ -159,10 +159,10 @@ function getBusinessAccent(templateType?: string) {
         iconBg: 'bg-gradient-to-br from-cyan-500/20 via-blue-500/15 to-cyan-500/5 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 shadow-xs ring-cyan-500/20',
         tagBg: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20',
         divisionTag: 'SCIENTIFIC AQUACULTURE HUB',
-        divisionTagBn: 'মৎস্য হ্যাচারি ও চাষ প্রকল্প',
+        divisionTagBn: 'SCIENTIFIC AQUACULTURE HUB',
         kpiHighlight: 'text-cyan-600 dark:text-cyan-400',
         chips: ['420 Decimals Water', '16 Paddle Aerators', 'DO & pH Monitor'],
-        chipsBn: ['৪২০ শতক জলাশয়', '১৬টি প্যাডেল এরিয়েটর', 'পানির pH ও অক্সিজেন'],
+        chipsBn: ['420 Decimals Water', '16 Paddle Aerators', 'DO & pH Monitor'],
       };
     case 'transport':
       return {
@@ -172,10 +172,10 @@ function getBusinessAccent(templateType?: string) {
         iconBg: 'bg-gradient-to-br from-blue-500/20 via-sky-500/15 to-blue-500/5 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-xs ring-blue-500/20',
         tagBg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
         divisionTag: 'LOGISTICS & FLEET TELEMETRY',
-        divisionTagBn: 'পরিবহন ও আন্তঃজেলা লজিস্টিক',
+        divisionTagBn: 'LOGISTICS & FLEET TELEMETRY',
         kpiHighlight: 'text-blue-600 dark:text-blue-400',
         chips: ['8 Commercial Fleet', 'Inter-District Routes', 'Diesel & Tolls'],
-        chipsBn: ['৮টি বাণিজ্যিক গাড়ি', 'আন্তঃজেলা মহাসড়ক রুট', 'জ্বালানি ও টোল হিসাব'],
+        chipsBn: ['8 Commercial Fleet', 'Inter-District Routes', 'Diesel & Tolls'],
       };
     default:
       return {
@@ -185,10 +185,10 @@ function getBusinessAccent(templateType?: string) {
         iconBg: 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs ring-emerald-500/20',
         tagBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
         divisionTag: 'COMMERCIAL AGRO DIVISION',
-        divisionTagBn: 'বাণিজ্যিক কৃষি ইউনিট',
+        divisionTagBn: 'COMMERCIAL AGRO DIVISION',
         kpiHighlight: 'text-emerald-600 dark:text-emerald-400',
         chips: ['Double-Entry Ledger', 'Direct Farm Billing', 'Active Unit'],
-        chipsBn: ['ডাবল-এন্ট্রি খতিয়ান', 'সরাসরি ইনভয়েস', 'সক্রিয় ব্যবসা'],
+        chipsBn: ['Double-Entry Ledger', 'Direct Farm Billing', 'Active Unit'],
       };
   }
 }
@@ -276,18 +276,18 @@ export default function AgroErpApp() {
           designation:
             user.designation ||
             (user.role === 'super_admin'
-              ? 'ব্যবসা স্বত্বাধিকারী ও চেয়ারম্যান'
+              ? 'Owner & Chairman'
               : user.role === 'super_manager'
-              ? 'প্রধান জেনারেল ম্যানেজার (COO)'
-              : 'বিভাগীয় ইনচার্জ'),
+              ? 'Chief Operating Officer (COO)'
+              : 'Division Lead'),
           phone: user.phone || '+880 1711-000000',
           nidNumber: user.nidNumber || '19902692019000142',
           photoUrl: user.photoUrl,
-          address: user.address || 'ঢাকা, বাংলাদেশ',
+          address: user.address || 'Dhaka, Bangladesh',
           emergencyContact: user.emergencyContact || '+880 1711-112233',
           joiningDate: user.lastLoginAt,
           status: user.status || 'active',
-          businessNames: ['সকল ৫টি ব্যবসায়িক ইউনিট'],
+          businessNames: ['All 5 Business Units'],
         });
         return;
       }
@@ -304,23 +304,23 @@ export default function AgroErpApp() {
           designation:
             matchedUser.designation ||
             (matchedUser.role === 'super_admin'
-              ? 'ব্যবসা স্বত্বাধিকারী ও চেয়ারম্যান'
+              ? 'Owner & Chairman'
               : matchedUser.role === 'super_manager'
-              ? 'প্রধান জেনারেল ম্যানেজার (COO)'
-              : 'বিভাগীয় ইনচার্জ'),
+              ? 'Chief Operating Officer (COO)'
+              : 'Division Lead'),
           phone: matchedUser.phone || '+880 1711-000000',
           nidNumber: matchedUser.nidNumber || '19902692019000142',
           photoUrl: matchedUser.photoUrl,
-          address: matchedUser.address || 'ঢাকা, বাংলাদেশ',
+          address: matchedUser.address || 'Dhaka, Bangladesh',
           emergencyContact: matchedUser.emergencyContact || '+880 1711-112233',
           joiningDate: matchedUser.createdAt,
           status: matchedUser.status,
           businessNames:
             matchedUser.assignedBusinesses === 'ALL'
-              ? ['সকল ৫টি ব্যবসায়িক ইউনিট']
+              ? ['All 5 Business Units']
               : businesses
                   .filter((b) => matchedUser.assignedBusinesses?.includes(b.id))
-                  .map((b) => b.nameBn || b.name),
+                  .map((b) => b.name),
         });
         return;
       }
@@ -336,11 +336,11 @@ export default function AgroErpApp() {
           displayName: matchedStk.name,
           email: matchedStk.phone || 'staff@regardsagro.com',
           role: 'employee',
-          designation: matchedStk.designationOrCategory || 'খামার কর্মী',
+          designation: matchedStk.designationOrCategory || 'Farm Staff',
           phone: matchedStk.phone || '+880 1700-000000',
           nidNumber: matchedStk.nidNumber || '19942692019000889',
           photoUrl: matchedStk.photoUrl,
-          address: matchedStk.address || 'খামার ক্যাম্প',
+          address: matchedStk.address || 'Farm Campus',
           emergencyContact: matchedStk.emergencyContact,
           joiningDate: matchedStk.createdAt,
           status: matchedStk.status,
@@ -358,17 +358,17 @@ export default function AgroErpApp() {
         role: (fallbackRole as UserRole) || userRole || 'super_admin',
         designation:
           fallbackRole === 'business_manager'
-            ? 'বিভাগীয় ম্যানেজার'
+            ? 'Division Manager'
             : fallbackRole === 'employee'
-            ? 'দায়িত্বরত কর্মী'
-            : 'ব্যবসা স্বত্বাধিকারী (সুপার অ্যাডমিন)',
+            ? 'On-duty Staff'
+            : 'Enterprise Owner (Super Admin)',
         phone: user?.phone || '+880 1711-000000',
         nidNumber: user?.nidNumber || '19902692019000142',
         photoUrl: user?.photoUrl,
-        address: user?.address || 'ঢাকা, বাংলাদেশ',
+        address: user?.address || 'Dhaka, Bangladesh',
         emergencyContact: user?.emergencyContact,
         status: 'active',
-        businessNames: ['সকল ব্যবসায়িক ইউনিট'],
+        businessNames: ['All Business Units'],
       });
     },
     [erpUsers, stakeholders, businesses, user, userRole]
@@ -448,7 +448,7 @@ export default function AgroErpApp() {
     [user]
   );
 
-  const bn = lang === 'bn';
+  const bn = false;
 
   const loadBootstrapData = useCallback(async () => {
     try {
@@ -693,8 +693,8 @@ export default function AgroErpApp() {
           businessId: targetBiz.id,
           businessName: targetBiz.name,
           transactionType: isSale ? 'sale' : 'expense',
-          category: quickCategory || (isSale ? 'পণ্য বিক্রি (Sales)' : 'খামার খরচ (Expense)'),
-          description: `${targetBiz.nameBn || targetBiz.name} — ${quickCategory}`,
+          category: quickCategory || (isSale ? 'Product Sales (Revenue)' : 'Farm Expense (Operating)'),
+          description: `${targetBiz.name} — ${quickCategory}`,
           debitAccountId: isSale ? cashOrBank.id : expAcc.id,
           debitAccountName: isSale ? cashOrBank.name : expAcc.name,
           creditAccountId: isSale ? revAcc.id : cashOrBank.id,
@@ -702,7 +702,7 @@ export default function AgroErpApp() {
           amount: Number(quickAmount),
           paymentStatus: Number(quickDue) > 0 ? 'partial' : 'paid',
           dueAmount: Number(quickDue) || 0,
-          counterpartyName: quickParty || (isSale ? 'পাইকারি ক্রেতা' : 'সাপ্লায়ার'),
+          counterpartyName: quickParty || (isSale ? 'Wholesale Buyer' : 'Supplier / Vendor'),
         },
         accounts,
         user.ownerId,
@@ -710,13 +710,9 @@ export default function AgroErpApp() {
       );
 
       setDashboardQuickTxModal(null);
-      const msg = bn
-        ? `${targetBiz.nameBn || targetBiz.name}-এ ${isSale ? 'বিক্রি/আয়' : 'খরচ'} বাবদ ${formatBDT(
-            Number(quickAmount)
-          )} সফলভাবে সংরক্ষিত হয়েছে।`
-        : `${isSale ? 'Revenue' : 'Expense'} of ${formatBDT(Number(quickAmount))} posted to ${
-            targetBiz.name
-          }.`;
+      const msg = `${isSale ? 'Revenue' : 'Expense'} of ${formatBDT(Number(quickAmount))} posted to ${
+        targetBiz.name
+      }.`;
       setQuickToast(msg);
       triggerGlobalToast(msg, 'success');
       setTimeout(() => setQuickToast(null), 5000);
@@ -1559,30 +1555,10 @@ export default function AgroErpApp() {
               <span>{bn ? 'গাইড' : 'Guide'}</span>
             </button>
 
-            {/* Segmented Language Selector */}
-            <div className="inline-flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-800/90 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setLang('bn')}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                  lang === 'bn'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                বাংলা
-              </button>
-              <button
-                type="button"
-                onClick={() => setLang('en')}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                  lang === 'en'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                EN
-              </button>
+            {/* System Language Indicator (English) */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/90 dark:bg-slate-800/90 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              <Globe className="h-3.5 w-3.5" />
+              <span>English (EN)</span>
             </div>
 
             {/* Theme Toggle */}
@@ -1779,10 +1755,10 @@ export default function AgroErpApp() {
                       {bn ? div.bizNameBn : div.bizName}
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      {div.staffCount} জন কর্মী · {formatBDT(div.totalBudget)}
+                      {div.staffCount} Staff · {formatBDT(div.totalBudget)}
                     </div>
                     <div className="text-[10px] text-emerald-600 font-semibold truncate">
-                      ম্যানেজার: {formatBDT(div.managerSalary)}
+                      Manager: {formatBDT(div.managerSalary)}
                     </div>
                   </div>
                 ))}

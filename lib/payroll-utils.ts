@@ -97,6 +97,7 @@ export function getPayrollCycleInfo(
     : monthlySalary;
 
   let cycleStatus: 'paid' | 'accruing' | 'due_for_payout' | 'overdue' = 'accruing';
+  let statusBadgeEn = `${currentMonthNameEn} Month in Progress`;
   let statusBadgeBn = statusBadgeEn;
   let statusColor = 'text-blue-700 bg-blue-500/10 border-blue-500/20';
 
@@ -234,11 +235,11 @@ export function getEnterprisePayrollSummary(
   const monthBn = MONTH_NAMES_EN[currentMonth];
   const monthEn = MONTH_NAMES_EN[currentMonth];
 
-  const alertTitleBn = alertTitleEn;
   const alertTitleEn = `🔔 Monthly Payroll Due Notice (${monthEn} 2026)`;
+  const alertTitleBn = alertTitleEn;
 
-  const alertMessageBn = alertMessageEn;
   const alertMessageEn = `Only ${Math.max(1, daysRemaining)} days remaining this month! Total payroll of ${formatBDT(grandTotalMonthlyPayroll)} across ${activeStaff.length + activeManagers.length} staff & division managers is ready for executive approval and disbursement.`;
+  const alertMessageBn = alertMessageEn;
 
   return {
     staffCount: activeStaff.length,
