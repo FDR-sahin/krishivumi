@@ -107,7 +107,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
 দূরত্ব: ${trip.distanceKm} কি.মি.
 পণ্য: ${trip.cargoDetails || 'খামারের পণ্যবাহী লোড'}
 ট্রিপ ভাড়া: ৳ ${trip.tripRevenue.toLocaleString()}
-মোট ট্রিপ খরচ: ৳ ${totalTripCost.toLocaleString()} (ডিজেল: ৳${trip.fuelCost.toLocaleString()}, টোল: ৳${trip.tollCost.toLocaleString()}, চালকের ভাতা: ৳${trip.driverAllowance.toLocaleString()})
+মোট ট্রিপ খরচ: ৳ ${totalTripCost.toLocaleString()} (ডিজেল: ৳${(trip.fuelCost || 0).toLocaleString()}, টোল: ৳${(trip.tollCost || 0).toLocaleString()}, চালকের ভাতা: ৳${(trip.driverAllowance || 0).toLocaleString()})
 নিট লাভ: ৳ ${netTripProfit.toLocaleString()}
 বকেয়া: ৳ ${trip.outstandingDue.toLocaleString()}
 স্ট্যাটাস: ${trip.status === 'completed' ? 'সম্পন্ন (Delivered)' : 'চলমান (On Highway)'}

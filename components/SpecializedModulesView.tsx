@@ -2112,6 +2112,10 @@ export default function SpecializedModulesView({
           journalEntries={bizJournals}
           accounts={accounts}
           auditLogs={auditLogs}
+          stakeholders={stakeholders}
+          erpUsers={erpUsers}
+          currentUser={currentUser}
+          userRole={userRole}
           ownerId={ownerId}
           actorEmail={actorEmail}
           onNotify={notify}

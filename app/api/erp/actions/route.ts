@@ -814,22 +814,7 @@ export async function POST(req: NextRequest) {
           { _id: existing._id },
           {
             $set: {
-              driverName: cap(updates.driverName ?? existing.driverName, 100),
-              fuelCost: updates.fuelCost ?? existing.fuelCost,
-              tollCost: updates.tollCost ?? existing.tollCost,
-              driverAllowance: updates.driverAllowance ?? existing.driverAllowance,
-              maintenanceCost: updates.maintenanceCost ?? existing.maintenanceCost,
-              maintenanceDetails: cap(
-                updates.maintenanceDetails ?? existing.maintenanceDetails,
-                240
-              ),
-              tripRevenue: updates.tripRevenue ?? existing.tripRevenue,
-              outstandingDue: updates.outstandingDue ?? existing.outstandingDue,
-              insuranceExpiry: cap(updates.insuranceExpiry ?? existing.insuranceExpiry, 32),
-              fitnessExpiry: cap(updates.fitnessExpiry ?? existing.fitnessExpiry, 32),
-              taxTokenExpiry: cap(updates.taxTokenExpiry ?? existing.taxTokenExpiry, 32),
-              nextServiceDate: cap(updates.nextServiceDate ?? existing.nextServiceDate, 32),
-              status: updates.status ?? existing.status,
+              ...updates,
               updatedAt: now,
             },
           }
