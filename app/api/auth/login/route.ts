@@ -54,6 +54,24 @@ export async function POST(req: NextRequest) {
     const ownerId = String(userDoc.ownerId);
     const role = userDoc.role as UserRole;
 
+    // Log login action to audit_logs for timeline and monthly tracking
+    db.collection('audit_logs')
+      .insertOne({
+        action: 'USER_LOGIN',
+        module: 'Authentication & Session',
+        businessId: String(userDoc.assignedBusinesses || 'ALL'),
+        details: `User "${userDoc.displayName}" (${userDoc.email}) logged in successfully as [${role}]`,
+        severity: 'info',
+        actorEmail: String(userDoc.email),
+        actorName: String(userDoc.displayName || userDoc.email),
+        actorRole: role,
+        actorPhoto: userDoc.photoUrl ? String(userDoc.photoUrl) : '',
+        actorDesignation: userDoc.designation ? String(userDoc.designation) : role,
+        ownerId,
+        createdAt: new Date(),
+      })
+      .catch(() => {});
+
     const token = await signSessionToken({
       userId: uid,
       ownerId,

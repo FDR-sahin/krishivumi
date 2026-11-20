@@ -40,6 +40,12 @@ import {
   LayoutGrid,
   ListFilter,
   Loader2,
+  Search,
+  Calendar,
+  UserCheck,
+  Clock,
+  Filter,
+  Building2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -404,6 +410,196 @@ export default function CentralAccountingAndInventoryView({
 
   // Security Users Role Filter Tab
   const [secRoleFilter, setSecRoleFilter] = useState<'all' | 'super_manager' | 'business_manager' | 'employee'>('all');
+  const [secLoginYear, setSecLoginYear] = useState<string>('ALL');
+  const [secLoginMonth, setSecLoginMonth] = useState<string>('ALL');
+  const [secManagerFilter, setSecManagerFilter] = useState<string>('ALL');
+  const [secUserSearch, setSecUserSearch] = useState<string>('');
+  const [secOnlyActiveInPeriod, setSecOnlyActiveInPeriod] = useState<boolean>(false);
+
+  // Security Users Role & Hierarchy Helpers
+  const secManagers = erpUsers.filter(
+    (u) => u.role === 'super_admin' || u.role === 'super_manager' || u.role === 'business_manager'
+  );
+
+  const getStaffForManager = (manager: ErpUser): ErpUser[] => {
+    if (manager.role === 'super_admin') {
+      return erpUsers.filter((u) => u.id !== manager.id);
+    }
+    if (manager.role === 'super_manager') {
+      return erpUsers.filter((u) => u.role === 'business_manager' || u.role === 'employee');
+    }
+    if (manager.role === 'business_manager') {
+      const mgrBusinesses = (manager.assignedBusinesses || '').split(',').map((b) => b.trim());
+      return erpUsers.filter((u) => {
+        if (u.id === manager.id) return false;
+        if (u.role !== 'employee') return false;
+        if (
+          u.appointedBy &&
+          (u.appointedBy === manager.email ||
+            u.appointedBy === manager.id ||
+            u.appointedBy === manager.displayName)
+        ) {
+          return true;
+        }
+        const uBusinesses = (u.assignedBusinesses || '').split(',').map((b) => b.trim());
+        return mgrBusinesses.some((b) => b !== 'ALL' && uBusinesses.includes(b));
+      });
+    }
+    return [];
+  };
+
+  const findSupervisor = (user: ErpUser): { name: string; roleStr: string } => {
+    if (user.role === 'super_admin') {
+      return { name: 'প্রধান স্বত্বাধিকারী', roleStr: 'সর্বোচ্চ কর্তৃপক্ষ' };
+    }
+    if (user.role === 'super_manager') {
+      const admin = erpUsers.find((u) => u.role === 'super_admin');
+      return {
+        name: admin?.displayName || 'সুপার অ্যাডমিন',
+        roleStr: 'মালিক (Super Admin)',
+      };
+    }
+    if (user.role === 'business_manager') {
+      const gm = erpUsers.find((u) => u.role === 'super_manager');
+      if (gm) return { name: gm.displayName, roleStr: 'প্রধান ম্যানেজার (COO)' };
+      const admin = erpUsers.find((u) => u.role === 'super_admin');
+      return { name: admin?.displayName || 'সুপার অ্যাডমিন', roleStr: 'মালিক' };
+    }
+    // Employee
+    if (user.appointedBy) {
+      const app = erpUsers.find(
+        (u) =>
+          u.email === user.appointedBy ||
+          u.id === user.appointedBy ||
+          u.displayName === user.appointedBy
+      );
+      if (app) {
+        return {
+          name: app.displayName,
+          roleStr:
+            app.role === 'super_manager'
+              ? 'প্রধান জেনারেল ম্যানেজার'
+              : app.role === 'business_manager'
+              ? 'বিজনেস ইনচার্জ'
+              : 'মালিক',
+        };
+      }
+    }
+    const uBiz = (user.assignedBusinesses || '').split(',').map((s) => s.trim())[0];
+    if (uBiz && uBiz !== 'ALL') {
+      const bm = erpUsers.find(
+        (u) => u.role === 'business_manager' && (u.assignedBusinesses || '').includes(uBiz)
+      );
+      if (bm) return { name: bm.displayName, roleStr: 'বিজনেস ইনচার্জ' };
+    }
+    const gm = erpUsers.find((u) => u.role === 'super_manager');
+    if (gm) return { name: gm.displayName, roleStr: 'প্রধান ম্যানেজার' };
+    return { name: 'সুপার অ্যাডমিন', roleStr: 'মালিক' };
+  };
+
+  const matchesLoginPeriod = (lastLoginAt?: string): boolean => {
+    if (secLoginYear === 'ALL' && secLoginMonth === 'ALL') return true;
+    if (!lastLoginAt) return false;
+    try {
+      const d = new Date(lastLoginAt);
+      if (isNaN(d.getTime())) return false;
+      const y = d.getFullYear().toString();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      if (secLoginYear !== 'ALL' && y !== secLoginYear) return false;
+      if (secLoginMonth !== 'ALL' && m !== secLoginMonth) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const usersLoggedInPeriodCount = erpUsers.filter((u) => matchesLoginPeriod(u.lastLoginAt)).length;
+
+  const selectedManagerObj =
+    secManagerFilter !== 'ALL' ? erpUsers.find((u) => u.id === secManagerFilter) : null;
+  const selectedManagerStaff = selectedManagerObj ? getStaffForManager(selectedManagerObj) : [];
+
+  const filteredSecUsers = erpUsers.filter((u) => {
+    if (secRoleFilter !== 'all' && u.role !== secRoleFilter) return false;
+
+    if (secUserSearch.trim()) {
+      const q = secUserSearch.toLowerCase().trim();
+      const matchName = u.displayName?.toLowerCase().includes(q);
+      const matchEmail = u.email?.toLowerCase().includes(q);
+      const matchPhone = u.phone?.toLowerCase().includes(q);
+      const matchRole = u.role?.toLowerCase().includes(q);
+      if (!matchName && !matchEmail && !matchPhone && !matchRole) return false;
+    }
+
+    if (secManagerFilter !== 'ALL' && selectedManagerObj) {
+      if (u.id === selectedManagerObj.id) {
+        return true;
+      }
+      if (!selectedManagerStaff.some((s) => s.id === u.id)) {
+        return false;
+      }
+    }
+
+    if (secOnlyActiveInPeriod) {
+      if (!matchesLoginPeriod(u.lastLoginAt)) return false;
+    }
+
+    return true;
+  });
+
+  const formatLoginTime = (iso?: string) => {
+    if (!iso) {
+      return {
+        text: 'কখনো লগইন করেননি',
+        subText: 'নিষ্ক্রিয়',
+        isRecent: false,
+        color: 'text-slate-400 dark:text-slate-500',
+      };
+    }
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) {
+        return { text: 'অজ্ঞাত', subText: '', isRecent: false, color: 'text-slate-400' };
+      }
+      const now = new Date();
+      const diffMs = now.getTime() - d.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const dateStr = d.toLocaleDateString('bn-BD', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+      const timeStr = d.toLocaleTimeString('bn-BD', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      if (diffHours < 24 && d.getDate() === now.getDate()) {
+        return {
+          text: `আজকে ${timeStr}`,
+          subText: `${Math.max(1, Math.floor(diffHours))} ঘণ্টা আগে`,
+          isRecent: true,
+          color: 'text-emerald-700 dark:text-emerald-400 font-bold',
+        };
+      }
+      if (diffHours < 48) {
+        return {
+          text: `গতকাল ${timeStr}`,
+          subText: 'গতকাল সক্রিয়',
+          isRecent: true,
+          color: 'text-blue-700 dark:text-blue-400 font-bold',
+        };
+      }
+      return {
+        text: dateStr,
+        subText: timeStr,
+        isRecent: false,
+        color: 'text-slate-700 dark:text-slate-300 font-medium',
+      };
+    } catch {
+      return { text: 'অজ্ঞাত', subText: '', isRecent: false, color: 'text-slate-400' };
+    }
+  };
 
   // Terminate Stakeholder Modal State
   const [terminatingStakeholder, setTerminatingStakeholder] = useState<ErpStakeholder | null>(null);
@@ -4484,137 +4680,78 @@ export default function CentralAccountingAndInventoryView({
       {/* 5. RBAC PERMISSION CONTROL, USER MANAGEMENT & SECURITY AUDIT LOGS */}
       {activeSection === 'security' && (
         <div className="space-y-6">
-          {/* 4-Tier Organizational Hierarchy Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Tier 1: Owner */}
-            <div className="rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-emerald-600/30">
-                  👑
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider">
-                  সর্বোচ্চ স্বত্বাধিকারী
-                </span>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
-                  ১. সুপার অ্যাডমিন (মালিক)
-                </h3>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                  ৫টি ব্যবসার একমাত্র মালিক। প্রধান ম্যানেজার, সকল বিজনেস ম্যানেজার ও কর্মীসহ সবাইকে তৈরি, পদ পরিবর্তন বা ডিলিট করার সম্পূর্ণ অধিকার।
-                </p>
-              </div>
-              <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800/40 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>সব ব্যবসা ও অ্যাকাউন্টের শতভাগ নিয়ন্ত্রণ</span>
-              </div>
-            </div>
-
-            {/* Tier 2: Super Manager */}
-            <div className="rounded-2xl border-2 border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/20 p-5 space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-purple-600/30">
-                  🎖️
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 text-[10px] font-extrabold uppercase tracking-wider">
-                  প্রধান ম্যানেজার (COO)
-                </span>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
-                  ২. প্রধান জেনারেল ম্যানেজার
-                </h3>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                  ৫টি ব্যবসার সার্বিক তদারককারী। সকল বিজনেস ম্যানেজারকে নিয়ন্ত্রণ করেন, তাদের কর্মী দেখেন এবং সরাসরি মালিকের কাছে লাভ-ক্ষতির রিপোর্ট জমা দেন।
-                </p>
-              </div>
-              <div className="pt-2 border-t border-purple-200 dark:border-purple-800/40 text-[10px] font-bold text-purple-700 dark:text-purple-400 flex items-center gap-1.5">
-                <FileBarChart className="h-3.5 w-3.5" />
-                <span>মালিকের কাছে রিপোর্ট পেশ করার দায়িত্ব</span>
-              </div>
-            </div>
-
-            {/* Tier 3: Business Managers */}
-            <div className="rounded-2xl border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20 p-5 space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-600/30">
-                  🏢
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-[10px] font-extrabold uppercase tracking-wider">
-                  ৫টি ব্যবসা ইউনিট প্রধান
-                </span>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
-                  ৩. বিজনেস ম্যানেজারগণ
-                </h3>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                  পোল্ট্রি, ডেইরি, ছাগল, মাছ বা ট্রাকের ইনচার্জ। নিজ ব্যবসার প্রয়োজনে নতুন কর্মী নিয়োগ ও বাদ দেওয়ার একক অধিকার রাখেন।
-                </p>
-              </div>
-              <div className="pt-2 border-t border-blue-200 dark:border-blue-800/40 text-[10px] font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" />
-                <span>নিজ ব্যবসায় কর্মী নিয়োগ ও বরখাস্তের ক্ষমতা</span>
-              </div>
-            </div>
-
-            {/* Tier 4: Employees */}
-            <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-5 space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-amber-500/30">
-                  👷
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold uppercase tracking-wider">
-                  মাঠপর্যায়ের কর্মী বহর
-                </span>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
-                  ৪. খামার কর্মী ও স্টাফ
-                </h3>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                  প্রতিদিনের ডিম সংগ্রহ, খাদ্য প্রদান, মিল্কিং ও ট্রিপ এন্ট্রি করেন। গোপন হিসাব, সমন্বিত লাভ-ক্ষতি ও পারমিশন তাদের জন্য লক থাকে।
-                </p>
-              </div>
-              <div className="pt-2 border-t border-amber-200 dark:border-amber-800/40 text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5" />
-                <span>নিরাপদ ডাটা এন্ট্রি সীমা</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Header & Create User Action Bar */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5">
+          {/* Clean Action Bar & Title */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-emerald-600" />
-                  <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                    ম্যানেজার নিয়োগ ও পারমিশন কন্ট্রোল (Team & Permission Management)
-                  </h1>
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <span>ম্যানেজার ও ইউজার দল ব্যবস্থাপনা</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold">
+                        মোট {erpUsers.length} জন
+                      </span>
+                    </h1>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      রোল-বেসড এক্সেস কন্ট্রোল, ম্যানেজার-কর্মী টিম ও অডিট হিস্টোরি
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
-                  মালিক হিসেবে আপনি প্রধান জেনারেল ম্যানেজার ও ৫টি ব্যবসার বিজনেস ম্যানেজার তৈরি করতে পারবেন। প্রধান ম্যানেজার সকল বিজনেস ম্যানেজারকে নিয়ন্ত্রণ করবেন এবং আপনাকে রিপোর্ট দেবেন।
-                </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Live Role Simulator */}
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <Eye className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 hidden sm:inline">ভিউ টেস্ট:</span>
+                  <select
+                    value={userRole}
+                    onChange={(e) => {
+                      const nextRole = e.target.value as UserRole;
+                      onChangeRoleSimulation(
+                        nextRole,
+                        nextRole === 'super_admin' || nextRole === 'super_manager'
+                          ? 'ALL'
+                          : fullBusinessList[0]?.id || 'ALL'
+                      );
+                    }}
+                    className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+                  >
+                    <option value="super_admin">👑 Super Admin (মালিক)</option>
+                    <option value="super_manager">🎖️ Super Manager (প্রধান জেনারেল ম্যানেজার)</option>
+                    <option value="business_manager">🏢 Business Manager (খামার ইনচার্জ)</option>
+                    <option value="employee">👷 Employee (মাঠকর্মী)</option>
+                  </select>
+                  {userRole !== 'super_admin' && (
+                    <button
+                      type="button"
+                      onClick={() => onChangeRoleSimulation('super_admin', 'ALL')}
+                      className="text-[10px] font-bold text-emerald-600 hover:underline ml-1 cursor-pointer"
+                    >
+                      রিসেট
+                    </button>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setShowExecutiveReportModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40 px-3.5 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors cursor-pointer"
                 >
-                  <FileBarChart className="h-4 w-4" />
-                  <span>📊 মালিকের জন্য লাভ-ক্ষতি ও কার্যবিবরণী রিপোর্ট</span>
+                  <FileBarChart className="h-3.5 w-3.5" />
+                  <span>কার্যবিবরণী রিপোর্ট</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={openCreateUserModal}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>+ নতুন ইউজার ও পারমিশন তৈরি করুন</span>
+                  <span>+ নতুন ইউজার তৈরি করুন</span>
                 </button>
 
                 {erpUsers.length <= 1 && (
@@ -4622,69 +4759,10 @@ export default function CentralAccountingAndInventoryView({
                     type="button"
                     disabled={isSavingUser}
                     onClick={handleSeedSampleManagers}
-                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
                   >
-                    <Plus className="h-4 w-4" />
-                    <span>১ ক্লিকে ৪ স্তরের টিম (প্রধান ম্যানেজার, বিজনেস ম্যানেজার ও কর্মী) তৈরি করুন</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Live Role Simulator Bar (So Admin can preview any role/business scope immediately) */}
-            <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <Eye className="h-4 w-4 text-emerald-600" />
-                  <span>লাইভ ভিউ সিমুলেটর (Test How Another User Sees the ERP):</span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  প্রধান ম্যানেজার, যেকোনো খামার ম্যানেজার বা কর্মচারী লগইন করলে ড্যাশবোর্ড কেমন দেখাবে তা এখান থেকে পরীক্ষা করুন।
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-                <select
-                  value={userRole}
-                  onChange={(e) => {
-                    const nextRole = e.target.value as UserRole;
-                    onChangeRoleSimulation(
-                      nextRole,
-                      nextRole === 'super_admin' || nextRole === 'super_manager'
-                        ? 'ALL'
-                        : fullBusinessList[0]?.id || 'ALL'
-                    );
-                  }}
-                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold"
-                >
-                  <option value="super_admin">👑 Super Admin (মালিক — সব ব্যবসা ও পূর্ণ নিয়ন্ত্রণ)</option>
-                  <option value="super_manager">🎖️ Super Manager (প্রধান ম্যানেজার — ৫টি ব্যবসার সার্বিক তদারকি ও রিপোর্ট)</option>
-                  <option value="business_manager">🏢 Business Manager (শুধু অ্যাসাইন করা ব্যবসার ম্যানেজার)</option>
-                  <option value="employee">👷 Employee / Staff (শুধু ডাটা এন্ট্রি — লাভ-ক্ষতি ও একাউন্টিং লুকানো)</option>
-                </select>
-
-                {userRole !== 'super_admin' && (
-                  <select
-                    value={assignedBusinessFilter}
-                    onChange={(e) => onChangeRoleSimulation(userRole, e.target.value)}
-                    className="rounded-lg border border-emerald-400 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"
-                  >
-                    <option value="ALL">সকল ব্যবসা (All Businesses)</option>
-                    {fullBusinessList.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        শুধু: {b.nameBn || b.name} ({b.code})
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {userRole !== 'super_admin' && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeRoleSimulation('super_admin', 'ALL')}
-                    className="px-3 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold cursor-pointer"
-                  >
-                    👑 মালিক (Super Admin)-এ ফিরে যান
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>টিম ডেমো তৈরি করুন</span>
                   </button>
                 )}
               </div>
@@ -4692,12 +4770,16 @@ export default function CentralAccountingAndInventoryView({
           </div>
 
           {/* USER ACCOUNTS & PERMISSION MATRIX TABLE */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+            {/* Top Bar: Title & Role Tabs */}
+            <div className="border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/30">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-emerald-600" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  সকল ইউজার ও অ্যাক্সেস তালিকা (Active ERP Users & Access Matrix)
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>ইউজার ও অ্যাক্সেস তালিকা</span>
+                  <span className="text-xs font-normal text-slate-500">
+                    ({filteredSecUsers.length} / {erpUsers.length} জন)
+                  </span>
                 </h2>
               </div>
 
@@ -4734,22 +4816,186 @@ export default function CentralAccountingAndInventoryView({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Filter Toolbar: Manager Hierarchy, Month/Year Filter, Active in Period, Search */}
+            <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2.5 flex-1">
+                {/* Search */}
+                <div className="relative min-w-[200px] max-w-xs flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={secUserSearch}
+                    onChange={(e) => setSecUserSearch(e.target.value)}
+                    placeholder="নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
+                    className="w-full pl-8 pr-7 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-emerald-500"
+                  />
+                  {secUserSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setSecUserSearch('')}
+                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Manager / Hierarchy Filter */}
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <select
+                    value={secManagerFilter}
+                    onChange={(e) => setSecManagerFilter(e.target.value)}
+                    className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 max-w-[220px]"
+                    title="ম্যানেজার অনুযায়ী তাদের অধীনস্থ টিম দেখুন"
+                  >
+                    <option value="ALL">সকল ম্যানেজার ও কর্মী</option>
+                    {secManagers.map((mgr) => {
+                      const staff = getStaffForManager(mgr);
+                      const roleLabel =
+                        mgr.role === 'super_admin'
+                          ? '👑 মালিক'
+                          : mgr.role === 'super_manager'
+                          ? '🎖️ প্রধান ম্যানেজার'
+                          : '🏢 ইনচার্জ';
+                      return (
+                        <option key={mgr.id} value={mgr.id}>
+                          {roleLabel}: {mgr.displayName} ({staff.length} জন কর্মী)
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Login Year & Month Filters */}
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+                  <select
+                    value={secLoginYear}
+                    onChange={(e) => setSecLoginYear(e.target.value)}
+                    className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+                  >
+                    <option value="ALL">বছর: সব</option>
+                    <option value="2027">২০২৭</option>
+                    <option value="2026">২০২৬</option>
+                    <option value="2025">২০২৫</option>
+                  </select>
+
+                  <span className="text-slate-300 dark:text-slate-600">|</span>
+
+                  <select
+                    value={secLoginMonth}
+                    onChange={(e) => setSecLoginMonth(e.target.value)}
+                    className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+                  >
+                    <option value="ALL">মাস: সব</option>
+                    {MONTHS_12.map((m) => (
+                      <option key={m.code} value={m.code}>
+                        {m.fullBn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Active in Period Badge / Filter */}
+                <button
+                  type="button"
+                  onClick={() => setSecOnlyActiveInPeriod(!secOnlyActiveInPeriod)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    secOnlyActiveInPeriod
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100'
+                  }`}
+                  title="নির্বাচিত মাস/বছরে লগইনকারী ইউজারদের ফিল্টার করুন"
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>
+                    {secLoginYear === 'ALL' && secLoginMonth === 'ALL'
+                      ? `লগইনকারী: ${usersLoggedInPeriodCount} জন`
+                      : `এই সময়ে লগইন: ${usersLoggedInPeriodCount} জন`}
+                  </span>
+                  {secOnlyActiveInPeriod && (
+                    <span className="text-[10px] bg-white/30 px-1 rounded">ফিল্টার চালু</span>
+                  )}
+                </button>
+
+                {/* Clear all filters button */}
+                {(secRoleFilter !== 'all' ||
+                  secManagerFilter !== 'ALL' ||
+                  secLoginYear !== 'ALL' ||
+                  secLoginMonth !== 'ALL' ||
+                  secOnlyActiveInPeriod ||
+                  secUserSearch.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSecRoleFilter('all');
+                      setSecManagerFilter('ALL');
+                      setSecLoginYear('ALL');
+                      setSecLoginMonth('ALL');
+                      setSecOnlyActiveInPeriod(false);
+                      setSecUserSearch('');
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-red-600 px-2 py-1 rounded cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>ফিল্টার রিসেট</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Manager Filter Active Banner */}
+            {selectedManagerObj && (
+              <div className="bg-emerald-50/80 dark:bg-emerald-950/30 border-b border-emerald-200 dark:border-emerald-800/50 px-5 py-2.5 flex items-center justify-between text-xs text-emerald-900 dark:text-emerald-200">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>
+                    নির্বাচিত ম্যানেজার: <strong>{selectedManagerObj.displayName}</strong> (
+                    {selectedManagerObj.role === 'super_admin'
+                      ? 'মালিক'
+                      : selectedManagerObj.role === 'super_manager'
+                      ? 'প্রধান জেনারেল ম্যানেজার'
+                      : 'খামার ইনচার্জ'}
+                    ) — অধীনে মোট কর্মী: <strong>{selectedManagerStaff.length}</strong> জন
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSecManagerFilter('ALL')}
+                  className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
+                >
+                  ফিল্টার বন্ধ করুন
+                </button>
+              </div>
+            )}
+
+            {/* Scrollable User Matrix Table (Max 50vh internal scroll with sticky header) */}
+            <div className="overflow-x-auto max-h-[50vh] overflow-y-auto border-t border-slate-200 dark:border-slate-800 scrollbar-thin">
               <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/70 dark:bg-slate-800/40">
-                    <th className="py-3.5 px-4">ইউজারের নাম ও ইমেইল (User & Email)</th>
-                    <th className="py-3.5 px-4">রোল / পদবি (Role)</th>
-                    <th className="py-3.5 px-4">অনুমোদিত ব্যবসা (Assigned Businesses)</th>
-                    <th className="py-3.5 px-4">কাজের পারমিশন (Granular Permissions)</th>
-                    <th className="py-3.5 px-4">স্ট্যাটাস (Status)</th>
-                    <th className="py-3.5 px-4 text-right">অ্যাকশন (Manage Access)</th>
+                <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/95 backdrop-blur-xs z-10 shadow-2xs">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                    <th className="py-3 px-4 font-bold">ইউজারের নাম ও ইমেইল (User)</th>
+                    <th className="py-3 px-4 font-bold">রোল / পদবি (Role)</th>
+                    <th className="py-3 px-4 font-bold">তত্ত্বাবধায়ক / অধীনস্থ দল (Team)</th>
+                    <th className="py-3 px-4 font-bold">অনুমোদিত ব্যবসা (Assigned)</th>
+                    <th className="py-3 px-4 font-bold">কাজের পারমিশন (Permissions)</th>
+                    <th className="py-3 px-4 font-bold">সর্বশেষ লগইন (Last Login)</th>
+                    <th className="py-3 px-4 font-bold">স্ট্যাটাস</th>
+                    <th className="py-3 px-4 text-right font-bold">অ্যাকশন</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {erpUsers
-                    .filter((u) => secRoleFilter === 'all' || u.role === secRoleFilter)
-                    .map((u) => {
+                  {filteredSecUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-500">
+                        <Users className="h-8 w-8 mx-auto text-slate-400 mb-2 opacity-50" />
+                        <div className="font-semibold text-slate-700 dark:text-slate-300">কোনো ইউজার পাওয়া যায়নি</div>
+                        <div className="text-xs text-slate-400 mt-1">অনুসন্ধান বা ফিল্টারের শর্ত পরিবর্তন করে পুনরায় দেখুন</div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSecUsers.map((u) => {
                       const perms = parseUserPermissions(u);
                       const assignedIds =
                         !u.assignedBusinesses || u.assignedBusinesses === 'ALL'
@@ -4759,341 +5005,427 @@ export default function CentralAccountingAndInventoryView({
                       const firstBizId =
                         assignedIds[0] === 'ALL'
                           ? fullBusinessList[0]?.id || 'ALL'
-                        : assignedIds[0];
+                          : assignedIds[0];
 
-                    return (
-                      <tr
-                        key={u.id}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
-                      >
-                        <td className="py-3.5 px-4">
-                          {(() => {
-                            const uPhoto = resolveActorPhoto(u.email, u.displayName, u.role, u.photoUrl);
-                            return (
+                      const uPhoto = resolveActorPhoto(u.email, u.displayName, u.role, u.photoUrl);
+                      const sup = findSupervisor(u);
+                      const loginInfo = formatLoginTime(u.lastLoginAt);
+
+                      return (
+                        <tr
+                          key={u.id}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
+                        >
+                          <td className="py-3 px-4">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setViewingProfile({
+                                  id: u.id,
+                                  name: u.displayName,
+                                  email: u.email,
+                                  phone: u.phone || '+880 1711-000000',
+                                  nidNumber: u.nidNumber || '',
+                                  designation:
+                                    u.designation ||
+                                    (u.role === 'super_admin'
+                                      ? 'Super Admin'
+                                      : u.role === 'super_manager'
+                                      ? 'General Manager'
+                                      : 'Business Incharge'),
+                                  role: u.role,
+                                  businessName:
+                                    u.assignedBusinesses === 'ALL'
+                                      ? 'সকল ব্যবসা (All)'
+                                      : u.assignedBusinesses,
+                                  photoUrl: uPhoto,
+                                  address: u.address || 'Dhaka, Bangladesh',
+                                  status: u.status || 'active',
+                                })
+                              }
+                              className="flex items-center gap-3 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                            >
+                              {uPhoto ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={uPhoto}
+                                  alt={u.displayName}
+                                  className="h-8 w-8 rounded-full object-cover shrink-0 ring-2 ring-emerald-500/30 shadow-xs"
+                                />
+                              ) : (
+                                <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0">
+                                  {(u.displayName || 'U').slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 transition-colors">
+                                  {u.displayName}
+                                </div>
+                                <div className="font-mono text-[10px] text-slate-500 truncate max-w-[140px]">
+                                  {u.email}
+                                </div>
+                              </div>
+                            </button>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                u.role === 'super_admin'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                                  : u.role === 'super_manager'
+                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                                  : u.role === 'business_manager'
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                              }`}
+                            >
+                              <ShieldCheck className="h-3 w-3" />
+                              {u.role === 'super_admin'
+                                ? '👑 Super Admin'
+                                : u.role === 'super_manager'
+                                ? '🎖️ Super Manager'
+                                : u.role === 'business_manager'
+                                ? '🏢 Business Manager'
+                                : '👷 Employee'}
+                            </span>
+                          </td>
+
+                          {/* Supervisor / Team Hierarchy Column */}
+                          <td className="py-3 px-4">
+                            {u.role === 'super_admin' ? (
+                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-semibold text-[11px]">
+                                <Award className="h-3 w-3 text-emerald-600 shrink-0" />
+                                <span>সকল {erpUsers.length - 1} জনের প্রধান</span>
+                              </div>
+                            ) : u.role === 'super_manager' ? (
+                              (() => {
+                                const staff = getStaffForManager(u);
+                                return (
+                                  <div className="space-y-0.5">
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-300 font-semibold text-[11px]">
+                                      <Users className="h-3 w-3 text-purple-600 shrink-0" />
+                                      <span>তদারকি: {staff.length} জন কর্মী</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500">রিপোর্ট দেন: মালিক</div>
+                                  </div>
+                                );
+                              })()
+                            ) : u.role === 'business_manager' ? (
+                              (() => {
+                                const staff = getStaffForManager(u);
+                                return (
+                                  <div className="space-y-0.5">
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 font-semibold text-[11px]">
+                                      <Users className="h-3 w-3 text-blue-600 shrink-0" />
+                                      <span>অধীনস্থ কর্মী: {staff.length} জন</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500">তত্ত্বাবধায়ক: {sup.name}</div>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <div className="space-y-0.5">
+                                <div className="inline-flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-semibold text-[11px]">
+                                  <UserCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                  <span>{sup.name}</span>
+                                </div>
+                                <div className="text-[10px] text-slate-500">{sup.roleStr}</div>
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1 max-w-xs">
+                              {assignedIds.includes('ALL') ? (
+                                <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px]">
+                                  সব ব্যবসা (All)
+                                </span>
+                              ) : (
+                                assignedIds.map((bid) => {
+                                  const bObj = fullBusinessList.find(
+                                    (b) => b.id === bid || b.code === bid
+                                  );
+                                  return (
+                                    <span
+                                      key={bid}
+                                      className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium text-[11px]"
+                                    >
+                                      {bObj ? bObj.nameBn || bObj.name : bid}
+                                    </span>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1 max-w-md">
+                              {perms.canView && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-medium">
+                                  View
+                                </span>
+                              )}
+                              {perms.canCreate && (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
+                                  Create
+                                </span>
+                              )}
+                              {perms.canEdit && (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[10px] font-semibold">
+                                  Edit
+                                </span>
+                              )}
+                              {perms.canDeleteRecords && (
+                                <span className="px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[10px] font-semibold">
+                                  Delete
+                                </span>
+                              )}
+                              {perms.canApprove && (
+                                <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-semibold">
+                                  Approve
+                                </span>
+                              )}
+                              {perms.canViewConsolidatedProfit && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">
+                                  Profit
+                                </span>
+                              )}
+                              {perms.canPostAccounting && (
+                                <span className="px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-[10px] font-semibold">
+                                  Accounting
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Last Login Column */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                {loginInfo.isRecent ? (
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                                ) : (
+                                  <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                                )}
+                                <span className={`text-[11px] ${loginInfo.color}`}>
+                                  {loginInfo.text}
+                                </span>
+                              </div>
+                              {loginInfo.subText && (
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 pl-3.5">
+                                  {loginInfo.subText}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
+                                u.status === 'active'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : u.status === 'suspended'
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              }`}
+                            >
+                              {u.status === 'active'
+                                ? 'Active'
+                                : u.status === 'suspended'
+                                ? 'Suspended'
+                                : 'Invited'}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setViewingProfile({
-                                    id: u.id,
-                                    name: u.displayName,
-                                    email: u.email,
-                                    phone: u.phone || '+880 1711-000000',
-                                    nidNumber: u.nidNumber || '',
-                                    designation: u.designation || (u.role === 'super_admin' ? 'Super Admin' : u.role === 'super_manager' ? 'General Manager' : 'Business Incharge'),
-                                    role: u.role,
-                                    businessName: u.assignedBusinesses === 'ALL' ? 'সকল ব্যবসা (All)' : u.assignedBusinesses,
-                                    photoUrl: uPhoto,
-                                    address: u.address || 'Dhaka, Bangladesh',
-                                    status: u.status || 'active',
-                                  })
-                                }
-                                className="flex items-center gap-3 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                                onClick={() => openEditUserModal(u)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 font-semibold cursor-pointer"
+                                title="পারমিশন ও ব্যবসা পরিবর্তন করুন"
                               >
-                                {uPhoto ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={uPhoto}
-                                    alt={u.displayName}
-                                    className="h-9 w-9 rounded-full object-cover shrink-0 ring-2 ring-emerald-500/30 shadow-xs"
-                                  />
-                                ) : (
-                                  <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold text-sm flex items-center justify-center shrink-0">
-                                    {(u.displayName || 'U').slice(0, 1).toUpperCase()}
-                                  </div>
-                                )}
-                                <div className="min-w-0">
-                                  <div className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 transition-colors">
-                                    {u.displayName}
-                                  </div>
-                                  <div className="font-mono text-[11px] text-slate-500 truncate max-w-[150px]">
-                                    {u.email}
-                                  </div>
-                                </div>
+                                <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>এডিট</span>
                               </button>
-                            );
-                          })()}
-                        </td>
 
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold ${
-                              u.role === 'super_admin'
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
-                                : u.role === 'super_manager'
-                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
-                                : u.role === 'business_manager'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
-                            }`}
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            {u.role === 'super_admin'
-                              ? '👑 Super Admin (মালিক)'
-                              : u.role === 'super_manager'
-                              ? '🎖️ Super Manager (প্রধান জেনারেল ম্যানেজার)'
-                              : u.role === 'business_manager'
-                              ? '🏢 Business Manager (খামার ইনচার্জ)'
-                              : '👷 Employee / Staff (খামার কর্মী)'}
-                          </span>
-                        </td>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onChangeRoleSimulation(
+                                    u.role,
+                                    u.role === 'super_admin' ? 'ALL' : firstBizId
+                                  );
+                                  showNotice(
+                                    `এখন "${u.displayName}" (${u.role})-এর ভিউ সিমুলেট করা হচ্ছে!`
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold hover:bg-emerald-100 cursor-pointer"
+                                title="এই ইউজার লগইন করলে কেমন দেখবে তা পরীক্ষা করুন"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>ভিউ</span>
+                              </button>
 
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {assignedIds.includes('ALL') ? (
-                              <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px]">
-                                সব ব্যবসা (All {fullBusinessList.length} Businesses)
-                              </span>
-                            ) : (
-                              assignedIds.map((bid) => {
-                                const bObj = fullBusinessList.find(
-                                  (b) => b.id === bid || b.code === bid
-                                );
-                                return (
-                                  <span
-                                    key={bid}
-                                    className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium text-[11px]"
+                              {u.role !== 'super_admin' && u.id !== ownerId && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateErpUserPermissions(
+                                        u,
+                                        {
+                                          status: u.status === 'active' ? 'suspended' : 'active',
+                                        },
+                                        actorEmail
+                                      )
+                                    }
+                                    className="px-2 py-1.5 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-50 cursor-pointer"
                                   >
-                                    {bObj ? bObj.nameBn || bObj.name : bid}
-                                  </span>
-                                );
-                              })
-                            )}
-                          </div>
-                        </td>
+                                    {u.status === 'active' ? 'স্থগিত' : 'সক্রিয়'}
+                                  </button>
 
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-wrap gap-1 max-w-md">
-                            {perms.canView && (
-                              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-medium">
-                                View (দেখা)
-                              </span>
-                            )}
-                            {perms.canCreate && (
-                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
-                                Create (এন্ট্রি)
-                              </span>
-                            )}
-                            {perms.canEdit && (
-                              <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[10px] font-semibold">
-                                Edit (সংশোধন)
-                              </span>
-                            )}
-                            {perms.canDeleteRecords && (
-                              <span className="px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[10px] font-semibold">
-                                Delete (ডিলিট)
-                              </span>
-                            )}
-                            {perms.canApprove && (
-                              <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-semibold">
-                                Approve (অনুমোদন)
-                              </span>
-                            )}
-                            {perms.canViewConsolidatedProfit && (
-                              <span className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">
-                                Profit (লাভ-ক্ষতি)
-                              </span>
-                            )}
-                            {perms.canPostAccounting && (
-                              <span className="px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-[10px] font-semibold">
-                                Accounting (ভাউচার)
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
-                              u.status === 'active'
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                : u.status === 'suspended'
-                                ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                            }`}
-                          >
-                            {u.status === 'active'
-                              ? 'Active (সক্রিয়)'
-                              : u.status === 'suspended'
-                              ? 'Suspended (স্থগিত)'
-                              : 'Invited (আমন্ত্রিত)'}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="inline-flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openEditUserModal(u)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 font-semibold"
-                              title="পারমিশন ও ব্যবসা পরিবর্তন করুন"
-                            >
-                              <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
-                              <span>পারমিশন এডিট</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onChangeRoleSimulation(
-                                  u.role,
-                                  u.role === 'super_admin' ? 'ALL' : firstBizId
-                                );
-                                showNotice(
-                                  `এখন "${u.displayName}" (${u.role})-এর ভিউ সিমুলেট করা হচ্ছে!`
-                                );
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold hover:bg-emerald-100"
-                              title="এই ইউজার লগইন করলে কেমন দেখবে তা পরীক্ষা করুন"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              <span>ভিউ দেখুন</span>
-                            </button>
-
-                            {u.role !== 'super_admin' && u.id !== ownerId && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateErpUserPermissions(
-                                      u,
-                                      {
-                                        status: u.status === 'active' ? 'suspended' : 'active',
-                                      },
-                                      actorEmail
-                                    )
-                                  }
-                                  className="px-2 py-1.5 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-50"
-                                >
-                                  {u.status === 'active' ? 'স্থগিত করুন' : 'সক্রিয় করুন'}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    triggerConfirmDelete({
-                                      title: bn ? 'ইউজার অ্যাকাউন্ট মুছে ফেলা নিশ্চিতকরণ' : 'Confirm Delete User',
-                                      message: bn
-                                        ? `আপনি কি নিশ্চিতভাবে "${u.displayName}"-এর অ্যাকাউন্ট মুছে ফেলতে চান?`
-                                        : `Are you sure you want to delete user account "${u.displayName}"?`,
-                                      itemName: `${u.displayName} (${u.email})`,
-                                      onConfirm: async () => {
-                                        await deleteErpUserAccount(u, actorEmail);
-                                        triggerGlobalToast(
-                                          bn ? `ইউজার "${u.displayName}" মুছে ফেলা হয়েছে!` : `User "${u.displayName}" deleted!`,
-                                          'delete'
-                                        );
-                                      },
-                                    });
-                                  }}
-                                  className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
-                                  title="ইউজার মুছে ফেলুন"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      triggerConfirmDelete({
+                                        title: bn ? 'ইউজার অ্যাকাউন্ট মুছে ফেলা নিশ্চিতকরণ' : 'Confirm Delete User',
+                                        message: bn
+                                          ? `আপনি কি নিশ্চিতভাবে "${u.displayName}"-এর অ্যাকাউন্ট মুছে ফেলতে চান?`
+                                          : `Are you sure you want to delete user account "${u.displayName}"?`,
+                                        itemName: `${u.displayName} (${u.email})`,
+                                        onConfirm: async () => {
+                                          await deleteErpUserAccount(u, actorEmail);
+                                          triggerGlobalToast(
+                                            bn ? `ইউজার "${u.displayName}" মুছে ফেলা হয়েছে!` : `User "${u.displayName}" deleted!`,
+                                            'delete'
+                                          );
+                                        },
+                                      });
+                                    }}
+                                    className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                                    title="ইউজার মুছে ফেলুন"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           {/* Immutable Audit Trail */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+            <div className="border-b border-slate-200 dark:border-slate-800 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-800/30">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-emerald-600" />
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  নিরাপত্তা ও কাজের অডিট লগ (Immutable Security & Operational Audit Logs)
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>নিরাপত্তা ও কাজের অডিট লগ</span>
+                  <span className="text-xs font-normal text-slate-500">
+                    ({auditLogs.length} টি ইভেন্ট)
+                  </span>
                 </h2>
               </div>
-              <span className="text-xs font-mono text-slate-500">
-                {auditLogs.length} Logged Events
-              </span>
+              <div className="text-[11px] text-slate-500 font-mono">
+                স্থায়ী অডিট ট্রেইল • সর্বোচ্চ ৪৫vh স্ক্রোল
+              </div>
             </div>
-            <div className="overflow-x-auto">
+
+            <div className="overflow-x-auto max-h-[45vh] overflow-y-auto border-t border-slate-200 dark:border-slate-800 scrollbar-thin">
               <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
-                    <th className="py-3 px-4">Action</th>
-                    <th className="py-3 px-4">Module</th>
-                    <th className="py-3 px-4">কর্মকর্তা / ব্যবহারকারী (Actor)</th>
-                    <th className="py-3 px-4">Details</th>
-                    <th className="py-3 px-4 text-right">Severity</th>
+                <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/95 backdrop-blur-xs z-10 shadow-2xs">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                    <th className="py-3 px-4 font-bold">Action</th>
+                    <th className="py-3 px-4 font-bold">Module</th>
+                    <th className="py-3 px-4 font-bold">কর্মকর্তা / ব্যবহারকারী (Actor)</th>
+                    <th className="py-3 px-4 font-bold">বিবরণ (Details)</th>
+                    <th className="py-3 px-4 text-right font-bold">Severity</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
-                        {log.action}
-                      </td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                        {log.module}
-                      </td>
-                      <td className="py-3 px-4">
-                        {(() => {
-                          const email = log.actorEmail || '';
-                          const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-                          const actorName = log.actorName || matchedUser?.displayName || (email.split('@')[0]) || 'RegardsAgro Admin';
-                          const actorPhoto = resolveActorPhoto(email, actorName, log.actorRole, log.actorPhoto || matchedUser?.photoUrl);
-                          const actorPost = log.actorDesignation || matchedUser?.designation || (log.actorRole === 'super_admin' ? 'Super Admin' : log.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
-
-                          return (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setViewingProfile({
-                                  id: matchedUser?.id,
-                                  name: actorName,
-                                  email: email || matchedUser?.email,
-                                  phone: matchedUser?.phone || '+880 1711-000000',
-                                  nidNumber: matchedUser?.nidNumber || '',
-                                  designation: actorPost,
-                                  role: log.actorRole || matchedUser?.role || 'super_admin',
-                                  photoUrl: actorPhoto,
-                                  address: matchedUser?.address,
-                                  status: 'active',
-                                })
-                              }
-                              className="flex items-center gap-2 text-left group hover:opacity-85 transition-opacity cursor-pointer"
-                            >
-                              {actorPhoto ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={actorPhoto}
-                                  alt={actorName}
-                                  className="h-6 w-6 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-2xs"
-                                />
-                              ) : (
-                                <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                                  {actorName.slice(0, 1).toUpperCase()}
-                                </div>
-                              )}
-                              <div>
-                                <div className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors text-[11px]">
-                                  {actorName}
-                                </div>
-                                <div className="font-mono text-[9px] text-slate-400">
-                                  {email}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                        {log.details}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono uppercase">
-                        {log.severity}
+                  {auditLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-slate-500">
+                        কোনো অডিট লগ রেকর্ড পাওয়া যায়নি।
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
+                          {log.action}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                          {log.module}
+                        </td>
+                        <td className="py-3 px-4">
+                          {(() => {
+                            const email = log.actorEmail || '';
+                            const matchedUser = erpUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+                            const actorName = log.actorName || matchedUser?.displayName || (email.split('@')[0]) || 'RegardsAgro Admin';
+                            const actorPhoto = resolveActorPhoto(email, actorName, log.actorRole, log.actorPhoto || matchedUser?.photoUrl);
+                            const actorPost = log.actorDesignation || matchedUser?.designation || (log.actorRole === 'super_admin' ? 'Super Admin' : log.actorRole === 'super_manager' ? 'General Manager' : 'Officer');
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setViewingProfile({
+                                    id: matchedUser?.id,
+                                    name: actorName,
+                                    email: email || matchedUser?.email,
+                                    phone: matchedUser?.phone || '+880 1711-000000',
+                                    nidNumber: matchedUser?.nidNumber || '',
+                                    designation: actorPost,
+                                    role: log.actorRole || matchedUser?.role || 'super_admin',
+                                    photoUrl: actorPhoto,
+                                    address: matchedUser?.address,
+                                    status: 'active',
+                                  })
+                                }
+                                className="flex items-center gap-2 text-left group hover:opacity-85 transition-opacity cursor-pointer"
+                              >
+                                {actorPhoto ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={actorPhoto}
+                                    alt={actorName}
+                                    className="h-6 w-6 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-2xs"
+                                  />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                    {actorName.slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors text-[11px]">
+                                    {actorName}
+                                  </div>
+                                  <div className="font-mono text-[9px] text-slate-400">
+                                    {email}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })()}
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                          {log.details}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono uppercase">
+                          {log.severity}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
