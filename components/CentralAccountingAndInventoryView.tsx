@@ -208,17 +208,17 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, GranularPermissionsState> = {
 };
 
 const ALL_ERP_MODULE_OPTIONS: { id: string; label: string }[] = [
-  { id: 'dashboard', label: 'মূল ড্যাশবোর্ড (Main Dashboard)' },
-  { id: 'poultry', label: 'পোল্ট্রি ফার্মিং (Poultry Module)' },
-  { id: 'cattle', label: 'গরুর খামার (Cattle Module)' },
-  { id: 'goat', label: 'ছাগলের খামার (Goat Module)' },
-  { id: 'fish', label: 'মাছ চাষ (Fisheries Module)' },
-  { id: 'transport', label: 'ট্রাক ও পরিবহন (Transport Module)' },
-  { id: 'accounting', label: 'টাকা-পয়সা ও ভাউচার (Central Accounting)' },
-  { id: 'inventory', label: 'গোডাউন ও স্টক (Inventory)' },
-  { id: 'stakeholders', label: 'কর্মচারী, বেতন ও বাকি (HR & Due)' },
-  { id: 'reports', label: 'লাভ-ক্ষতির রিপোর্ট (Financial Reports)' },
-  { id: 'rbac', label: 'ইউজার ও পারমিশন কন্ট্রোল (User & RBAC)' },
+  { id: 'dashboard', label: 'Main Dashboard (Overview)' },
+  { id: 'poultry', label: 'Poultry Farming Module' },
+  { id: 'cattle', label: 'Cattle & Dairy Module' },
+  { id: 'goat', label: 'Goat Farming Module' },
+  { id: 'fish', label: 'Fish & Aquaculture Module' },
+  { id: 'transport', label: 'Fleet & Transport Module' },
+  { id: 'accounting', label: 'General Ledger & Accounting' },
+  { id: 'inventory', label: 'Warehouse & Inventory' },
+  { id: 'stakeholders', label: 'Staff, Payroll & Receivables' },
+  { id: 'reports', label: 'Financial Reports & P&L' },
+  { id: 'rbac', label: 'User & Access Control (RBAC)' },
 ];
 
 interface CentralAccountingAndInventoryViewProps {
@@ -1783,7 +1783,11 @@ export default function CentralAccountingAndInventoryView({
 
   const handleExportCsv = () => {
     if (filteredJournals.length === 0) {
-      showNotice('এক্সপোর্ট করার মতো কোনো লেনদেন পাওয়া যায়নি।');
+      showNotice(
+        activeSection === 'reports' || activeSection === 'security'
+          ? 'No transactions found to export for this period.'
+          : 'এক্সপোর্ট করার মতো কোনো লেনদেন পাওয়া যায়নি।'
+      );
       return;
     }
     const headers = ['Voucher No', 'Date', 'Business', 'Category', 'Type', 'Description', 'Debit Account', 'Credit Account', 'Amount (BDT)', 'Due (BDT)', 'Status', 'Counterparty'];
@@ -4080,6 +4084,53 @@ export default function CentralAccountingAndInventoryView({
 
       {/* 4. ENTERPRISE P&L CARDS & ANALYTICS */}
       {activeSection === 'reports' && (() => {
+        const toEnglishCategory = (rawCat?: string): string => {
+          if (!rawCat) return 'Operational Overhead';
+          const c = rawCat.trim();
+          if (c.includes('বাচ্চা') && c.includes('ক্রয়')) return 'Day-Old Chicks (DOC) Purchase';
+          if (c.includes('বাচ্চা')) return 'Chicks / Offspring Purchase';
+          if (c.includes('খাবার') || c.includes('ফিড')) return 'Animal Feed & Nutrition';
+          if (c.includes('ওষুধ') || c.includes('ভ্যাকসিন') || c.includes('চিকিৎসা')) return 'Veterinary Medicine & Vaccines';
+          if (c.includes('বেতন') || c.includes('মজুরি') || c.includes('রিম্যুনারেশন')) return 'Staff Payroll & Wages';
+          if (c.includes('ডিজেল') || c.includes('জ্বালানী') || c.includes('ফুয়েল')) return 'Diesel & Fuel';
+          if (c.includes('টোল') || c.includes('ঘাট')) return 'Highway Tolls & Transit';
+          if (c.includes('চালক') || c.includes('ড্রাইভার')) return 'Driver Allowance & Per Diem';
+          if (c.includes('মেরামত') || c.includes('সার্ভিসিং')) return 'Equipment Maintenance & Repair';
+          if (c.includes('ডিম') && c.includes('বিক্রি')) return 'Egg Sales Revenue';
+          if (c.includes('মুরগি') && c.includes('বিক্রি')) return 'Broiler & Poultry Sales';
+          if (c.includes('দুধ') && c.includes('বিক্রি')) return 'Dairy & Fresh Milk Sales';
+          if (c.includes('মাছ') && c.includes('বিক্রি')) return 'Fish Harvest Sales';
+          if (c.includes('গরু') && c.includes('বিক্রি')) return 'Cattle & Live Bull Sales';
+          if (c.includes('ছাগল') && c.includes('বিক্রি')) return 'Goat & Meat Sales';
+          if (c.includes('ট্রাক') || c.includes('ভাড়া') || c.includes('ট্রিপ')) return 'Commercial Freight Revenue';
+          if (c.includes('বিক্রি') || c.includes('আয়')) return c.replace(/বিক্রি|আয়/g, 'Sales / Income');
+          if (c.includes('খরচ') || c.includes('ব্যয়')) return c.replace(/খরচ|ব্যয়/g, 'Operational Cost');
+          return c;
+        };
+
+        const toEnglishBusinessName = (rawName?: string, bizId?: string): string => {
+          if (!rawName && !bizId) return 'General Business Unit';
+          const matched = businesses.find((b) => b.id === bizId || b.name === rawName || b.nameBn === rawName);
+          if (matched?.name) return matched.name;
+          if (!rawName) return 'Business Unit';
+          if (rawName.includes('পোল্ট্রি') || rawName.toLowerCase().includes('poultry')) return 'Poultry Farming';
+          if (rawName.includes('গবাদি') || rawName.includes('গরু') || rawName.includes('ডেইরি') || rawName.toLowerCase().includes('cattle')) return 'Cattle Farming';
+          if (rawName.includes('ছাগল') || rawName.toLowerCase().includes('goat')) return 'Goat Farming';
+          if (rawName.includes('মৎস্য') || rawName.includes('মাছ') || rawName.toLowerCase().includes('fish')) return 'Fish Farming';
+          if (rawName.includes('ট্রাক') || rawName.includes('পরিবহন') || rawName.toLowerCase().includes('trans')) return 'Truck & Transport Business';
+          return rawName;
+        };
+
+        const toEnglishLocation = (loc?: string): string => {
+          if (!loc) return '';
+          if (loc.includes('কুষ্টিয়া') || loc.includes('কুমারখালী')) return 'Kumarkhali, Kushtia, Bangladesh';
+          if (loc.includes('সাভার') || loc.includes('ঢাকা')) return 'Savar Dairy Belt, Dhaka';
+          if (loc.includes('গাজীপুর') || loc.includes('শ্রীপুর')) return 'Sreepur, Gazipur, Bangladesh';
+          if (loc.includes('ময়মনসিংহ') || loc.includes('ত্রিশাল')) return 'Trishal, Mymensingh, Bangladesh';
+          if (loc.includes('তেজগাঁও')) return 'Tejgaon Industrial Area, Dhaka';
+          return loc;
+        };
+
         const periodJournals = journalEntries.filter(
           (j) => j.status === 'posted' && matchesMonthFilter(j.date, activeMonthFilter)
         );
@@ -4098,21 +4149,24 @@ export default function CentralAccountingAndInventoryView({
         const profitMarginPct =
           totalPeriodRev > 0 ? ((totalPeriodNet / totalPeriodRev) * 100).toFixed(1) : '0.0';
 
-        // Group expenses & revenue by category so owner sees EXACTLY which sector/category cost how much
+        // Group expenses & revenue by category with guaranteed English mapping
         const expenseByCategoryMap: Record<string, { category: string; businessName: string; amount: number; count: number }> = {};
         const revenueByCategoryMap: Record<string, { category: string; businessName: string; amount: number; count: number }> = {};
 
         for (const j of periodJournals) {
+          const engCat = toEnglishCategory(j.category);
+          const engBiz = toEnglishBusinessName(j.businessName, j.businessId);
+
           if (
             j.transactionType === 'expense' ||
             j.transactionType === 'purchase' ||
             j.transactionType === 'payroll'
           ) {
-            const key = `${j.category}__${j.businessName}`;
+            const key = `${engCat}__${engBiz}`;
             if (!expenseByCategoryMap[key]) {
               expenseByCategoryMap[key] = {
-                category: j.category,
-                businessName: j.businessName,
+                category: engCat,
+                businessName: engBiz,
                 amount: 0,
                 count: 0,
               };
@@ -4120,11 +4174,11 @@ export default function CentralAccountingAndInventoryView({
             expenseByCategoryMap[key].amount += j.amount;
             expenseByCategoryMap[key].count += 1;
           } else if (j.transactionType === 'sale' || j.transactionType === 'income') {
-            const key = `${j.category}__${j.businessName}`;
+            const key = `${engCat}__${engBiz}`;
             if (!revenueByCategoryMap[key]) {
               revenueByCategoryMap[key] = {
-                category: j.category,
-                businessName: j.businessName,
+                category: engCat,
+                businessName: engBiz,
                 amount: 0,
                 count: 0,
               };
@@ -4142,119 +4196,119 @@ export default function CentralAccountingAndInventoryView({
         );
 
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Header & Export Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
               <div>
                 <div className="flex items-center gap-2">
                   <FileBarChart className="h-5 w-5 text-emerald-600" />
-                  <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                  <h1 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
                     Profit & Loss and Sector Analytics ({formatMonthFilterLabel(activeMonthFilter, false)})
                   </h1>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                   Business-wise performance, expense & revenue breakdowns, and financial health summary.
                 </p>
               </div>
-              <div className="flex items-center gap-2.5 no-print">
+              <div className="flex items-center gap-2 no-print">
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
                   Download CSV
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 rounded-xl hover:bg-slate-800 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 rounded-xl hover:bg-slate-800 cursor-pointer"
                 >
-                  <Printer className="h-4 w-4" />
+                  <Printer className="h-3.5 w-3.5" />
                   Print / PDF
                 </button>
               </div>
             </div>
 
-            {/* 1. HERO 4-CARD EXECUTIVE P&L SUMMARY */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/90 to-white dark:from-emerald-950/40 dark:to-slate-900 p-5 shadow-2xs space-y-2">
+            {/* 1. HERO 4-CARD EXECUTIVE P&L SUMMARY (COMPACT & SLEEK) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="rounded-xl border border-emerald-200/80 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/70 to-white dark:from-emerald-950/30 dark:to-slate-900 p-2.5 sm:p-3 shadow-2xs space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                    Total Revenue & Sales
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                    Total Revenue
                   </span>
-                  <div className="h-8 w-8 rounded-xl bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4" />
+                  <div className="h-6 w-6 rounded-md bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <TrendingUp className="h-3.5 w-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                <div className="text-base sm:text-lg lg:text-xl font-black font-mono tabular-nums text-slate-900 dark:text-white truncate">
                   {formatBDT(totalPeriodRev)}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  From {revenueCategories.length} revenue streams
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                  {revenueCategories.length} revenue streams
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-gradient-to-br from-rose-50/90 to-white dark:from-rose-950/30 dark:to-slate-900 p-5 shadow-2xs space-y-2">
+              <div className="rounded-xl border border-rose-200/80 dark:border-rose-900/60 bg-gradient-to-br from-rose-50/70 to-white dark:from-rose-950/20 dark:to-slate-900 p-2.5 sm:p-3 shadow-2xs space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-rose-800 dark:text-rose-300">
-                    Total Expenses & Payroll
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800 dark:text-rose-300">
+                    Total Expenses
                   </span>
-                  <div className="h-8 w-8 rounded-xl bg-rose-600/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                    <TrendingDown className="h-4 w-4" />
+                  <div className="h-6 w-6 rounded-md bg-rose-600/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                    <TrendingDown className="h-3.5 w-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                <div className="text-base sm:text-lg lg:text-xl font-black font-mono tabular-nums text-slate-900 dark:text-white truncate">
                   {formatBDT(totalPeriodExp)}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  OpEx: {formatBDT(totalPeriodOpExp)} · Payroll: {formatBDT(totalPeriodPayroll)}
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                  OpEx: {formatBDT(totalPeriodOpExp)} · Pay: {formatBDT(totalPeriodPayroll)}
                 </div>
               </div>
 
               <div
-                className={`rounded-2xl border p-5 shadow-2xs space-y-2 ${
+                className={`rounded-xl border p-2.5 sm:p-3 shadow-2xs space-y-1 ${
                   totalPeriodNet >= 0
                     ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-600 to-teal-700 text-white'
                     : 'border-rose-500/40 bg-gradient-to-br from-rose-600 to-red-700 text-white'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white/90">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/90">
                     {totalPeriodNet >= 0 ? 'Net Profit' : 'Net Loss'}
                   </span>
-                  <div className="h-8 w-8 rounded-xl bg-white/20 text-white flex items-center justify-center">
-                    <Coins className="h-4 w-4" />
+                  <div className="h-6 w-6 rounded-md bg-white/20 text-white flex items-center justify-center">
+                    <Coins className="h-3.5 w-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold font-mono tabular-nums">
+                <div className="text-base sm:text-lg lg:text-xl font-black font-mono tabular-nums truncate">
                   {formatBDT(totalPeriodNet)}
                 </div>
-                <div className="text-[11px] font-semibold text-white/90">
-                  Net Margin: {profitMarginPct}%
+                <div className="text-[10px] font-semibold text-white/90 truncate">
+                  Margin: {profitMarginPct}%
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/90 to-white dark:from-amber-950/30 dark:to-slate-900 p-5 shadow-2xs space-y-2">
+              <div className="rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/70 to-white dark:from-amber-950/20 dark:to-slate-900 p-2.5 sm:p-3 shadow-2xs space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                    Total Receivables (Due)
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                    Receivables (Due)
                   </span>
-                  <div className="h-8 w-8 rounded-xl bg-amber-600/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                    <Wallet className="h-4 w-4" />
+                  <div className="h-6 w-6 rounded-md bg-amber-600/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Wallet className="h-3.5 w-3.5" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold font-mono tabular-nums text-amber-700 dark:text-amber-400">
+                <div className="text-base sm:text-lg lg:text-xl font-black font-mono tabular-nums text-amber-700 dark:text-amber-400 truncate">
                   {formatBDT(totalPeriodDue)}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Uncollected customer balance
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                  Uncollected balances
                 </div>
               </div>
             </div>
 
             {/* 2. BUSINESS-WISE P&L CARDS GRID (COMPACT & SLEEK) */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
                   Business-Wise P&L Overview
@@ -4264,7 +4318,7 @@ export default function CentralAccountingAndInventoryView({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {businesses.map((biz) => {
                   const bEntries = periodJournals.filter((j) => j.businessId === biz.id);
                   const rev = bEntries
@@ -4282,11 +4336,13 @@ export default function CentralAccountingAndInventoryView({
                   const net = rev - exp;
                   const margin = rev > 0 ? ((net / rev) * 100).toFixed(0) : '0';
                   const expRatioPct = rev > 0 ? Math.min(100, Math.round((exp / rev) * 100)) : exp > 0 ? 100 : 0;
+                  const engName = toEnglishBusinessName(biz.name, biz.id);
+                  const engLoc = toEnglishLocation(biz.location);
 
                   return (
                     <div
                       key={biz.id}
-                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all relative overflow-visible flex flex-col justify-between p-3.5 space-y-2.5"
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all relative overflow-visible flex flex-col justify-between p-3 space-y-2"
                     >
                       <div
                         className={`h-1 w-full rounded-t-xl absolute top-0 left-0 right-0 ${
@@ -4298,10 +4354,10 @@ export default function CentralAccountingAndInventoryView({
                       <div className="flex items-start justify-between gap-2 pt-0.5">
                         <div className="min-w-0">
                           <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                            {biz.name}
+                            {engName}
                           </h3>
                           <div className="text-[10px] font-mono text-slate-400 truncate">
-                            {biz.code} · {biz.location}
+                            {biz.code} · {engLoc}
                           </div>
                         </div>
                         <span
@@ -4355,7 +4411,7 @@ export default function CentralAccountingAndInventoryView({
                             <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-xl p-3 shadow-2xl border border-emerald-500/30 text-left space-y-2">
                               <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                                 <span className="text-xs font-bold text-slate-100 truncate">
-                                  {biz.name}
+                                  {engName}
                                 </span>
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
@@ -4424,13 +4480,13 @@ export default function CentralAccountingAndInventoryView({
               </div>
             </div>
 
-            {/* 3. EXCEL-STYLE SECTOR BREAKDOWN TABLES (EXPENSE & REVENUE) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* 3. EXCEL-STYLE SECTOR BREAKDOWN TABLES (EXPENSE & REVENUE) - DESIGNATED SCROLL BOX */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Table A: Expense by Sector */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+                    <div className="h-6 w-6 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
                       <PieChart className="h-3.5 w-3.5" />
                     </div>
                     <div>
@@ -4442,20 +4498,20 @@ export default function CentralAccountingAndInventoryView({
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1 rounded-lg border border-rose-200/50 dark:border-rose-900/50">
+                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-lg border border-rose-200/50 dark:border-rose-900/50">
                     Total: {formatBDT(totalPeriodExp)}
                   </span>
                 </div>
 
-                {/* Excel Table Container with Scrollbar */}
-                <div className="max-h-64 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                {/* Designated Fixed Height Container with Custom Scrollbar */}
+                <div className="h-56 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 [scrollbar-width:thin] scrollbar-thin">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 select-none z-10">
                       <tr>
                         <th className="py-2 px-2.5 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
                         <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Sector / Category</th>
                         <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Business Unit</th>
-                        <th className="py-2 px-2.5 text-center border-r border-slate-200 dark:border-slate-700">Txns</th>
+                        <th className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-700">Txns</th>
                         <th className="py-2 px-2.5 text-right border-r border-slate-200 dark:border-slate-700">Share</th>
                         <th className="py-2 px-3 text-right">Amount (BDT)</th>
                       </tr>
@@ -4463,7 +4519,7 @@ export default function CentralAccountingAndInventoryView({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {expenseCategories.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                          <td colSpan={6} className="py-12 text-center text-xs text-slate-400">
                             No expense records found for this period.
                           </td>
                         </tr>
@@ -4484,10 +4540,10 @@ export default function CentralAccountingAndInventoryView({
                               <td className="py-1.5 px-3 font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800">
                                 {item.category}
                               </td>
-                              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 truncate max-w-[140px]">
+                              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 truncate max-w-[130px]">
                                 {item.businessName}
                               </td>
-                              <td className="py-1.5 px-2.5 text-center font-mono text-slate-500 border-r border-slate-100 dark:border-slate-800">
+                              <td className="py-1.5 px-2 text-center font-mono text-slate-500 border-r border-slate-100 dark:border-slate-800">
                                 {item.count}
                               </td>
                               <td className="py-1.5 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
@@ -4502,12 +4558,12 @@ export default function CentralAccountingAndInventoryView({
                       )}
                     </tbody>
                     {expenseCategories.length > 0 && (
-                      <tfoot className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/90 font-bold border-t border-slate-200 dark:border-slate-700 text-xs">
+                      <tfoot className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/95 font-bold border-t-2 border-slate-200 dark:border-slate-700 text-xs z-10">
                         <tr>
                           <td colSpan={3} className="py-2 px-3 text-slate-700 dark:text-slate-200">
                             Total ({expenseCategories.length} Categories)
                           </td>
-                          <td className="py-2 px-2.5 text-center font-mono text-slate-600 dark:text-slate-400">
+                          <td className="py-2 px-2 text-center font-mono text-slate-600 dark:text-slate-400">
                             {expenseCategories.reduce((s, c) => s + c.count, 0)}
                           </td>
                           <td className="py-2 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
@@ -4524,10 +4580,10 @@ export default function CentralAccountingAndInventoryView({
               </div>
 
               {/* Table B: Revenue by Sector */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                    <div className="h-6 w-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
                       <TrendingUp className="h-3.5 w-3.5" />
                     </div>
                     <div>
@@ -4539,20 +4595,20 @@ export default function CentralAccountingAndInventoryView({
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200/50 dark:border-emerald-900/50">
+                  <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-lg border border-emerald-200/50 dark:border-emerald-900/50">
                     Total: {formatBDT(totalPeriodRev)}
                   </span>
                 </div>
 
-                {/* Excel Table Container with Scrollbar */}
-                <div className="max-h-64 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                {/* Designated Fixed Height Container with Custom Scrollbar */}
+                <div className="h-56 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 [scrollbar-width:thin] scrollbar-thin">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 select-none z-10">
                       <tr>
                         <th className="py-2 px-2.5 w-10 text-center border-r border-slate-200 dark:border-slate-700">#</th>
                         <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Stream / Category</th>
                         <th className="py-2 px-3 border-r border-slate-200 dark:border-slate-700">Business Unit</th>
-                        <th className="py-2 px-2.5 text-center border-r border-slate-200 dark:border-slate-700">Txns</th>
+                        <th className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-700">Txns</th>
                         <th className="py-2 px-2.5 text-right border-r border-slate-200 dark:border-slate-700">Share</th>
                         <th className="py-2 px-3 text-right">Amount (BDT)</th>
                       </tr>
@@ -4560,7 +4616,7 @@ export default function CentralAccountingAndInventoryView({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {revenueCategories.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                          <td colSpan={6} className="py-12 text-center text-xs text-slate-400">
                             No revenue records found for this period.
                           </td>
                         </tr>
@@ -4581,10 +4637,10 @@ export default function CentralAccountingAndInventoryView({
                               <td className="py-1.5 px-3 font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800">
                                 {item.category}
                               </td>
-                              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 truncate max-w-[140px]">
+                              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800 truncate max-w-[130px]">
                                 {item.businessName}
                               </td>
-                              <td className="py-1.5 px-2.5 text-center font-mono text-slate-500 border-r border-slate-100 dark:border-slate-800">
+                              <td className="py-1.5 px-2 text-center font-mono text-slate-500 border-r border-slate-100 dark:border-slate-800">
                                 {item.count}
                               </td>
                               <td className="py-1.5 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-800">
@@ -4599,12 +4655,12 @@ export default function CentralAccountingAndInventoryView({
                       )}
                     </tbody>
                     {revenueCategories.length > 0 && (
-                      <tfoot className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/90 font-bold border-t border-slate-200 dark:border-slate-700 text-xs">
+                      <tfoot className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/95 font-bold border-t-2 border-slate-200 dark:border-slate-700 text-xs z-10">
                         <tr>
                           <td colSpan={3} className="py-2 px-3 text-slate-700 dark:text-slate-200">
                             Total ({revenueCategories.length} Streams)
                           </td>
-                          <td className="py-2 px-2.5 text-center font-mono text-slate-600 dark:text-slate-400">
+                          <td className="py-2 px-2 text-center font-mono text-slate-600 dark:text-slate-400">
                             {revenueCategories.reduce((s, c) => s + c.count, 0)}
                           </td>
                           <td className="py-2 px-2.5 text-right font-mono text-slate-600 dark:text-slate-400">
@@ -4621,31 +4677,31 @@ export default function CentralAccountingAndInventoryView({
               </div>
             </div>
 
-            {/* 4. 12-Month Financial Performance & Trends Table (Jan to Dec) */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
-              <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+            {/* 4. 12-Month Financial Performance & Trends Table (Jan to Dec) - DESIGNATED SCROLL BOX */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
                     12-Month Financial Performance & Trends ({activeMonthFilter.year === 'ALL' ? '2026' : activeMonthFilter.year})
                   </h2>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-[10px] text-slate-500">
                     Click any month row to filter the entire financial report by that month
                   </p>
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="h-60 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 [scrollbar-width:thin] scrollbar-thin">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 bg-slate-50/60 dark:bg-slate-800/40">
-                      <th className="py-3 px-4">Month</th>
-                      <th className="py-3 px-4 text-right">Revenue & Sales</th>
-                      <th className="py-3 px-4 text-right">OpEx / Farm Cost</th>
-                      <th className="py-3 px-4 text-right">Payroll</th>
-                      <th className="py-3 px-4 text-right">Receivables (Due)</th>
-                      <th className="py-3 px-4 text-right">Net Profit / Loss</th>
+                  <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 select-none z-10">
+                    <tr>
+                      <th className="py-2 px-3">Month</th>
+                      <th className="py-2 px-3 text-right">Revenue & Sales</th>
+                      <th className="py-2 px-3 text-right">OpEx / Farm Cost</th>
+                      <th className="py-2 px-3 text-right">Payroll</th>
+                      <th className="py-2 px-3 text-right">Receivables (Due)</th>
+                      <th className="py-2 px-3 text-right">Net Profit / Loss</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {MONTHS_12.map((m) => {
                       const targetYear = activeMonthFilter.year === 'ALL' ? '2026' : activeMonthFilter.year;
                       const mEntries = journalEntries.filter(
@@ -4675,23 +4731,23 @@ export default function CentralAccountingAndInventoryView({
                               : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                           }`}
                         >
-                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">
+                          <td className="py-2 px-3 font-bold text-slate-900 dark:text-slate-100">
                             {m.fullEn} ({m.shortEn} {targetYear})
                           </td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
+                          <td className="py-2 px-3 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
                             {formatBDT(rev)}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums">
+                          <td className="py-2 px-3 text-right font-mono tabular-nums">
                             {formatBDT(opExp)}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums">
+                          <td className="py-2 px-3 text-right font-mono tabular-nums">
                             {formatBDT(payExp)}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums text-amber-600">
+                          <td className="py-2 px-3 text-right font-mono tabular-nums text-amber-600">
                             {formatBDT(due)}
                           </td>
                           <td
-                            className={`py-3 px-4 text-right font-mono tabular-nums font-bold ${
+                            className={`py-2 px-3 text-right font-mono tabular-nums font-bold ${
                               net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                             }`}
                           >
