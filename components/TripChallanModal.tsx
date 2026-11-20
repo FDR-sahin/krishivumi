@@ -68,9 +68,9 @@ export default function TripChallanModal({
   onClose,
   trip,
   businessName = 'RegardsAgro Enterprise',
-  lang = 'bn',
+  lang = 'en',
 }: TripChallanModalProps) {
-  const bn = lang === 'bn';
+  const bn = false;
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !trip) return null;

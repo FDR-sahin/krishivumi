@@ -204,7 +204,7 @@ export default function AgroErpApp() {
 
   // Theme & Language
   const [darkMode, setDarkMode] = useState(false);
-  const [lang, setLang] = useState<'en' | 'bn'>('bn');
+  const [lang, setLang] = useState<'en' | 'bn'>('en');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showOnboardingGuide, setShowOnboardingGuide] = useState(false);

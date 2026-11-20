@@ -114,9 +114,9 @@ export default function TransportManagementModule({
   ownerId,
   actorEmail,
   onNotify,
-  lang = 'bn',
+  lang = 'en',
 }: TransportManagementModuleProps) {
-  const bn = lang === 'bn';
+  const bn = false;
 
   // 1. Navigation & Global State
   const [activeTab, setActiveTab] = useState<TransportTab>('dashboard');
@@ -319,7 +319,7 @@ export default function TransportManagementModule({
   }, [allVehicles, runningTrips, allDrivers, allTrips, selectedMonth, selectedYear]);
 
   // 6. Form State: + Add New Vehicle
-  const [newVehReg, setNewVehReg] = useState('ঢাকা মেট্রো-ট-১২-৩৪৫৬');
+  const [newVehReg, setNewVehReg] = useState('DHAKA-METRO-T-12-3456');
   const [newVehName, setNewVehName] = useState('Hino 500 Heavy Freight');
   const [newVehCode, setNewVehCode] = useState(`TRK-${Date.now().toString().slice(-4)}`);
   const [newVehBrand, setNewVehBrand] = useState('Hino');
@@ -337,15 +337,15 @@ export default function TransportManagementModule({
   const [newVehNextServiceKm, setNewVehNextServiceKm] = useState<number>(50000);
 
   // 7. Form State: + Add New Trip
-  const [tripTruckReg, setTripTruckReg] = useState(allVehicles[0]?.registrationNumber || 'ঢাকা মেট্রো-ট-১২-৩৪৫৬');
-  const [tripDriverName, setTripDriverName] = useState('আব্দুল করিম');
+  const [tripTruckReg, setTripTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
+  const [tripDriverName, setTripDriverName] = useState('Abdul Karim');
   const [tripHelperName, setTripHelperName] = useState('');
-  const [tripStartLoc, setTripStartLoc] = useState('ঢাকা');
-  const [tripDestLoc, setTripDestLoc] = useState('চট্টগ্রাম');
-  const [tripLoadLoc, setTripLoadLoc] = useState('তেজগাঁও সেন্ট্রাল ডিপো');
-  const [tripDeliverLoc, setTripDeliverLoc] = useState('আগ্রাবাদ পাইকারি আড়ত');
-  const [tripCustomer, setTripCustomer] = useState('চট্টগ্রাম এগ্রো ডিলার্স');
-  const [tripCargo, setTripCargo] = useState('খামারের মুরগি ও পশুখাদ্য পরিবহন');
+  const [tripStartLoc, setTripStartLoc] = useState('Dhaka');
+  const [tripDestLoc, setTripDestLoc] = useState('Chittagong');
+  const [tripLoadLoc, setTripLoadLoc] = useState('Tejgaon Central Depot');
+  const [tripDeliverLoc, setTripDeliverLoc] = useState('Agrabad Wholesale Yard');
+  const [tripCustomer, setTripCustomer] = useState('Chittagong Agro Traders');
+  const [tripCargo, setTripCargo] = useState('Farm feed and livestock freight');
   const [tripStartDate, setTripStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [tripExpectedReturn, setTripExpectedReturn] = useState(new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]);
   const [tripStartKm, setTripStartKm] = useState<number>(45000);
@@ -367,27 +367,27 @@ export default function TransportManagementModule({
   const calculatedNetIncome = Number(tripFare || 0) - (calculatedTripExpense + Number(tripCommission || 0));
 
   // 8. Form State: + Log Fuel
-  const [fuelTruckReg, setFuelTruckReg] = useState(allVehicles[0]?.registrationNumber || 'ঢাকা মেট্রো-ট-১২-৩৪৫৬');
-  const [fuelDriver, setFuelDriver] = useState('আব্দুল করিম');
+  const [fuelTruckReg, setFuelTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
+  const [fuelDriver, setFuelDriver] = useState('Abdul Karim');
   const [fuelDate, setFuelDate] = useState(new Date().toISOString().split('T')[0]);
-  const [fuelPump, setFuelPump] = useState('মেঘনা পেট্রোলিয়াম ফিলিং স্টেশন');
+  const [fuelPump, setFuelPump] = useState('Meghna Petroleum Filling Station');
   const [fuelType, setFuelType] = useState('Diesel');
   const [fuelLitres, setFuelLitres] = useState<number>(70);
   const [fuelRate, setFuelRate] = useState<number>(108);
   const [fuelOdometer, setFuelOdometer] = useState<number>(45150);
   const [fuelWalletId, setFuelWalletId] = useState(treasuryWallets[0]?.id || '');
-  const [fuelRemarks, setFuelRemarks] = useState('ঢাকা-চট্টগ্রাম ট্রিপের জন্য পূর্ণ ট্যাঙ্ক ডিজেল');
+  const [fuelRemarks, setFuelRemarks] = useState('Full tank diesel for Dhaka-Chittagong trip');
   const [fuelImageUrl, setFuelImageUrl] = useState('');
   const calculatedFuelTotal = Number(fuelLitres || 0) * Number(fuelRate || 0);
 
   // 9. Form State: + Service & Maintenance
-  const [srvTruckReg, setSrvTruckReg] = useState(allVehicles[0]?.registrationNumber || 'ঢাকা মেট্রো-ট-১২-৩৪৫৬');
+  const [srvTruckReg, setSrvTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
   const [srvDate, setSrvDate] = useState(new Date().toISOString().split('T')[0]);
   const [srvOdometer, setSrvOdometer] = useState<number>(45200);
-  const [srvGarage, setSrvGarage] = useState('ভাই ভাই অটোমোবাইলস, তেজগাঁও');
-  const [srvMechanic, setSrvMechanic] = useState('উস্তাদ জহিরুল ইসলাম');
-  const [srvProblem, setSrvProblem] = useState('ব্রেক প্যাড ক্ষয় ও ইঞ্জিন অয়েল পরিবর্তন');
-  const [srvParts, setSrvParts] = useState('১৫W-৪০ ইঞ্জিন অয়েল, অয়েল ফিল্টার, ফ্রন্ট ব্রেক শু');
+  const [srvGarage, setSrvGarage] = useState('Bhai Bhai Automobiles, Tejgaon');
+  const [srvMechanic, setSrvMechanic] = useState('Ustad Zahirul Islam');
+  const [srvProblem, setSrvProblem] = useState('Brake pad wear and engine oil change');
+  const [srvParts, setSrvParts] = useState('15W-40 Engine oil, oil filter, front brake shoes');
   const [srvPartsCost, setSrvPartsCost] = useState<number>(5500);
   const [srvLabourCost, setSrvLabourCost] = useState<number>(1500);
   const [srvOtherCost, setSrvOtherCost] = useState<number>(500);
@@ -398,12 +398,12 @@ export default function TransportManagementModule({
   const calculatedServiceTotal = Number(srvPartsCost || 0) + Number(srvLabourCost || 0) + Number(srvOtherCost || 0);
 
   // 10. Form State: + Driver Payment (Salary / Advance / Allowance)
-  const [drvPayName, setDrvPayName] = useState(allDrivers[0]?.name || 'আব্দুল করিম');
+  const [drvPayName, setDrvPayName] = useState(allDrivers[0]?.name || 'Abdul Karim');
   const [drvPayType, setDrvPayType] = useState<'salary' | 'advance' | 'allowance'>('salary');
   const [drvPayAmount, setDrvPayAmount] = useState<number>(18000);
   const [drvPayDate, setDrvPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [drvPayWalletId, setDrvPayWalletId] = useState(treasuryWallets[0]?.id || '');
-  const [drvPayNote, setDrvPayNote] = useState('মাসিক বেতন পরিশোধ');
+  const [drvPayNote, setDrvPayNote] = useState('Monthly salary settlement');
 
   // 11. Customer Payment State
   const [custPayAmount, setCustPayAmount] = useState<number>(0);

@@ -154,17 +154,16 @@ export default function SpecializedModulesView({
   onChangeMonthFilter,
   currentUser,
   currentUserPhoto,
-  lang = 'bn',
+  lang = 'en',
 }: SpecializedModulesViewProps) {
-  const bn = lang === 'bn';
+  const tpl = activeBusiness.templateType;
+  const bn = tpl === 'transport' ? false : lang === 'bn';
   const [localMonthFilter, setLocalMonthFilter] = useState<MonthFilterValue>({
     year: 'ALL',
     month: 'ALL',
   });
   const activeMonthFilter = controlledMonthFilter ?? localMonthFilter;
   const setMonthFilter = onChangeMonthFilter ?? setLocalMonthFilter;
-
-  const tpl = activeBusiness.templateType;
 
   const bizBatches = poultryBatches.filter(
     (b) =>
@@ -306,7 +305,7 @@ export default function SpecializedModulesView({
       (u.assignedBusinesses === 'ALL' || u.assignedBusinesses?.includes(activeBusiness.id))
   );
   const currentManagerName =
-    activeBusiness.managerName || assignedManagerUser?.displayName || 'Md. Sahin Miah (মালিক)';
+    activeBusiness.managerName || assignedManagerUser?.displayName || (bn ? 'Md. Sahin Miah (মালিক)' : 'Md. Sahin Miah (Owner)');
   const currentManagerPhone =
     activeBusiness.contactPhone || assignedManagerUser?.phone || '+880 1711-000000';
 
@@ -810,7 +809,7 @@ export default function SpecializedModulesView({
               {bn ? 'মূল ড্যাশবোর্ডে ফিরে যান' : 'Back to Dashboard'}
             </button>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 pt-1">
-              {activeBusiness.nameBn ? `${activeBusiness.nameBn} — ${activeBusiness.name}` : activeBusiness.name}
+              {bn && activeBusiness.nameBn ? `${activeBusiness.nameBn} — ${activeBusiness.name}` : activeBusiness.name}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {bn
@@ -2124,43 +2123,42 @@ export default function SpecializedModulesView({
       )}
 
       {/* THIS BUSINESS'S RECENT TRANSACTIONS LEDGER (Always visible so client sees their sales/expenses right here!) */}
-      <div id="business-ledger-section" className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+      <div id="business-ledger-section" className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 bg-slate-50/70 dark:bg-slate-800/40">
           <div className="flex items-center gap-2.5">
             <Factory className="h-5 w-5 text-emerald-600" />
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {bn ? `${activeBusiness.nameBn || activeBusiness.name} — সকল কেনা-বেচা ও খরচের খতিয়ান (Business Ledger)` : `${activeBusiness.name} — Transaction & Audit Ledger`}
+                {activeBusiness.name} — Transaction & Business Ledger
               </h2>
-              <p className="text-xs text-slate-500">
-                {bn ? 'এই ব্যবসায় যত বিক্রি ও খরচ লেখা হয়েছে তার সম্পূর্ণ তালিকা' : 'Complete journal of sales, procurement and operational expenditures for this unit'}
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Complete journal of sales, procurement and operational expenditures for this business unit
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono text-slate-500">
-            মোট {bizJournals.length} টি লেনদেন
+          <span className="text-xs font-mono font-semibold text-slate-500 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+            Total {bizJournals.length} Transactions
           </span>
         </div>
 
         {bizJournals.length === 0 ? (
           <div className="p-8 text-center space-y-3">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              এই ব্যবসায় এখনো কোনো বিক্রি বা খরচ লেখা হয়নি। উপরের{' '}
-              <strong>&ldquo;+ বিক্রি / আয় লিখুন&rdquo;</strong> বাটনে ক্লিক করে প্রথম হিসাব লিখুন!
+              No transactions or operational expenses recorded for this business yet.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[45vh] overflow-y-auto overflow-x-auto divide-y divide-slate-200 dark:divide-slate-800">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">{bn ? 'ভাউচার ও তারিখ' : 'Voucher & Date'}</th>
-                  <th className="py-3 px-4">{bn ? 'এন্ট্রি দাতা (Actor)' : 'Officer / Actor'}</th>
-                  <th className="py-3 px-4">{bn ? 'ধরন (আয় / খরচ)' : 'Type'}</th>
-                  <th className="py-3 px-4">{bn ? 'বিবরণ ও ক্রেতা/সাপ্লায়ার' : 'Description & Party'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'টাকার পরিমাণ (BDT)' : 'Amount (BDT)'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'বাকি (Due)' : 'Due'}</th>
-                  <th className="py-3 px-4 text-center">{bn ? 'অ্যাকশন' : 'Action'}</th>
+              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 shadow-xs">
+                <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold">
+                  <th className="py-3 px-4">Voucher & Date</th>
+                  <th className="py-3 px-4">Officer / Actor</th>
+                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Description & Party</th>
+                  <th className="py-3 px-4 text-right">Amount (BDT)</th>
+                  <th className="py-3 px-4 text-right">Due (BDT)</th>
+                  <th className="py-3 px-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -2192,7 +2190,7 @@ export default function SpecializedModulesView({
                               nidNumber: matchedUser?.nidNumber || '',
                               designation: actorPost,
                               role: j.actorRole || matchedUser?.role || 'super_admin',
-                              businessName: activeBusiness.nameBn || activeBusiness.name,
+                              businessName: activeBusiness.name,
                               photoUrl: actorPhoto,
                               address: matchedUser?.address || activeBusiness.location,
                               status: 'active',
@@ -2230,7 +2228,7 @@ export default function SpecializedModulesView({
                               : 'text-amber-600 dark:text-amber-400'
                           }`}
                         >
-                          {isSale ? 'বিক্রি / আয় (Income)' : 'খরচ (Expense)'}
+                          {isSale ? 'Income / Sale' : 'Operating Expense'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -2238,7 +2236,7 @@ export default function SpecializedModulesView({
                           {j.category}
                         </div>
                         <div className="text-slate-500">
-                          {j.description} · {bn ? 'পার্টি: ' : 'Party: '}{j.counterpartyName}
+                          {j.description} {j.counterpartyName ? `· Party: ${j.counterpartyName}` : ''}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold tabular-nums text-slate-900 dark:text-slate-100">
@@ -2247,10 +2245,10 @@ export default function SpecializedModulesView({
                       <td className="py-3 px-4 text-right font-mono tabular-nums">
                         {j.dueAmount > 0 ? (
                           <span className="text-red-600 font-semibold">
-                            {bn ? 'বাকি: ' : 'Due: '}{formatBDT(j.dueAmount)}
+                            Due: {formatBDT(j.dueAmount)}
                           </span>
                         ) : (
-                          <span className="text-emerald-600">{bn ? "পরিশোধিত" : "Paid"}</span>
+                          <span className="text-emerald-600 font-semibold">Paid</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -2258,18 +2256,16 @@ export default function SpecializedModulesView({
                           type="button"
                           onClick={() => {
                             triggerConfirmDelete({
-                              title: bn ? 'ভাউচার ডিলিট নিশ্চিতকরণ' : 'Delete Transaction Voucher',
-                              message: bn
-                                ? `আপনি কি নিশ্চিতভাবে "${j.referenceNo}" নম্বরের লেনদেনটি ডিলিট করতে চান?`
-                                : `Are you sure you want to delete voucher "${j.referenceNo}"?`,
+                              title: 'Delete Transaction Voucher',
+                              message: `Are you sure you want to permanently delete voucher "${j.referenceNo}"?`,
                               itemName: `${j.referenceNo} - ${formatBDT(j.amount)} (${j.category})`,
                               onConfirm: async () => {
                                 await deleteJournalEntry(j.id);
                               },
                             });
                           }}
-                          className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                          title={bn ? 'লেনদেন ডিলিট করুন' : 'Delete Entry'}
+                          className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                          title="Delete Entry"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
