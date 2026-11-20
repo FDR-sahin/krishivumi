@@ -2106,120 +2106,17 @@ export default function SpecializedModulesView({
 
       {/* E. TRUCK & TRANSPORT WORKSPACE */}
       {tpl === 'transport' && (
-        <div className="space-y-6">
-          <TransportManagementModule
-            activeBusiness={activeBusiness}
-            ops={bizTransport}
-            journalEntries={bizJournals}
-            accounts={accounts}
-            auditLogs={auditLogs}
-            ownerId={ownerId}
-            actorEmail={actorEmail}
-            onNotify={notify}
-            lang={lang}
-          />
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
-            <div className="flex items-center gap-2.5">
-              <Truck className="h-5 w-5 text-emerald-600" />
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {bn ? 'ট্রাক ও পরিবহন ট্রিপের হিসাব এবং কাগজপত্রের মেয়াদ (Fleet & Trip Profit/Loss)' : 'Fleet Transport Trips & BRTA Documentation'}
-              </h2>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">{bn ? 'ট্রিপ আইডি ও গাড়ির নাম্বার' : 'Trip ID & Vehicle Reg'}</th>
-                  <th className="py-3 px-4">{bn ? 'রুট (কোথা থেকে কোথায়) ও মাল' : 'Route & Cargo Details'}</th>
-                  <th className="py-3 px-4">{bn ? 'ফিটনেস ও ট্যাক্স টোকেনের মেয়াদ' : 'Fitness & Tax Token Expiry'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'মোট খরচ (ডিজেল+টোল+ড্রাইভার)' : 'Total Cost (Fuel+Toll+Driver)'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'ট্রিপের ভাড়া (Revenue)' : 'Freight Revenue'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'ট্রিপে নিট লাভ' : 'Net Trip Profit'}</th>
-                  <th className="py-3 px-4 text-center">{bn ? 'অ্যাকশন (চালান)' : 'Action (Challan)'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
-                {bizTransport.map((trp) => {
-                  const totalTripCost =
-                    trp.fuelCost + trp.tollCost + trp.driverAllowance + trp.maintenanceCost;
-                  const tripProfit = trp.tripRevenue - totalTripCost;
-                  return (
-                    <tr key={trp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                          {trp.tripOrVehicleCode}
-                        </div>
-                        <div className="font-semibold text-emerald-700 dark:text-emerald-400">
-                          {trp.registrationNumber}
-                        </div>
-                        <div className="text-slate-500">{bn ? 'ড্রাইভার: ' : 'Driver: '}{trp.driverName}</div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">
-                          {trp.origin} → {trp.destination} ({trp.distanceKm} কি.মি.)
-                        </div>
-                        <div className="text-slate-500">{trp.cargoDetails}</div>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-[11px]">
-                        <div>{bn ? 'ফিটনেস মেয়াদ: ' : 'Fitness Expiry: '}{trp.fitnessExpiry}</div>
-                        <div>{bn ? 'ট্যাক্স টোকেন: ' : 'Tax Token: '}{trp.taxTokenExpiry}</div>
-                        <div className="text-amber-600 dark:text-amber-400">
-                          {bn ? 'পরবর্তী সার্ভিসিং: ' : 'Next Servicing: '}{trp.nextServiceDate}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">
-                          {formatBDT(totalTripCost)}
-                        </div>
-                        <div className="text-slate-500">
-                          {bn ? 'ডিজেল: ' : 'Diesel: '}{formatBDT(trp.fuelCost)} · {bn ? 'টোল: ' : 'Toll: '}{formatBDT(trp.tollCost)}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">
-                          {formatBDT(trp.tripRevenue)}
-                        </div>
-                        {trp.outstandingDue > 0 ? (
-                          <div className="text-amber-600 dark:text-amber-400">
-                            {bn ? 'বাকি আছে: ' : 'Due: '}{formatBDT(trp.outstandingDue)}
-                          </div>
-                        ) : (
-                          <div className="text-emerald-600 dark:text-emerald-400">{bn ? "নগদ পরিশোধিত" : "Paid in Full"}</div>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono tabular-nums">
-                        <div
-                          className={`font-bold text-sm ${
-                            tripProfit >= 0
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}
-                        >
-                          {formatBDT(tripProfit)}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTripChallan(trp)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-700 text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap"
-                          title={bn ? 'চালান ও কাজের অর্ডার রিপোর্ট দেখুন' : 'View Work Order & Challan'}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>{bn ? 'ভিউ চালান' : 'View Challan'}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          </div>
-        </div>
+        <TransportManagementModule
+          activeBusiness={activeBusiness}
+          ops={bizTransport}
+          journalEntries={bizJournals}
+          accounts={accounts}
+          auditLogs={auditLogs}
+          ownerId={ownerId}
+          actorEmail={actorEmail}
+          onNotify={notify}
+          lang={lang}
+        />
       )}
 
       {/* THIS BUSINESS'S RECENT TRANSACTIONS LEDGER (Always visible so client sees their sales/expenses right here!) */}

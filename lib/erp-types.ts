@@ -280,22 +280,28 @@ export interface ErpTransportOp {
   driverName: string;
   origin: string;
   destination: string;
+  route?: string;
   cargoDetails: string;
   customerName: string;
   distanceKm: number;
   fuelCost: number;
   tollCost: number;
   driverAllowance: number;
+  driverMonthlySalary?: number;
+  commission?: number;
+  tripExpense?: number;
   maintenanceCost: number;
   maintenanceDetails: string;
   tripRevenue: number;
   outstandingDue: number;
+  netIncome?: number;
   insuranceExpiry: string;
   fitnessExpiry: string;
   taxTokenExpiry: string;
   nextServiceDate: string;
   date: string;
   status: 'active' | 'completed' | 'maintenance';
+  imageUrl?: string;
   ownerId: string;
 }
 
