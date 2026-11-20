@@ -996,8 +996,10 @@ export default function SpecializedModulesView({
             </button>
           </div>
 
-          {/* FLOATING HOVER CARD ABOVE BUSINESS NET PROFIT */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-auto z-50">
+          {/* FLOATING HOVER CARD BELOW BUSINESS NET PROFIT */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform -translate-y-2 group-hover/profit:translate-y-0 pointer-events-auto z-50">
+            {/* Center upward pointer */}
+            <div className="w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-slate-900/95 dark:border-b-slate-950/95 mx-auto -mb-0.5" />
             <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 space-y-3 ring-1 ring-white/10">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div className="flex items-center gap-1.5">
@@ -1072,8 +1074,6 @@ export default function SpecializedModulesView({
                 <span className="text-emerald-400 font-semibold">{bn ? 'লাইভ হিসাব' : 'Live'}</span>
               </div>
             </div>
-            {/* Center downward pointer */}
-            <div className="w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-slate-900 dark:border-t-slate-950 mx-auto -mt-0.5" />
           </div>
         </div>
 

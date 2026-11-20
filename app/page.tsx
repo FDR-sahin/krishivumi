@@ -1884,8 +1884,10 @@ export default function AgroErpApp() {
                     </span>
                   </div>
 
-                  {/* FLOATING HOVER CARD ABOVE EXECUTIVE NET PROFIT */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform translate-y-2 group-hover/profit:translate-y-0 pointer-events-none z-50">
+                  {/* FLOATING HOVER CARD BELOW EXECUTIVE NET PROFIT */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-72 sm:w-80 opacity-0 invisible group-hover/profit:opacity-100 group-hover/profit:visible transition-all duration-200 transform -translate-y-2 group-hover/profit:translate-y-0 pointer-events-none z-50">
+                    {/* Center upward pointer */}
+                    <div className="w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-slate-900/95 dark:border-b-slate-950/95 mx-auto -mb-0.5" />
                     <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 space-y-3 ring-1 ring-white/10">
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <div className="flex items-center gap-1.5">
@@ -1934,8 +1936,6 @@ export default function AgroErpApp() {
                         <span className="text-emerald-400 font-semibold">100% Reconciled</span>
                       </div>
                     </div>
-                    {/* Center downward pointer */}
-                    <div className="w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-slate-900 dark:border-t-slate-950 mx-auto -mt-0.5" />
                   </div>
                 </div>
 
@@ -2223,149 +2223,7 @@ export default function AgroErpApp() {
                 </div>
               </section>
 
-              {/* Executive Command Quick Actions Strip */}
-              <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-4 sm:p-5 shadow-xs backdrop-blur-md">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-                      EXECUTIVE QUICK ACTIONS
-                    </span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Record instantaneous income/expense entries or check financial health
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuickBizId(businesses[0]?.id || '');
-                        setQuickCategory('Farm & Product Sales');
-                        setDashboardQuickTxModal('sale');
-                      }}
-                      className="group inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-sm shadow-emerald-600/25 active:scale-98 whitespace-nowrap cursor-pointer"
-                    >
-                      <Plus className="h-3.5 w-3.5 transition-transform group-hover:rotate-90 duration-200" />
-                      <span>+ Record Sale</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuickBizId(businesses[0]?.id || '');
-                        setQuickCategory('Feed, Medicine & Operating Cost');
-                        setDashboardQuickTxModal('expense');
-                      }}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all active:scale-98 whitespace-nowrap cursor-pointer"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>+ Record Expense</span>
-                    </button>
-
-                    {userRole === 'super_admin' && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddBusinessWizard(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-98 whitespace-nowrap cursor-pointer"
-                      >
-                        <Building2 className="h-3.5 w-3.5 text-emerald-400" />
-                        <span>New Division</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveNav('reports')}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all active:scale-98 whitespace-nowrap cursor-pointer"
-                    >
-                      <FileBarChart className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>P&L Reports</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 2: OPERATIONAL TREASURY & WORKFORCE TELEMETRY */}
-              <section className="space-y-3 pt-1">
-                <div>
-                  <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Operational Treasury & Workforce Telemetry
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    {
-                      label: 'Office & Farm Cash Vault',
-                      value:
-                        userRole === 'employee'
-                          ? 'Restricted'
-                          : formatBDT(kpiTotals.cashBalance),
-                      sub: 'Daily petty cash in hand',
-                      Icon: Banknote,
-                      tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-                      bar: 'bg-emerald-500',
-                    },
-                    {
-                      label: 'Corporate Bank Balance',
-                      value:
-                        userRole === 'employee'
-                          ? 'Restricted'
-                          : formatBDT(kpiTotals.bankBalance),
-                      sub: 'Corporate bank accounts',
-                      Icon: Landmark,
-                      tone: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
-                      bar: 'bg-indigo-500',
-                    },
-                    {
-                      label: 'Active Workforce',
-                      value: `${kpiTotals.totalEmployees} Staff`,
-                      sub: 'Managers, vets & farm crew',
-                      Icon: Users,
-                      tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-                      bar: 'bg-violet-500',
-                    },
-                    {
-                      label: 'Receivables (Due)',
-                      value: formatBDT(kpiTotals.outstandingReceivables),
-                      sub: 'Pending buyer settlements',
-                      Icon: Clock,
-                      tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                      bar: 'bg-amber-500',
-                      valueColor: 'text-amber-600 dark:text-amber-400',
-                    },
-                  ].map((kpi) => (
-                    <div
-                      key={kpi.label}
-                      className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/90 p-4 shadow-xs hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
-                    >
-                      <div className={`absolute top-0 left-0 right-0 h-1 ${kpi.bar || 'bg-emerald-500'}`} />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                          {kpi.label}
-                        </span>
-                        <div
-                          className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${kpi.tone}`}
-                        >
-                          <kpi.Icon className="h-4 w-4" />
-                        </div>
-                      </div>
-                      <div
-                        className={`mt-2.5 text-lg sm:text-xl font-black font-mono tabular-nums ${
-                          kpi.valueColor || 'text-slate-900 dark:text-white'
-                        }`}
-                      >
-                        {kpi.value}
-                      </div>
-                      <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        {kpi.sub}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* SECTION 3: EXECUTIVE ANALYTICS CHARTS - COMPACT HEIGHT */}
+              {/* SECTION: EXECUTIVE ANALYTICS CHARTS - COMPACT HEIGHT */}
               <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
                   <div className="flex items-start justify-between gap-3">
