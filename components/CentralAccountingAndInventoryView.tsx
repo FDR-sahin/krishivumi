@@ -450,20 +450,20 @@ export default function CentralAccountingAndInventoryView({
 
   const findSupervisor = (user: ErpUser): { name: string; roleStr: string } => {
     if (user.role === 'super_admin') {
-      return { name: 'প্রধান স্বত্বাধিকারী', roleStr: 'সর্বোচ্চ কর্তৃপক্ষ' };
+      return { name: 'Principal Owner', roleStr: 'Top Authority' };
     }
     if (user.role === 'super_manager') {
       const admin = erpUsers.find((u) => u.role === 'super_admin');
       return {
-        name: admin?.displayName || 'সুপার অ্যাডমিন',
-        roleStr: 'মালিক (Super Admin)',
+        name: admin?.displayName || 'Super Admin',
+        roleStr: 'Super Admin (Owner)',
       };
     }
     if (user.role === 'business_manager') {
       const gm = erpUsers.find((u) => u.role === 'super_manager');
-      if (gm) return { name: gm.displayName, roleStr: 'প্রধান ম্যানেজার (COO)' };
+      if (gm) return { name: gm.displayName, roleStr: 'General Manager (COO)' };
       const admin = erpUsers.find((u) => u.role === 'super_admin');
-      return { name: admin?.displayName || 'সুপার অ্যাডমিন', roleStr: 'মালিক' };
+      return { name: admin?.displayName || 'Super Admin', roleStr: 'Owner' };
     }
     // Employee
     if (user.appointedBy) {
@@ -478,10 +478,10 @@ export default function CentralAccountingAndInventoryView({
           name: app.displayName,
           roleStr:
             app.role === 'super_manager'
-              ? 'প্রধান জেনারেল ম্যানেজার'
+              ? 'General Manager'
               : app.role === 'business_manager'
-              ? 'বিজনেস ইনচার্জ'
-              : 'মালিক',
+              ? 'Unit Incharge'
+              : 'Owner',
         };
       }
     }
@@ -490,21 +490,24 @@ export default function CentralAccountingAndInventoryView({
       const bm = erpUsers.find(
         (u) => u.role === 'business_manager' && (u.assignedBusinesses || '').includes(uBiz)
       );
-      if (bm) return { name: bm.displayName, roleStr: 'বিজনেস ইনচার্জ' };
+      if (bm) return { name: bm.displayName, roleStr: 'Unit Incharge' };
     }
     const gm = erpUsers.find((u) => u.role === 'super_manager');
-    if (gm) return { name: gm.displayName, roleStr: 'প্রধান ম্যানেজার' };
-    return { name: 'সুপার অ্যাডমিন', roleStr: 'মালিক' };
+    if (gm) return { name: gm.displayName, roleStr: 'General Manager' };
+    return { name: 'Super Admin', roleStr: 'Owner' };
   };
 
-  const matchesLoginPeriod = (lastLoginAt?: string): boolean => {
+  const matchesLoginPeriod = (lastLoginAt?: string | number): boolean => {
     if (secLoginYear === 'ALL' && secLoginMonth === 'ALL') return true;
     if (!lastLoginAt) return false;
     try {
-      const d = new Date(lastLoginAt);
-      if (isNaN(d.getTime())) return false;
-      const y = d.getFullYear().toString();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const parsedDate =
+        typeof lastLoginAt === 'number' || (!isNaN(Number(lastLoginAt)) && !String(lastLoginAt).includes('-'))
+          ? new Date(Number(lastLoginAt))
+          : new Date(lastLoginAt);
+      if (isNaN(parsedDate.getTime())) return false;
+      const y = parsedDate.getFullYear().toString();
+      const m = String(parsedDate.getMonth() + 1).padStart(2, '0');
       if (secLoginYear !== 'ALL' && y !== secLoginYear) return false;
       if (secLoginMonth !== 'ALL' && m !== secLoginMonth) return false;
       return true;
@@ -540,52 +543,58 @@ export default function CentralAccountingAndInventoryView({
       }
     }
 
-    if (secOnlyActiveInPeriod) {
+    // Direct filter when year/month is selected, or when active toggle is checked
+    if (secLoginYear !== 'ALL' || secLoginMonth !== 'ALL' || secOnlyActiveInPeriod) {
       if (!matchesLoginPeriod(u.lastLoginAt)) return false;
     }
 
     return true;
   });
 
-  const formatLoginTime = (iso?: string) => {
+  const formatLoginTime = (iso?: string | number) => {
     if (!iso) {
       return {
-        text: 'কখনো লগইন করেননি',
-        subText: 'নিষ্ক্রিয়',
+        text: 'Never logged in',
+        subText: 'Inactive',
         isRecent: false,
         color: 'text-slate-400 dark:text-slate-500',
       };
     }
     try {
-      const d = new Date(iso);
+      const d =
+        typeof iso === 'number' || (!isNaN(Number(iso)) && !String(iso).includes('-'))
+          ? new Date(Number(iso))
+          : new Date(iso);
       if (isNaN(d.getTime())) {
-        return { text: 'অজ্ঞাত', subText: '', isRecent: false, color: 'text-slate-400' };
+        return { text: 'Unknown', subText: '', isRecent: false, color: 'text-slate-400' };
       }
       const now = new Date();
       const diffMs = now.getTime() - d.getTime();
       const diffHours = diffMs / (1000 * 60 * 60);
-      const dateStr = d.toLocaleDateString('bn-BD', {
+      const dateStr = d.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
-      const timeStr = d.toLocaleTimeString('bn-BD', {
+      const timeStr = d.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
+        hour12: true,
       });
 
-      if (diffHours < 24 && d.getDate() === now.getDate()) {
+      if (diffHours >= 0 && diffHours < 24 && d.getDate() === now.getDate()) {
+        const hoursAgo = Math.max(1, Math.floor(diffHours));
         return {
-          text: `আজকে ${timeStr}`,
-          subText: `${Math.max(1, Math.floor(diffHours))} ঘণ্টা আগে`,
+          text: `Today at ${timeStr}`,
+          subText: `${hoursAgo} ${hoursAgo === 1 ? 'hour' : 'hours'} ago`,
           isRecent: true,
           color: 'text-emerald-700 dark:text-emerald-400 font-bold',
         };
       }
-      if (diffHours < 48) {
+      if (diffHours >= 0 && diffHours < 48) {
         return {
-          text: `গতকাল ${timeStr}`,
-          subText: 'গতকাল সক্রিয়',
+          text: `Yesterday at ${timeStr}`,
+          subText: 'Active yesterday',
           isRecent: true,
           color: 'text-blue-700 dark:text-blue-400 font-bold',
         };
@@ -597,7 +606,7 @@ export default function CentralAccountingAndInventoryView({
         color: 'text-slate-700 dark:text-slate-300 font-medium',
       };
     } catch {
-      return { text: 'অজ্ঞাত', subText: '', isRecent: false, color: 'text-slate-400' };
+      return { text: 'Unknown', subText: '', isRecent: false, color: 'text-slate-400' };
     }
   };
 
@@ -806,15 +815,15 @@ export default function CentralAccountingAndInventoryView({
   const handleSaveUserAndPermissions = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usrName.trim() || !usrEmail.trim()) {
-      setErrorMsg('অনুগ্রহ করে ইউজারের নাম এবং ইমেইল ঠিকানা লিখুন।');
+      setErrorMsg('Please enter user name and email address.');
       return;
     }
     if (!editingUser && usrPassword.trim().length < 6) {
-      setErrorMsg('নতুন কর্মচারী/ম্যানেজারের লগইনের জন্য কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন।');
+      setErrorMsg('Please provide a password of at least 6 characters.');
       return;
     }
     if (editingUser && usrPassword.trim().length > 0 && usrPassword.trim().length < 6) {
-      setErrorMsg('নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');
+      setErrorMsg('New password must be at least 6 characters.');
       return;
     }
     setIsSavingUser(true);
@@ -842,7 +851,7 @@ export default function CentralAccountingAndInventoryView({
           },
           actorEmail
         );
-        showNotice(`"${usrName}"-এর রোল ও পারমিশন সফলভাবে আপডেট করা হয়েছে!`);
+        showNotice(`Role and access permissions for "${usrName}" updated successfully!`);
       } else {
         await createErpUserAccount(
           {
@@ -858,11 +867,11 @@ export default function CentralAccountingAndInventoryView({
           ownerId,
           actorEmail
         );
-        showNotice(`নতুন ইউজার "${usrName}" (${usrEmail}) সফলভাবে তৈরি ও পারমিশন সেট করা হয়েছে!`);
+        showNotice(`New user "${usrName}" (${usrEmail}) created and permissions assigned successfully!`);
       }
       setShowUserModal(false);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'ইউজার সেভ করতে সমস্যা হয়েছে।');
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save user account.');
     } finally {
       setIsSavingUser(false);
     }
@@ -4690,13 +4699,13 @@ export default function CentralAccountingAndInventoryView({
                   </div>
                   <div>
                     <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <span>ম্যানেজার ও ইউজার দল ব্যবস্থাপনা</span>
+                      <span>User & Access Management</span>
                       <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold">
-                        মোট {erpUsers.length} জন
+                        Total {erpUsers.length} Users
                       </span>
                     </h1>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      রোল-বেসড এক্সেস কন্ট্রোল, ম্যানেজার-কর্মী টিম ও অডিট হিস্টোরি
+                      Role-based access control, manager hierarchy, and audit trails
                     </p>
                   </div>
                 </div>
@@ -4706,7 +4715,7 @@ export default function CentralAccountingAndInventoryView({
                 {/* Live Role Simulator */}
                 <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
                   <Eye className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 hidden sm:inline">ভিউ টেস্ট:</span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 hidden sm:inline">Role Preview:</span>
                   <select
                     value={userRole}
                     onChange={(e) => {
@@ -4720,10 +4729,10 @@ export default function CentralAccountingAndInventoryView({
                     }}
                     className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
                   >
-                    <option value="super_admin">👑 Super Admin (মালিক)</option>
-                    <option value="super_manager">🎖️ Super Manager (প্রধান জেনারেল ম্যানেজার)</option>
-                    <option value="business_manager">🏢 Business Manager (খামার ইনচার্জ)</option>
-                    <option value="employee">👷 Employee (মাঠকর্মী)</option>
+                    <option value="super_admin">👑 Super Admin (Owner)</option>
+                    <option value="super_manager">🎖️ Super Manager (General Manager - COO)</option>
+                    <option value="business_manager">🏢 Business Manager (Unit Incharge)</option>
+                    <option value="employee">👷 Employee (Field Staff)</option>
                   </select>
                   {userRole !== 'super_admin' && (
                     <button
@@ -4731,7 +4740,7 @@ export default function CentralAccountingAndInventoryView({
                       onClick={() => onChangeRoleSimulation('super_admin', 'ALL')}
                       className="text-[10px] font-bold text-emerald-600 hover:underline ml-1 cursor-pointer"
                     >
-                      রিসেট
+                      Reset
                     </button>
                   )}
                 </div>
@@ -4742,7 +4751,7 @@ export default function CentralAccountingAndInventoryView({
                   className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40 px-3.5 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors cursor-pointer"
                 >
                   <FileBarChart className="h-3.5 w-3.5" />
-                  <span>কার্যবিবরণী রিপোর্ট</span>
+                  <span>Executive Report</span>
                 </button>
 
                 <button
@@ -4751,7 +4760,7 @@ export default function CentralAccountingAndInventoryView({
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>+ নতুন ইউজার তৈরি করুন</span>
+                  <span>+ Add New User</span>
                 </button>
 
                 {erpUsers.length <= 1 && (
@@ -4762,7 +4771,7 @@ export default function CentralAccountingAndInventoryView({
                     className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>টিম ডেমো তৈরি করুন</span>
+                    <span>Generate Demo Team</span>
                   </button>
                 )}
               </div>
@@ -4776,9 +4785,9 @@ export default function CentralAccountingAndInventoryView({
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-emerald-600" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span>ইউজার ও অ্যাক্সেস তালিকা</span>
+                  <span>User Accounts & Access Matrix</span>
                   <span className="text-xs font-normal text-slate-500">
-                    ({filteredSecUsers.length} / {erpUsers.length} জন)
+                    ({filteredSecUsers.length} of {erpUsers.length} users)
                   </span>
                 </h2>
               </div>
@@ -4786,18 +4795,18 @@ export default function CentralAccountingAndInventoryView({
               {/* Role Filter Tabs */}
               <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
                 {[
-                  { id: 'all' as const, label: `সবাই (${erpUsers.length})` },
+                  { id: 'all' as const, label: `All (${erpUsers.length})` },
                   {
                     id: 'super_manager' as const,
-                    label: `🎖️ প্রধান ম্যানেজার (${erpUsers.filter((u) => u.role === 'super_manager').length})`,
+                    label: `🎖️ General Managers (${erpUsers.filter((u) => u.role === 'super_manager').length})`,
                   },
                   {
                     id: 'business_manager' as const,
-                    label: `🏢 বিজনেস ম্যানেজারগণ (${erpUsers.filter((u) => u.role === 'business_manager').length})`,
+                    label: `🏢 Unit Managers (${erpUsers.filter((u) => u.role === 'business_manager').length})`,
                   },
                   {
                     id: 'employee' as const,
-                    label: `👷 কর্মী দল (${erpUsers.filter((u) => u.role === 'employee').length})`,
+                    label: `👷 Field Staff (${erpUsers.filter((u) => u.role === 'employee').length})`,
                   },
                 ].map((tab) => (
                   <button
@@ -4826,7 +4835,7 @@ export default function CentralAccountingAndInventoryView({
                     type="text"
                     value={secUserSearch}
                     onChange={(e) => setSecUserSearch(e.target.value)}
-                    placeholder="নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
+                    placeholder="Search by name, email or phone..."
                     className="w-full pl-8 pr-7 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-emerald-500"
                   />
                   {secUserSearch && (
@@ -4847,20 +4856,20 @@ export default function CentralAccountingAndInventoryView({
                     value={secManagerFilter}
                     onChange={(e) => setSecManagerFilter(e.target.value)}
                     className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 max-w-[220px]"
-                    title="ম্যানেজার অনুযায়ী তাদের অধীনস্থ টিম দেখুন"
+                    title="Filter by Manager and their team members"
                   >
-                    <option value="ALL">সকল ম্যানেজার ও কর্মী</option>
+                    <option value="ALL">All Managers & Teams</option>
                     {secManagers.map((mgr) => {
                       const staff = getStaffForManager(mgr);
                       const roleLabel =
                         mgr.role === 'super_admin'
-                          ? '👑 মালিক'
+                          ? '👑 Owner'
                           : mgr.role === 'super_manager'
-                          ? '🎖️ প্রধান ম্যানেজার'
-                          : '🏢 ইনচার্জ';
+                          ? '🎖️ GM'
+                          : '🏢 Manager';
                       return (
                         <option key={mgr.id} value={mgr.id}>
-                          {roleLabel}: {mgr.displayName} ({staff.length} জন কর্মী)
+                          {roleLabel}: {mgr.displayName} ({staff.length} staff)
                         </option>
                       );
                     })}
@@ -4875,10 +4884,10 @@ export default function CentralAccountingAndInventoryView({
                     onChange={(e) => setSecLoginYear(e.target.value)}
                     className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
                   >
-                    <option value="ALL">বছর: সব</option>
-                    <option value="2027">২০২৭</option>
-                    <option value="2026">২০২৬</option>
-                    <option value="2025">২০২৫</option>
+                    <option value="ALL">Year: All</option>
+                    <option value="2027">2027</option>
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
                   </select>
 
                   <span className="text-slate-300 dark:text-slate-600">|</span>
@@ -4888,10 +4897,10 @@ export default function CentralAccountingAndInventoryView({
                     onChange={(e) => setSecLoginMonth(e.target.value)}
                     className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
                   >
-                    <option value="ALL">মাস: সব</option>
+                    <option value="ALL">Month: All</option>
                     {MONTHS_12.map((m) => (
                       <option key={m.code} value={m.code}>
-                        {m.fullBn}
+                        {m.fullEn}
                       </option>
                     ))}
                   </select>
@@ -4906,16 +4915,16 @@ export default function CentralAccountingAndInventoryView({
                       ? 'bg-emerald-600 text-white shadow-xs'
                       : 'border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100'
                   }`}
-                  title="নির্বাচিত মাস/বছরে লগইনকারী ইউজারদের ফিল্টার করুন"
+                  title="Filter users who were active during selected period"
                 >
                   <UserCheck className="h-3.5 w-3.5" />
                   <span>
                     {secLoginYear === 'ALL' && secLoginMonth === 'ALL'
-                      ? `লগইনকারী: ${usersLoggedInPeriodCount} জন`
-                      : `এই সময়ে লগইন: ${usersLoggedInPeriodCount} জন`}
+                      ? `Logged In: ${usersLoggedInPeriodCount} Users`
+                      : `Active in Period: ${usersLoggedInPeriodCount} Users`}
                   </span>
                   {secOnlyActiveInPeriod && (
-                    <span className="text-[10px] bg-white/30 px-1 rounded">ফিল্টার চালু</span>
+                    <span className="text-[10px] bg-white/30 px-1 rounded">Filter On</span>
                   )}
                 </button>
 
@@ -4939,7 +4948,7 @@ export default function CentralAccountingAndInventoryView({
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-red-600 px-2 py-1 rounded cursor-pointer"
                   >
                     <RotateCcw className="h-3 w-3" />
-                    <span>ফিল্টার রিসেট</span>
+                    <span>Reset Filters</span>
                   </button>
                 )}
               </div>
@@ -4951,13 +4960,13 @@ export default function CentralAccountingAndInventoryView({
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span>
-                    নির্বাচিত ম্যানেজার: <strong>{selectedManagerObj.displayName}</strong> (
+                    Selected Manager: <strong>{selectedManagerObj.displayName}</strong> (
                     {selectedManagerObj.role === 'super_admin'
-                      ? 'মালিক'
+                      ? 'Owner'
                       : selectedManagerObj.role === 'super_manager'
-                      ? 'প্রধান জেনারেল ম্যানেজার'
-                      : 'খামার ইনচার্জ'}
-                    ) — অধীনে মোট কর্মী: <strong>{selectedManagerStaff.length}</strong> জন
+                      ? 'General Manager'
+                      : 'Unit Manager'}
+                    ) — Direct Team: <strong>{selectedManagerStaff.length}</strong> Members
                   </span>
                 </div>
                 <button
@@ -4965,7 +4974,7 @@ export default function CentralAccountingAndInventoryView({
                   onClick={() => setSecManagerFilter('ALL')}
                   className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
                 >
-                  ফিল্টার বন্ধ করুন
+                  Clear Filter
                 </button>
               </div>
             )}
@@ -4975,14 +4984,14 @@ export default function CentralAccountingAndInventoryView({
               <table className="w-full text-left border-collapse text-xs">
                 <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/95 backdrop-blur-xs z-10 shadow-2xs">
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
-                    <th className="py-3 px-4 font-bold">ইউজারের নাম ও ইমেইল (User)</th>
-                    <th className="py-3 px-4 font-bold">রোল / পদবি (Role)</th>
-                    <th className="py-3 px-4 font-bold">তত্ত্বাবধায়ক / অধীনস্থ দল (Team)</th>
-                    <th className="py-3 px-4 font-bold">অনুমোদিত ব্যবসা (Assigned)</th>
-                    <th className="py-3 px-4 font-bold">কাজের পারমিশন (Permissions)</th>
-                    <th className="py-3 px-4 font-bold">সর্বশেষ লগইন (Last Login)</th>
-                    <th className="py-3 px-4 font-bold">স্ট্যাটাস</th>
-                    <th className="py-3 px-4 text-right font-bold">অ্যাকশন</th>
+                    <th className="py-3 px-4 font-bold">User & Email</th>
+                    <th className="py-3 px-4 font-bold">Role / Position</th>
+                    <th className="py-3 px-4 font-bold">Supervisor / Team</th>
+                    <th className="py-3 px-4 font-bold">Assigned Businesses</th>
+                    <th className="py-3 px-4 font-bold">Granular Permissions</th>
+                    <th className="py-3 px-4 font-bold">Last Login</th>
+                    <th className="py-3 px-4 font-bold">Status</th>
+                    <th className="py-3 px-4 text-right font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -4990,8 +4999,8 @@ export default function CentralAccountingAndInventoryView({
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-slate-500">
                         <Users className="h-8 w-8 mx-auto text-slate-400 mb-2 opacity-50" />
-                        <div className="font-semibold text-slate-700 dark:text-slate-300">কোনো ইউজার পাওয়া যায়নি</div>
-                        <div className="text-xs text-slate-400 mt-1">অনুসন্ধান বা ফিল্টারের শর্ত পরিবর্তন করে পুনরায় দেখুন</div>
+                        <div className="font-semibold text-slate-700 dark:text-slate-300">No users found</div>
+                        <div className="text-xs text-slate-400 mt-1">Try adjusting your search query, manager selection, or date filters</div>
                       </td>
                     </tr>
                   ) : (
@@ -5036,7 +5045,7 @@ export default function CentralAccountingAndInventoryView({
                                   role: u.role,
                                   businessName:
                                     u.assignedBusinesses === 'ALL'
-                                      ? 'সকল ব্যবসা (All)'
+                                      ? 'All Businesses (All)'
                                       : u.assignedBusinesses,
                                   photoUrl: uPhoto,
                                   address: u.address || 'Dhaka, Bangladesh',
@@ -5096,7 +5105,7 @@ export default function CentralAccountingAndInventoryView({
                             {u.role === 'super_admin' ? (
                               <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-semibold text-[11px]">
                                 <Award className="h-3 w-3 text-emerald-600 shrink-0" />
-                                <span>সকল {erpUsers.length - 1} জনের প্রধান</span>
+                                <span>Head of all {erpUsers.length - 1} members</span>
                               </div>
                             ) : u.role === 'super_manager' ? (
                               (() => {
@@ -5105,9 +5114,9 @@ export default function CentralAccountingAndInventoryView({
                                   <div className="space-y-0.5">
                                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-300 font-semibold text-[11px]">
                                       <Users className="h-3 w-3 text-purple-600 shrink-0" />
-                                      <span>তদারকি: {staff.length} জন কর্মী</span>
+                                      <span>Oversees: {staff.length} staff</span>
                                     </div>
-                                    <div className="text-[10px] text-slate-500">রিপোর্ট দেন: মালিক</div>
+                                    <div className="text-[10px] text-slate-500">Reports to: Owner</div>
                                   </div>
                                 );
                               })()
@@ -5118,9 +5127,9 @@ export default function CentralAccountingAndInventoryView({
                                   <div className="space-y-0.5">
                                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 font-semibold text-[11px]">
                                       <Users className="h-3 w-3 text-blue-600 shrink-0" />
-                                      <span>অধীনস্থ কর্মী: {staff.length} জন</span>
+                                      <span>Team: {staff.length} staff</span>
                                     </div>
-                                    <div className="text-[10px] text-slate-500">তত্ত্বাবধায়ক: {sup.name}</div>
+                                    <div className="text-[10px] text-slate-500">Supervisor: {sup.name}</div>
                                   </div>
                                 );
                               })()
@@ -5139,7 +5148,7 @@ export default function CentralAccountingAndInventoryView({
                             <div className="flex flex-wrap gap-1 max-w-xs">
                               {assignedIds.includes('ALL') ? (
                                 <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold text-[11px]">
-                                  সব ব্যবসা (All)
+                                  All Businesses (All)
                                 </span>
                               ) : (
                                 assignedIds.map((bid) => {
@@ -5151,7 +5160,7 @@ export default function CentralAccountingAndInventoryView({
                                       key={bid}
                                       className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium text-[11px]"
                                     >
-                                      {bObj ? bObj.nameBn || bObj.name : bid}
+                                      {bObj ? (bObj.name || bObj.nameBn) : bid}
                                     </span>
                                   );
                                 })
@@ -5244,10 +5253,10 @@ export default function CentralAccountingAndInventoryView({
                                 type="button"
                                 onClick={() => openEditUserModal(u)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 font-semibold cursor-pointer"
-                                title="পারমিশন ও ব্যবসা পরিবর্তন করুন"
+                                title="Edit user permissions & assigned businesses"
                               >
                                 <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
-                                <span>এডিট</span>
+                                <span>Edit</span>
                               </button>
 
                               <button
@@ -5258,14 +5267,14 @@ export default function CentralAccountingAndInventoryView({
                                     u.role === 'super_admin' ? 'ALL' : firstBizId
                                   );
                                   showNotice(
-                                    `এখন "${u.displayName}" (${u.role})-এর ভিউ সিমুলেট করা হচ্ছে!`
+                                    `Simulating view for "${u.displayName}" (${u.role})`
                                   );
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold hover:bg-emerald-100 cursor-pointer"
-                                title="এই ইউজার লগইন করলে কেমন দেখবে তা পরীক্ষা করুন"
+                                title="Preview ERP interface as this user"
                               >
                                 <Eye className="h-3.5 w-3.5" />
-                                <span>ভিউ</span>
+                                <span>View</span>
                               </button>
 
                               {u.role !== 'super_admin' && u.id !== ownerId && (
@@ -5283,29 +5292,27 @@ export default function CentralAccountingAndInventoryView({
                                     }
                                     className="px-2 py-1.5 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-50 cursor-pointer"
                                   >
-                                    {u.status === 'active' ? 'স্থগিত' : 'সক্রিয়'}
+                                    {u.status === 'active' ? 'Suspend' : 'Activate'}
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => {
                                       triggerConfirmDelete({
-                                        title: bn ? 'ইউজার অ্যাকাউন্ট মুছে ফেলা নিশ্চিতকরণ' : 'Confirm Delete User',
-                                        message: bn
-                                          ? `আপনি কি নিশ্চিতভাবে "${u.displayName}"-এর অ্যাকাউন্ট মুছে ফেলতে চান?`
-                                          : `Are you sure you want to delete user account "${u.displayName}"?`,
+                                        title: 'Confirm User Account Deletion',
+                                        message: `Are you sure you want to permanently delete user account "${u.displayName}"?`,
                                         itemName: `${u.displayName} (${u.email})`,
                                         onConfirm: async () => {
                                           await deleteErpUserAccount(u, actorEmail);
                                           triggerGlobalToast(
-                                            bn ? `ইউজার "${u.displayName}" মুছে ফেলা হয়েছে!` : `User "${u.displayName}" deleted!`,
+                                            `User "${u.displayName}" deleted successfully!`,
                                             'delete'
                                           );
                                         },
                                       });
                                     }}
                                     className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
-                                    title="ইউজার মুছে ফেলুন"
+                                    title="Delete user"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
@@ -5328,14 +5335,14 @@ export default function CentralAccountingAndInventoryView({
               <div className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-emerald-600" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span>নিরাপত্তা ও কাজের অডিট লগ</span>
+                  <span>Security & Operational Audit Logs</span>
                   <span className="text-xs font-normal text-slate-500">
-                    ({auditLogs.length} টি ইভেন্ট)
+                    ({auditLogs.length} Events)
                   </span>
                 </h2>
               </div>
               <div className="text-[11px] text-slate-500 font-mono">
-                স্থায়ী অডিট ট্রেইল • সর্বোচ্চ ৪৫vh স্ক্রোল
+                Immutable Audit Trail • Max 45vh Scroll
               </div>
             </div>
 
@@ -5345,8 +5352,8 @@ export default function CentralAccountingAndInventoryView({
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                     <th className="py-3 px-4 font-bold">Action</th>
                     <th className="py-3 px-4 font-bold">Module</th>
-                    <th className="py-3 px-4 font-bold">কর্মকর্তা / ব্যবহারকারী (Actor)</th>
-                    <th className="py-3 px-4 font-bold">বিবরণ (Details)</th>
+                    <th className="py-3 px-4 font-bold">Actor / User</th>
+                    <th className="py-3 px-4 font-bold">Details</th>
                     <th className="py-3 px-4 text-right font-bold">Severity</th>
                   </tr>
                 </thead>
@@ -5354,7 +5361,7 @@ export default function CentralAccountingAndInventoryView({
                   {auditLogs.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-slate-500">
-                        কোনো অডিট লগ রেকর্ড পাওয়া যায়নি।
+                        No audit log records found.
                       </td>
                     </tr>
                   ) : (
@@ -5447,12 +5454,12 @@ export default function CentralAccountingAndInventoryView({
                       <UserPlus className="h-5 w-5 text-emerald-600" />
                       <span>
                         {editingUser
-                          ? `ইউজারের পারমিশন আপডেট করুন: ${editingUser.displayName}`
-                          : 'নতুন ইউজার তৈরি ও ব্যবসার পারমিশন অ্যাসাইন করুন (Create User & Assign Permissions)'}
+                          ? `Update User Permissions: ${editingUser.displayName}`
+                          : 'Create New User & Assign Permissions'}
                       </span>
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ইউজারের নাম, ইমেইল, রোল এবং কোন কোন ব্যবসা ও কাজের অ্যাক্সেস পাবে তা নিচে নির্ধারণ করুন
+                      Configure user credentials, role, business scope, and granular permissions below
                     </p>
                   </div>
                   <button
@@ -5469,21 +5476,21 @@ export default function CentralAccountingAndInventoryView({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
-                        ইউজারের পূর্ণ নাম ও পদবি (Full Name) *
+                        Full Name & Title *
                       </label>
                       <input
                         type="text"
                         required
                         value={usrName}
                         onChange={(e) => setUsrName(e.target.value)}
-                        placeholder="যেমন: মোঃ রফিকুল ইসলাম (পোল্ট্রি ম্যানেজার)"
+                        placeholder="e.g. Md. Rafiqul Islam (Poultry Incharge)"
                         className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                       />
                     </div>
 
                     <div>
                       <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
-                        লগইন ইমেইল ঠিকানা (Email) *
+                        Login Email Address *
                       </label>
                       <input
                         type="email"
@@ -5491,7 +5498,7 @@ export default function CentralAccountingAndInventoryView({
                         disabled={Boolean(editingUser)}
                         value={usrEmail}
                         onChange={(e) => setUsrEmail(e.target.value)}
-                        placeholder="যেমন: manager@krishivumi.bd"
+                        placeholder="e.g. manager@krishivumi.com"
                         className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono disabled:opacity-60"
                       />
                     </div>
@@ -5499,8 +5506,8 @@ export default function CentralAccountingAndInventoryView({
                     <div>
                       <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
                         {editingUser
-                          ? 'নতুন পাসওয়ার্ড (পরিবর্তন করতে চাইলে)'
-                          : 'লগইন পাসওয়ার্ড (Password) *'}
+                          ? 'New Password (leave blank to keep unchanged)'
+                          : 'Login Password *'}
                       </label>
                       <input
                         type="password"
@@ -5508,7 +5515,7 @@ export default function CentralAccountingAndInventoryView({
                         minLength={editingUser ? 0 : 6}
                         value={usrPassword}
                         onChange={(e) => setUsrPassword(e.target.value)}
-                        placeholder={editingUser ? 'অপরিবর্তিত রাখতে খালি রাখুন' : 'কমপক্ষে ৬ অক্ষর'}
+                        placeholder={editingUser ? 'Leave blank to keep unchanged' : 'At least 6 characters'}
                         className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono"
                       />
                     </div>
@@ -5517,7 +5524,7 @@ export default function CentralAccountingAndInventoryView({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
-                        রোল / অ্যাক্সেস লেভেল (Role Tier) *
+                        Role / Access Tier *
                       </label>
                       <select
                         value={usrRole}
@@ -5526,19 +5533,19 @@ export default function CentralAccountingAndInventoryView({
                         className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-semibold disabled:opacity-60"
                       >
                         {editingUser?.role === 'super_admin' && (
-                          <option value="super_admin">👑 Super Admin (একমাত্র মালিক)</option>
+                          <option value="super_admin">👑 Super Admin (Sole Owner)</option>
                         )}
                         {userRole === 'super_admin' && (
-                          <option value="super_manager">🎖️ Super Manager (প্রধান জেনারেল ম্যানেজার - COO)</option>
+                          <option value="super_manager">🎖️ Super Manager (General Manager - COO)</option>
                         )}
-                        <option value="business_manager">🏢 Business Manager (খামার ইনচার্জ / ইউনিট ম্যানেজার)</option>
-                        <option value="employee">👷 Employee / Staff (খামার কর্মী / ডাটা এন্ট্রি)</option>
+                        <option value="business_manager">🏢 Business Manager (Unit Incharge)</option>
+                        <option value="employee">👷 Employee / Staff (Data Entry & Operations)</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block mb-1 font-bold text-slate-800 dark:text-slate-200">
-                        অ্যাকাউন্ট স্ট্যাটাস (Account Status)
+                        Account Status
                       </label>
                       <select
                         value={usrStatus}
@@ -5547,9 +5554,9 @@ export default function CentralAccountingAndInventoryView({
                         }
                         className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                       >
-                        <option value="active">Active (সক্রিয়)</option>
-                        <option value="invited">Invited (আমন্ত্রিত)</option>
-                        <option value="suspended">Suspended (সাময়িক স্থগিত)</option>
+                        <option value="active">Active</option>
+                        <option value="invited">Invited</option>
+                        <option value="suspended">Suspended</option>
                       </select>
                     </div>
 
@@ -5561,7 +5568,7 @@ export default function CentralAccountingAndInventoryView({
                           onChange={(e) => setUsrMfa(e.target.checked)}
                           className="h-4 w-4 rounded accent-emerald-600"
                         />
-                        <span>টু-ফ্যাক্টর সিকিউরিটি (2FA Verified)</span>
+                        <span>Two-Factor Authentication (2FA Verified)</span>
                       </label>
                     </div>
                   </div>
@@ -5570,7 +5577,7 @@ export default function CentralAccountingAndInventoryView({
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="font-bold text-slate-900 dark:text-slate-100">
-                        ১. কোন কোন ব্যবসার অ্যাক্সেস পাবে? (Assign Businesses to This User)
+                        1. Assign Businesses to This User
                       </div>
                       <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-emerald-700 dark:text-emerald-400">
                         <input
@@ -5580,7 +5587,7 @@ export default function CentralAccountingAndInventoryView({
                           onChange={(e) => setUsrAssignAllBiz(e.target.checked)}
                           className="h-4 w-4 rounded accent-emerald-600"
                         />
-                        <span>সবগুলো ব্যবসার অ্যাক্সেস দিন (Access All Businesses)</span>
+                        <span>Access All Businesses</span>
                       </label>
                     </div>
 
@@ -5604,7 +5611,7 @@ export default function CentralAccountingAndInventoryView({
                                 className="h-4 w-4 rounded accent-emerald-600"
                               />
                               <div className="truncate">
-                                <div className="truncate">{biz.nameBn || biz.name}</div>
+                                <div className="truncate">{biz.name || biz.nameBn}</div>
                                 <div className="text-[10px] text-slate-400 font-mono">
                                   {biz.code}
                                 </div>
@@ -5619,57 +5626,57 @@ export default function CentralAccountingAndInventoryView({
                   {/* Step 3: Granular Action & Financial Permissions */}
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
                     <div className="font-bold text-slate-900 dark:text-slate-100">
-                      ২. কাজের ও হিসাবের পারমিশন কন্ট্রোল (Granular Action & Financial Permissions)
+                      2. Granular Action & Financial Permissions
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                       {[
                         {
                           key: 'canView' as const,
-                          label: 'ডাটা ও রিপোর্ট দেখা (View Data)',
+                          label: 'View Data (canView)',
                         },
                         {
                           key: 'canCreate' as const,
-                          label: 'নতুন তথ্য/এন্ট্রি যোগ করা (Create Entry)',
+                          label: 'Create Records (canCreate)',
                         },
                         {
                           key: 'canEdit' as const,
-                          label: 'তথ্য সংশোধন করা (Edit Records)',
+                          label: 'Edit Records (canEdit)',
                         },
                         {
                           key: 'canDeleteRecords' as const,
-                          label: 'রেকর্ড ডিলিট করা (Delete Records)',
+                          label: 'Delete Records (canDeleteRecords)',
                         },
                         {
                           key: 'canApprove' as const,
-                          label: 'ভাউচার/স্টক অনুমোদন (Approve)',
+                          label: 'Approve Vouchers/Stock (canApprove)',
                         },
                         {
                           key: 'canExportPrint' as const,
-                          label: 'রিপোর্ট ডাউনলোড ও প্রিন্ট (Export & Print)',
+                          label: 'Export & Print Reports (canExportPrint)',
                         },
                         {
                           key: 'canViewConsolidatedProfit' as const,
-                          label: 'লাভ-ক্ষতি ও ব্যালেন্স শিট দেখা (View Profit)',
+                          label: 'View Profit & Balance Sheet (canViewConsolidatedProfit)',
                         },
                         {
                           key: 'canPostAccounting' as const,
-                          label: 'ভাউচার ও ক্যাশ/ব্যাংক এন্ট্রি (Post Accounting)',
+                          label: 'Post Vouchers & Accounting (canPostAccounting)',
                         },
                         {
                           key: 'canReverseTransactions' as const,
-                          label: 'পোস্ট করা ভাউচার রিভার্স (Reverse Voucher)',
+                          label: 'Reverse Posted Vouchers (canReverseTransactions)',
                         },
                         {
                           key: 'canManageInventory' as const,
-                          label: 'গোডাউন ও স্টক কন্ট্রোল (Manage Stock)',
+                          label: 'Manage Warehouse & Stock (canManageInventory)',
                         },
                         {
                           key: 'canCreateBusiness' as const,
-                          label: 'নতুন ব্যবসা খোলা (Create Business)',
+                          label: 'Create Businesses (canCreateBusiness)',
                         },
                         {
                           key: 'canManageUsers' as const,
-                          label: 'অন্য ইউজার ও পারমিশন নিয়ন্ত্রণ (Manage Users)',
+                          label: 'Manage Users & Access (canManageUsers)',
                         },
                       ].map((item) => (
                         <label
@@ -5698,7 +5705,7 @@ export default function CentralAccountingAndInventoryView({
                   {/* Step 4: Allowed ERP Modules */}
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-3">
                     <div className="font-bold text-slate-900 dark:text-slate-100">
-                      ৩. কোন কোন মডিউল ব্যবহার করতে পারবে? (Allowed ERP Modules)
+                      3. Allowed ERP Modules
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                       {ALL_ERP_MODULE_OPTIONS.map((mod) => {
@@ -5727,20 +5734,20 @@ export default function CentralAccountingAndInventoryView({
                     <button
                       type="button"
                       onClick={() => setShowUserModal(false)}
-                      className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
+                      className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
                     >
-                      বাতিল (Cancel)
+                      Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSavingUser}
-                      className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50"
+                      className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
                     >
                       {isSavingUser
-                        ? 'সেভ হচ্ছে...'
+                        ? 'Saving...'
                         : editingUser
-                        ? 'পারমিশন আপডেট করুন (Update Access)'
-                        : 'ইউজার ও পারমিশন সেভ করুন (Save User)'}
+                        ? 'Update Access'
+                        : 'Save User'}
                     </button>
                   </div>
                 </form>
