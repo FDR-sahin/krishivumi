@@ -619,11 +619,11 @@ export default function SpecializedModulesView({
           labourAndUtilityCost: Number(pLabourCost),
           otherExpense: 5000,
           totalSoldKg: Math.round(Number(pInitQty) * 1.6),
-          gradeBreakdown: 'বড় সাইজ: ৭০% | মাঝারি: ২৫% | ছোট: ৫%',
+          gradeBreakdown: 'Large: 70% | Medium: 25% | Small: 5%',
           pricePerKg: 170,
           totalSalesRevenue: Number(pSalesRev),
           outstandingDue: 0,
-          vaccineScheduleNotes: '৫ম দিন: রানীক্ষেত, ১২তম দিন: গামবোরো টিকা সম্পন্ন',
+          vaccineScheduleNotes: 'Day 5: ND (Ranikhet), Day 12: Gumboro completed',
           status: 'active',
         },
         ownerId,
@@ -703,7 +703,7 @@ export default function SpecializedModulesView({
           feedCost: Number(fFeedCost),
           medicineAndLimeCost: 15000,
           labourCost: 30000,
-          harvestDate: 'চলমান (Active)',
+          harvestDate: 'Active',
           harvestWeightKg: 2800,
           totalSalesRevenue: Number(fSalesRev),
           status: 'active',
@@ -712,7 +712,7 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setShowAddModal(false);
-      notify(`নতুন পুকুরের মাছ চাষ চক্র (${fPondName}) যুক্ত হয়েছে!`);
+      notify(bn ? `নতুন পুকুরের মাছ চাষ চক্র (${fPondName}) যুক্ত হয়েছে!` : `New fish pond cycle (${fPondName}) added!`);
     } catch (err) {
       console.error(err);
       triggerGlobalToast(String(err), 'error');
@@ -735,14 +735,14 @@ export default function SpecializedModulesView({
           driverName: tDriver,
           origin: tOrigin,
           destination: tDest,
-          cargoDetails: 'কৃষি ও খামার পণ্য পরিবহন',
-          customerName: 'পাইকারি আড়তদার',
+          cargoDetails: 'Agro and farm supplies transport',
+          customerName: 'Wholesale Depot / Merchant',
           distanceKm: Number(tDistance),
           fuelCost: Number(tFuel),
           tollCost: Number(tToll),
           driverAllowance: Number(tAllowance),
           maintenanceCost: 1000,
-          maintenanceDetails: 'ইঞ্জিন অয়েল ও ব্রেক চেকআপ',
+          maintenanceDetails: 'Engine oil & brake inspection',
           tripRevenue: Number(tRev),
           outstandingDue: 0,
           insuranceExpiry: '2027-09-30',
@@ -813,16 +813,16 @@ export default function SpecializedModulesView({
               onClick={() => {
                 setQCategory(
                   tpl === 'poultry'
-                    ? 'মুরগি ও ডিম বিক্রি'
+                    ? (bn ? 'মুরগি ও ডিম বিক্রি' : 'Poultry & Egg Sales')
                     : tpl === 'cattle'
-                    ? 'দুধ ও গরু বিক্রি'
+                    ? (bn ? 'দুধ ও গরু বিক্রি' : 'Milk & Cattle Sales')
                     : tpl === 'goat'
-                    ? 'ছাগল বিক্রি'
+                    ? (bn ? 'ছাগল বিক্রি' : 'Goat Sales')
                     : tpl === 'fish'
-                    ? 'মাছ বিক্রি'
+                    ? (bn ? 'মাছ বিক্রি' : 'Fish Sales')
                     : tpl === 'transport'
-                    ? 'ট্রাক ভাড়া আয়'
-                    : 'পণ্য বিক্রি (Sales)'
+                    ? (bn ? 'ট্রাক ভাড়া আয়' : 'Truck Freight Revenue')
+                    : (bn ? 'পণ্য বিক্রি (Sales)' : 'Product Sales')
                 );
                 setShowQuickTxModal('sale');
               }}
@@ -837,16 +837,16 @@ export default function SpecializedModulesView({
               onClick={() => {
                 setQCategory(
                   tpl === 'poultry'
-                    ? 'মুরগির খাবার ও ওষুধ খরচ'
+                    ? (bn ? 'মুরগির খাবার ও ওষুধ খরচ' : 'Poultry Feed & Medicine Expense')
                     : tpl === 'cattle'
-                    ? 'গরুর খাবার ও ডাক্তার খরচ'
+                    ? (bn ? 'গরুর খাবার ও ডাক্তার খরচ' : 'Cattle Feed & Vet Expense')
                     : tpl === 'goat'
-                    ? 'ছাগলের খাবার ও পরিচর্যা খরচ'
+                    ? (bn ? 'ছাগলের খাবার ও পরিচর্যা খরচ' : 'Goat Feed & Care Expense')
                     : tpl === 'fish'
-                    ? 'মাছের খাবার ও পুকুর খরচ'
+                    ? (bn ? 'মাছের খাবার ও পুকুর খরচ' : 'Fish Feed & Pond Maintenance')
                     : tpl === 'transport'
-                    ? 'ডিজেল, টোল ও মেরামত খরচ'
-                    : 'ব্যবসায়িক খরচ (Expense)'
+                    ? (bn ? 'ডিজেল, টোল ও মেরামত খরচ' : 'Diesel Fuel, Toll & Maintenance')
+                    : (bn ? 'ব্যবসায়িক খরচ (Expense)' : 'Operating Expense')
                 );
                 setShowQuickTxModal('expense');
               }}
@@ -1004,7 +1004,7 @@ export default function SpecializedModulesView({
                 >
                   {bizRevenue > 0
                     ? `${bizNetProfit >= 0 ? '+' : ''}${((bizNetProfit / bizRevenue) * 100).toFixed(1)}% ${bn ? 'মার্জিন' : 'Margin'}`
-                    : '০% মার্জিন'}
+                    : (bn ? '০% মার্জিন' : '0% Margin')}
                 </span>
               </div>
 
@@ -1142,9 +1142,9 @@ export default function SpecializedModulesView({
                 name: currentManagerName,
                 phone: currentManagerPhone,
                 nidNumber: assignedManagerUser?.nidNumber || '',
-                designation: assignedManagerUser?.designation || `${activeBusiness.nameBn || activeBusiness.name} ইন-চার্জ ম্যানেজার`,
+                designation: assignedManagerUser?.designation || `${activeBusiness.name} Branch Manager`,
                 role: 'business_manager',
-                businessName: activeBusiness.nameBn || activeBusiness.name,
+                businessName: activeBusiness.name,
                 businessId: activeBusiness.id,
                 photoUrl: assignedManagerUser?.photoUrl || '',
                 email: assignedManagerUser?.email || `${activeBusiness.code.toLowerCase()}@regardsagro.bd`,
@@ -1319,7 +1319,7 @@ export default function SpecializedModulesView({
                     <td className="py-3.5 px-4">
                       <div className="inline-flex items-center gap-1.5 font-mono text-[11px] text-slate-700 dark:text-slate-300 font-semibold">
                         <Calendar className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>{stf.joiningDate || stf.appointedAt?.split('T')[0] || '২০২৫-০১-১৫'}</span>
+                        <span>{stf.joiningDate || stf.appointedAt?.split('T')[0] || '2025-01-15'}</span>
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">
@@ -1750,7 +1750,7 @@ export default function SpecializedModulesView({
                     .filter((a) => a.subType === 'cash' || a.subType === 'bank')
                     .map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.name} ({a.subType === 'cash' ? 'নগদ ক্যাশ' : 'ব্যাংক'} · ব্যালেন্স: {formatBDT(a.balance)})
+                        {a.name} ({a.subType === 'cash' ? (bn ? 'নগদ ক্যাশ' : 'Cash') : (bn ? 'ব্যাংক' : 'Bank')} · {bn ? 'ব্যালেন্স' : 'Balance'}: {formatBDT(a.balance)})
                       </option>
                     ))}
                 </select>
@@ -1952,7 +1952,9 @@ export default function SpecializedModulesView({
                                   actorEmail
                                 );
                                 notify(
-                                  `${animal.animalTag}-এর আজকের ১৮ লিটার দুধ বিক্রি (+৳১,৪৪০) যোগ হয়েছে!`
+                                  bn
+                                    ? `${animal.animalTag}-এর আজকের ১৮ লিটার দুধ বিক্রি (+৳১,৪৪০) যোগ হয়েছে!`
+                                    : `${animal.animalTag}: Recorded today's 18L milk sale (+৳1,440)!`
                                 );
                               }}
                               className="px-2.5 py-1.5 text-xs font-semibold rounded bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap"
@@ -2700,7 +2702,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">খাবার খরচ (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'খাবার খরচ (BDT)' : 'Feed Cost (BDT)'}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2710,7 +2712,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">বিক্রয় মূল্য (BDT)</label>
+                    <label className="block mb-1 font-medium">{bn ? 'বিক্রয় মূল্য (BDT)' : 'Harvest Sales Revenue (BDT)'}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2934,7 +2936,7 @@ export default function SpecializedModulesView({
                   {bn ? 'প্রফিট মার্জিন' : 'Profit Margin'}
                 </div>
                 <div className="text-base font-black font-mono text-slate-900 dark:text-slate-100 mt-1">
-                  {bizRevenue > 0 ? `${((bizNetProfit / bizRevenue) * 100).toFixed(1)}%` : '০%'}
+                  {bizRevenue > 0 ? `${((bizNetProfit / bizRevenue) * 100).toFixed(1)}%` : (bn ? '০%' : '0%')}
                 </div>
               </div>
             </div>
