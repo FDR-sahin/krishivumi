@@ -398,7 +398,7 @@ export default function SpecializedModulesView({
   const notify = (msg: string) => {
     setStatusMessage(msg);
     triggerGlobalToast(msg, 'success');
-    setTimeout(() => setStatusMessage(null), 4500);
+    setTimeout(() => setStatusMessage(null), 2000);
   };
 
   const handleOpenAddStaff = () => {

@@ -385,21 +385,28 @@ export default function AgroErpApp() {
         const targetUserId = updated.id || user?.id;
         const targetEmail = updated.email || user?.email;
 
+        const payloadData = {
+          userId: targetUserId,
+          targetUserId,
+          email: targetEmail,
+          displayName: resolvedName,
+          name: resolvedName,
+          phone: updated.phone,
+          nidNumber: updated.nidNumber,
+          designation: updated.designation,
+          address: updated.address,
+          emergencyContact: updated.emergencyContact,
+          photoUrl: updated.photoUrl,
+          password: updated.password,
+        };
+
         const res = await fetch('/api/erp/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'updateUserProfile',
-            userId: targetUserId,
-            email: targetEmail,
-            displayName: resolvedName,
-            phone: updated.phone,
-            nidNumber: updated.nidNumber,
-            designation: updated.designation,
-            address: updated.address,
-            emergencyContact: updated.emergencyContact,
-            photoUrl: updated.photoUrl,
-            password: updated.password,
+            payload: payloadData,
+            ...payloadData,
           }),
         });
         if (res.ok) {
@@ -719,7 +726,7 @@ export default function AgroErpApp() {
       }.`;
       setQuickToast(msg);
       triggerGlobalToast(msg, 'success');
-      setTimeout(() => setQuickToast(null), 5000);
+      setTimeout(() => setQuickToast(null), 2000);
     } catch (e) {
       console.error(e);
       triggerGlobalToast(String(e), 'error');
@@ -1403,7 +1410,14 @@ export default function AgroErpApp() {
               >
                 <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-black text-xs shadow-md shadow-emerald-950/40 shrink-0 ring-1 ring-white/10 overflow-hidden">
                   {user.photoUrl ? (
-                    <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={user.photoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
                   ) : (
                     (user.displayName || user.email || 'A').slice(0, 1).toUpperCase()
                   )}
@@ -1442,7 +1456,14 @@ export default function AgroErpApp() {
               >
                 <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white flex items-center justify-center font-black text-xs overflow-hidden">
                   {user.photoUrl ? (
-                    <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={user.photoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
                   ) : (
                     (user.displayName || user.email || 'A').slice(0, 1).toUpperCase()
                   )}
@@ -1660,7 +1681,14 @@ export default function AgroErpApp() {
             >
               <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs font-extrabold shadow-xs overflow-hidden group-hover:ring-2 group-hover:ring-emerald-500 transition-all">
                 {user.photoUrl ? (
-                  <img src={user.photoUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={user.photoUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
                 ) : (
                   (user.displayName || user.email || 'A').slice(0, 1).toUpperCase()
                 )}

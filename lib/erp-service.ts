@@ -25,14 +25,18 @@ export function subscribeErpDataChanged(listener: ErpListener): () => void {
   };
 }
 
+let notifyTimer: ReturnType<typeof setTimeout> | null = null;
 export function notifyErpDataChanged(): void {
-  erpListeners.forEach((fn) => {
-    try {
-      fn();
-    } catch {
-      // Ignore listener errors
-    }
-  });
+  if (notifyTimer) clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => {
+    erpListeners.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        // Ignore listener errors
+      }
+    });
+  }, 50);
 }
 
 async function callErpAction<T = void>(

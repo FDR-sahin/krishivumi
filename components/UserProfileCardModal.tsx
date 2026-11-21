@@ -51,6 +51,29 @@ interface UserProfileCardModalProps {
   lang?: 'bn' | 'en';
 }
 
+export const PRESET_AVATARS = [
+  {
+    id: 'owner-md',
+    label: 'Owner / MD',
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><defs><linearGradient id='g1' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23059669'/><stop offset='100%' stop-color='%230f766e'/></linearGradient></defs><rect width='128' height='128' rx='36' fill='url(%23g1)'/><circle cx='64' cy='48' r='24' fill='%23fef3c7'/><path d='M28 112c0-19.88 16.12-36 36-36s36 16.12 36 36' fill='%23ffffff'/><path d='M44 112c0-11.05 8.95-20 20-20s20 8.95 20 20' fill='%2310b981'/><polygon points='64,84 68,98 64,112 60,98' fill='%23047857'/></svg>",
+  },
+  {
+    id: 'gm-coo',
+    label: 'General Mgr',
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><defs><linearGradient id='g2' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%232563eb'/><stop offset='100%' stop-color='%231d4ed8'/></linearGradient></defs><rect width='128' height='128' rx='36' fill='url(%23g2)'/><circle cx='64' cy='48' r='24' fill='%23fee2e2'/><path d='M28 112c0-19.88 16.12-36 36-36s36 16.12 36 36' fill='%23ffffff'/><path d='M44 112c0-11.05 8.95-20 20-20s20 8.95 20 20' fill='%233b82f6'/><polygon points='64,84 68,98 64,112 60,98' fill='%231d4ed8'/></svg>",
+  },
+  {
+    id: 'operations-lead',
+    label: 'Operations',
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><defs><linearGradient id='g3' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%230891b2'/><stop offset='100%' stop-color='%230e7490'/></linearGradient></defs><rect width='128' height='128' rx='36' fill='url(%23g3)'/><circle cx='64' cy='48' r='24' fill='%23ffedd5'/><path d='M28 112c0-19.88 16.12-36 36-36s36 16.12 36 36' fill='%23ffffff'/><path d='M44 112c0-11.05 8.95-20 20-20s20 8.95 20 20' fill='%2306b6d4'/><polygon points='64,84 68,98 64,112 60,98' fill='%230891b2'/></svg>",
+  },
+  {
+    id: 'agro-expert',
+    label: 'Farm Specialist',
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><defs><linearGradient id='g4' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23d97706'/><stop offset='100%' stop-color='%23b45309'/></linearGradient></defs><rect width='128' height='128' rx='36' fill='url(%23g4)'/><circle cx='64' cy='48' r='24' fill='%23fef9c3'/><path d='M28 112c0-19.88 16.12-36 36-36s36 16.12 36 36' fill='%23ffffff'/><path d='M44 112c0-11.05 8.95-20 20-20s20 8.95 20 20' fill='%23f59e0b'/><polygon points='64,84 68,98 64,112 60,98' fill='%23d97706'/></svg>",
+  },
+];
+
 export default function UserProfileCardModal({
   isOpen,
   onClose,
@@ -240,6 +263,9 @@ export default function UserProfileCardModal({
                     src={activePhoto}
                     alt={profile.name}
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <div className={`h-full w-full bg-gradient-to-br ${roleInfo.gradient} text-white font-black text-3xl flex items-center justify-center`}>
@@ -539,9 +565,27 @@ export default function UserProfileCardModal({
 
               {/* Preset Avatar selector */}
               <div>
-                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                <label className="block mb-1.5 font-semibold text-slate-700 dark:text-slate-300">
                   {bn ? 'প্রোফাইল ছবি / অবতার নির্বাচন করুন' : 'Select Avatar Preset or Upload Photo'}
                 </label>
+                <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                  {PRESET_AVATARS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setPhotoUrl(preset.url)}
+                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                        photoUrl === preset.url
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={preset.url} alt={preset.label} className="h-6 w-6 rounded-lg object-cover" />
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"

@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { action, payload } = body as { action: string; payload: Record<string, unknown> };
+    const { action } = body as { action: string };
+    const payload = ((body.payload && typeof body.payload === 'object' ? body.payload : body) || {}) as Record<string, unknown>;
     if (!action) {
       return NextResponse.json({ ok: false, error: 'Missing action.' }, { status: 400 });
     }

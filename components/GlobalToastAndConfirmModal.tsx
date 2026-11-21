@@ -97,7 +97,7 @@ export function triggerGlobalToast(
   message: string,
   type: ToastType = 'success',
   title?: string,
-  durationMs = 4500
+  durationMs = 2000
 ) {
   if (typeof window === 'undefined') return;
   const event = new CustomEvent(TOAST_EVENT, {
@@ -107,12 +107,12 @@ export function triggerGlobalToast(
       title:
         title ||
         (type === 'success'
-          ? 'সফলভাবে সম্পন্ন হয়েছে!'
+          ? 'Operation Completed'
           : type === 'delete'
-          ? 'রেকর্ড মুছে ফেলা হয়েছে!'
+          ? 'Record Removed'
           : type === 'error'
-          ? 'ত্রুটি পরিলক্ষিত হয়েছে'
-          : 'তথ্য'),
+          ? 'Notice / Error'
+          : 'Information'),
       durationMs,
     },
   });
@@ -143,7 +143,7 @@ export default function GlobalToastAndConfirmModal({ lang = 'en' }: { lang?: 'bn
         title: string;
         durationMs?: number;
       }>;
-      const { message, type, title, durationMs = 4500 } = customEvent.detail;
+      const { message, type, title, durationMs = 2000 } = customEvent.detail;
       const id = 'toast_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
       const newToast: ToastItem = {
         id,
@@ -226,7 +226,7 @@ export default function GlobalToastAndConfirmModal({ lang = 'en' }: { lang?: 'bn
             <div
               key={toast.id}
               role="alert"
-              className={`pointer-events-auto relative overflow-hidden rounded-2xl border p-4 shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-top-3 duration-300 ${
+              className={`pointer-events-auto relative overflow-hidden rounded-2xl border p-4 shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-top-2 fade-in duration-150 ${
                 isSuccess
                   ? 'border-emerald-500/70 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 ring-2 ring-emerald-500/20'
                   : isDelete
@@ -306,12 +306,12 @@ export default function GlobalToastAndConfirmModal({ lang = 'en' }: { lang?: 'bn
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[9999998] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999998] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-100"
           onClick={(e) => {
             if (!isDeleting && e.target === e.currentTarget) setConfirmPayload(null);
           }}
         >
-          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in zoom-in-95 duration-200 text-slate-900 dark:text-slate-100">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in zoom-in-95 duration-100 text-slate-900 dark:text-slate-100">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-2xl bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 ring-4 ring-rose-50 dark:ring-rose-950/40">
                 <Trash2 className="h-6 w-6" />

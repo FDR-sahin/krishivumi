@@ -717,7 +717,7 @@ export default function CentralAccountingAndInventoryView({
   const showNotice = (msg: string) => {
     setToastMsg(msg);
     setErrorMsg(null);
-    setTimeout(() => setToastMsg(null), 4500);
+    setTimeout(() => setToastMsg(null), 2000);
     triggerGlobalToast(msg, 'success');
   };
 

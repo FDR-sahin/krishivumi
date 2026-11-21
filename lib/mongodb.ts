@@ -123,6 +123,8 @@ async function ensureIndexes(db: Db): Promise<void> {
 export async function getDb(): Promise<Db> {
   const client = await getClientPromise();
   const db = client.db(dbName);
-  await ensureIndexes(db);
+  if (!globalThis.__krishiIndexesEnsuredV2) {
+    ensureIndexes(db).catch(() => {});
+  }
   return db;
 }

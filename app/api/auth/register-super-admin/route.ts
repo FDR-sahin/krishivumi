@@ -142,6 +142,7 @@ export async function POST(req: NextRequest) {
       status: 'active',
       mfaEnabled: true,
       lastLoginAt: userDoc.lastLoginAt,
+      photoUrl: userDoc.photoUrl,
     };
 
     const res = NextResponse.json({ ok: true, user: userView });
