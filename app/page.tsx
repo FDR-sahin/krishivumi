@@ -75,6 +75,10 @@ import {
   ErpUser,
   UserRole,
   formatBDT,
+  formatToEnglishBusiness,
+  formatToEnglishCategory,
+  formatToEnglishDescription,
+  formatToEnglishDesignation,
 } from '@/lib/erp-types';
 import {
   markNotificationAsRead,
@@ -2385,9 +2389,12 @@ export default function AgroErpApp() {
                         const actorPhoto = j.actorPhoto || matchedUser?.photoUrl || (isSuperOrCurrent ? user.photoUrl : undefined);
                         const actorName = j.actorName || matchedUser?.displayName || (j.actorEmail ? j.actorEmail.split('@')[0] : 'Admin');
                         const actorRole = j.actorRole || matchedUser?.role || 'Staff';
-                        const actorDesignation = j.actorDesignation || matchedUser?.designation || (actorRole === 'super_admin' ? 'Owner / Super Admin' : actorRole === 'super_manager' ? 'General Manager (COO)' : actorRole === 'business_manager' ? 'Branch Manager' : 'Farm Accountant');
-                        const bizName = toEnglishBusinessName(j.businessName, j.businessId);
-                        const catName = toEnglishCategory(j.category);
+                        const actorDesignation = formatToEnglishDesignation(
+                          j.actorDesignation || matchedUser?.designation || (actorRole === 'super_admin' ? 'Owner / Super Admin' : actorRole === 'super_manager' ? 'General Manager (COO)' : actorRole === 'business_manager' ? 'Branch Manager' : 'Farm Accountant')
+                        );
+                        const bizName = formatToEnglishBusiness(j.businessName, j.businessId);
+                        const catName = formatToEnglishCategory(j.category);
+                        const descText = formatToEnglishDescription(j.description, j.category);
 
                         return (
                           <tr key={j.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
@@ -2402,7 +2409,7 @@ export default function AgroErpApp() {
                             </td>
                             <td className="py-2.5 px-3.5 max-w-[240px]">
                               <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{catName}</div>
-                              <div className="text-[11px] text-slate-500 truncate">{j.description}</div>
+                              <div className="text-[11px] text-slate-500 truncate">{descText}</div>
                             </td>
                             <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
                               <span className={`font-mono font-bold text-sm ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>

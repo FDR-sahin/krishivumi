@@ -5414,20 +5414,20 @@ export default function CentralAccountingAndInventoryView({
               {/* 5 Business Units Breakdown Table */}
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                 <div className="bg-slate-100/70 dark:bg-slate-800/60 px-4 py-2.5 font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                  <span>৫টি খামার ও ব্যবসার আলাদা লাভ-ক্ষতি ও দায়িত্বরত ম্যানেজার</span>
-                  <span className="text-[11px] text-slate-500 font-normal">রিয়েলটাইম অডিট ট্রেইল অনুযায়ী</span>
+                  <span>Business Unit Performance & Division Manager</span>
+                  <span className="text-[11px] text-slate-500 font-normal">Audited in Realtime</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 font-semibold">
                       <tr>
-                        <th className="py-2.5 px-3">ব্যবসায়িক ইউনিট</th>
-                        <th className="py-2.5 px-3">দায়িত্বপ্রাপ্ত বিজনেস ম্যানেজার</th>
-                        <th className="py-2.5 px-3 text-right">আয় / বিক্রি</th>
-                        <th className="py-2.5 px-3 text-right">ব্যয় ও বেতন</th>
-                        <th className="py-2.5 px-3 text-right">নীট লাভ / ক্ষতি</th>
-                        <th className="py-2.5 px-3 text-center">কর্মী সংখ্যা</th>
-                        <th className="py-2.5 px-3 text-center">স্ট্যাটাস</th>
+                        <th className="py-2.5 px-3">Business Unit</th>
+                        <th className="py-2.5 px-3">Assigned Business Manager</th>
+                        <th className="py-2.5 px-3 text-right">Revenue / Sales</th>
+                        <th className="py-2.5 px-3 text-right">Expenses & Payroll</th>
+                        <th className="py-2.5 px-3 text-right">Net Profit / Loss</th>
+                        <th className="py-2.5 px-3 text-center">Staff Count</th>
+                        <th className="py-2.5 px-3 text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -5445,7 +5445,7 @@ export default function CentralAccountingAndInventoryView({
                         return (
                           <tr key={biz.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
                             <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">
-                              {biz.nameBn || biz.name}
+                              {biz.name}
                             </td>
                             <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
                               {mgrUser ? (
@@ -5614,7 +5614,7 @@ export default function CentralAccountingAndInventoryView({
                   </div>
                   {activeSlip.appointedBy && (
                     <div>
-                      <span className="text-slate-500">নিয়োগকারী কর্তৃপক্ষ:</span>{' '}
+                      <span className="text-slate-500">Appointing Authority:</span>{' '}
                       <span className="font-semibold">{activeSlip.appointedBy}</span>
                     </div>
                   )}
@@ -5624,32 +5624,32 @@ export default function CentralAccountingAndInventoryView({
                   <div>
                     <span className="text-slate-500">
                       {activeSlip.type === 'salary_payslip'
-                        ? 'কর্মচারীর নাম:'
+                        ? 'Staff / Employee:'
                         : activeSlip.type === 'goods_purchase_slip'
-                        ? 'গোডাউন / রিসিভার:'
-                        : 'প্রাপক / প্রদানকারী:'}
+                        ? 'Warehouse / Consignee:'
+                        : 'Recipient / Payee:'}
                     </span>{' '}
                     <span className="font-bold text-slate-950 dark:text-white">{activeSlip.recipientName}</span>
                   </div>
                   {(activeSlip.designation || activeSlip.recipientDesignation) && (
                     <div>
-                      <span className="text-slate-500">পদবি / বিবরণ:</span>{' '}
+                      <span className="text-slate-500">Designation / Role:</span>{' '}
                       <span className="font-medium">{activeSlip.designation || activeSlip.recipientDesignation}</span>
                     </div>
                   )}
                   {activeSlip.recipientPhone && (
                     <div>
-                      <span className="text-slate-500">মোবাইল:</span>{' '}
+                      <span className="text-slate-500">Phone:</span>{' '}
                       <span className="font-mono">{activeSlip.recipientPhone}</span>
                     </div>
                   )}
                   <div>
-                    <span className="text-slate-500">পেমেন্ট মাধ্যম:</span>{' '}
+                    <span className="text-slate-500">Payment Channel:</span>{' '}
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{activeSlip.paymentMethod}</span>
                   </div>
                   {activeSlip.supplierMemoNo && (
                     <div className="text-rose-700 dark:text-rose-400 font-bold">
-                      <span>মিলের মূল মেমো নং:</span>{' '}
+                      <span>Vendor Invoice / Memo No:</span>{' '}
                       <span className="font-mono underline">{activeSlip.supplierMemoNo}</span>
                     </div>
                   )}
@@ -5661,25 +5661,25 @@ export default function CentralAccountingAndInventoryView({
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                     <tr>
-                      <th className="py-2.5 px-4">বিবরণ / আইটেম</th>
+                      <th className="py-2.5 px-4">Description / Particulars</th>
                       {activeSlip.type === 'goods_purchase_slip' ? (
                         <>
-                          <th className="py-2.5 px-4 text-center">পরিমাণ</th>
-                          <th className="py-2.5 px-4 text-right">দর (প্রতি একক)</th>
+                          <th className="py-2.5 px-4 text-center">Quantity</th>
+                          <th className="py-2.5 px-4 text-right">Unit Rate</th>
                         </>
                       ) : (
-                        <th className="py-2.5 px-4">খাত / নোট</th>
+                        <th className="py-2.5 px-4">Account / Notes</th>
                       )}
-                      <th className="py-2.5 px-4 text-right">মোট টাকা (BDT)</th>
+                      <th className="py-2.5 px-4 text-right">Total Amount (BDT)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                     <tr>
                       <td className="py-3 px-4 font-semibold">
-                        {activeSlip.itemName || activeSlip.note || 'সাধারণ লেনদেন'}
+                        {activeSlip.itemName || activeSlip.note || 'General Transaction'}
                         {activeSlip.supplierName && (
                           <div className="text-[11px] text-slate-500 font-normal">
-                            সাপ্লায়ার / ডিলার: {activeSlip.supplierName}
+                            Supplier / Dealer: {activeSlip.supplierName}
                           </div>
                         )}
                       </td>
@@ -5708,7 +5708,7 @@ export default function CentralAccountingAndInventoryView({
                         colSpan={activeSlip.type === 'goods_purchase_slip' ? 3 : 2}
                         className="py-2.5 px-4 text-right text-slate-700 dark:text-slate-300"
                       >
-                        সর্বমোট পরিশোধিত / গৃহীত অর্থ:
+                        Total Amount Paid / Received:
                       </td>
                       <td className="py-2.5 px-4 text-right font-mono text-base font-black text-emerald-700 dark:text-emerald-400">
                         {formatBDT(activeSlip.amount)}
@@ -5721,12 +5721,12 @@ export default function CentralAccountingAndInventoryView({
               {/* Words & Remarks */}
               <div className="text-xs space-y-1">
                 <div className="font-semibold text-slate-800 dark:text-slate-200">
-                  <span className="text-slate-500">কথায়:</span>{' '}
-                  <span className="italic font-bold">{formatBDT(activeSlip.amount)} মাত্র</span>
+                  <span className="text-slate-500">In Words:</span>{' '}
+                  <span className="italic font-bold">{formatBDT(activeSlip.amount)} Only</span>
                 </div>
                 {activeSlip.enteredBy && (
                   <div className="text-[11px] text-slate-500">
-                    সিস্টেম অডিট এন্ট্রি প্রদানকারী: <span className="font-mono">{activeSlip.enteredBy}</span>
+                    Audit Entry Logged By: <span className="font-mono">{activeSlip.enteredBy}</span>
                   </div>
                 )}
               </div>
@@ -5735,12 +5735,12 @@ export default function CentralAccountingAndInventoryView({
               <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-amber-600" />
-                  <span>চুরি ও জালিয়াতি প্রতিরোধ নীতি (Anti-Theft Compliance & Counter-Sign Rule):</span>
+                  <span>Compliance & Dual Verification Rule:</span>
                 </div>
                 <p className="leading-relaxed">
-                  ১. এই অনুমোদিত স্লিপ ছাড়া কোনো নগদ অর্থ লেনদেন বা গোডাউনে মাল খালাস বৈধ বলে গণ্য হবে না।
-                  ২. গোডাউনে পণ্য ইনওয়ার্ডের ক্ষেত্রে সাপ্লায়ার বা মিলের মূল ক্যাশ মেমো এই স্লিপের সাথে গেঁথে সংরক্ষণ করতে হবে।
-                  ৩. গ্রহীতা এবং ম্যানেজার উভয়ের শারীরিক স্বাক্ষর ব্যতিরেকে হিসাব নথিতে চূড়ান্ত হিসেবে গৃহীত হবে না।
+                  1. No cash transaction or warehouse goods discharge is valid without this authorized voucher.
+                  2. For physical feed or livestock inward, the original supplier/mill memo must be attached.
+                  3. Signatures from both the recipient and authorized manager are required for final audit posting.
                 </p>
               </div>
 
@@ -5749,26 +5749,26 @@ export default function CentralAccountingAndInventoryView({
                 <div className="space-y-1 border-t border-slate-400 pt-2">
                   <div className="font-bold text-slate-900 dark:text-slate-100">
                     {activeSlip.type === 'salary_payslip'
-                      ? 'বেতন গ্রহণকারী কর্মীর স্বাক্ষর'
+                      ? 'Staff / Recipient Signature'
                       : activeSlip.type === 'goods_purchase_slip'
-                      ? 'পণ্য গ্রহণকারী গোডাউন রক্ষক'
-                      : 'অর্থ প্রদানকারী / গ্রহণকারী'}
+                      ? 'Warehouse Officer Signature'
+                      : 'Payer / Payee Signature'}
                   </div>
-                  <div className="text-[10px] text-slate-400">স্বাক্ষর ও তারিখ</div>
+                  <div className="text-[10px] text-slate-400">Signature & Date</div>
                 </div>
 
                 <div className="space-y-1 border-t border-slate-400 pt-2">
                   <div className="font-bold text-slate-900 dark:text-slate-100">
-                    শাখা ম্যানেজার / হিসাবরক্ষক
+                    Branch Manager / Accountant
                   </div>
-                  <div className="text-[10px] text-slate-400">প্রতিস্বাক্ষর ও যাচাই</div>
+                  <div className="text-[10px] text-slate-400">Countersign & Verify</div>
                 </div>
 
                 <div className="space-y-1 border-t border-slate-400 pt-2">
                   <div className="font-bold text-emerald-800 dark:text-emerald-300">
-                    মালিক / প্রধান ম্যানেজারের অনুমোদন
+                    Owner / Executive Approval
                   </div>
-                  <div className="text-[10px] text-slate-400">অনুমোদনের সিল ও স্বাক্ষর</div>
+                  <div className="text-[10px] text-slate-400">Authorized Seal & Signature</div>
                 </div>
               </div>
             </div>

@@ -47,6 +47,11 @@ import {
   ErpUser,
   UserRole,
   formatBDT,
+  formatToEnglishBusiness,
+  formatToEnglishCategory,
+  formatToEnglishDescription,
+  formatToEnglishAccount,
+  formatToEnglishParty,
 } from '@/lib/erp-types';
 import {
   postDoubleEntryTransaction,
@@ -412,10 +417,10 @@ export default function AccountingAndLedgerTab({
         id: j.id,
         date: j.date,
         referenceNo: j.referenceNo,
-        businessName: j.businessName,
-        category: j.category,
-        description: j.description,
-        counterparty: j.counterpartyName || 'Internal',
+        businessName: formatToEnglishBusiness(j.businessName, j.businessId),
+        category: formatToEnglishCategory(j.category),
+        description: formatToEnglishDescription(j.description, j.category),
+        counterparty: formatToEnglishParty(j.counterpartyName) || 'Internal',
         debit: debitAmt,
         credit: creditAmt,
         runningBalance: cumBalance,
@@ -1311,18 +1316,18 @@ export default function AccountingAndLedgerTab({
                       </td>
                       <td className="py-2 px-3.5 whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                          {j.businessName || 'Consolidated'}
+                          {formatToEnglishBusiness(j.businessName, j.businessId)}
                         </span>
                       </td>
                       <td className="py-2 px-3.5 max-w-[200px] truncate">
-                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{j.description}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{j.counterpartyName || j.category}</div>
+                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{formatToEnglishDescription(j.description, j.category)}</div>
+                        <div className="text-[10px] text-slate-400 truncate">{formatToEnglishParty(j.counterpartyName) || formatToEnglishCategory(j.category)}</div>
                       </td>
                       <td className="py-2 px-3.5 text-emerald-700 dark:text-emerald-400 font-semibold whitespace-nowrap">
-                        DR: {j.debitAccountName}
+                        DR: {formatToEnglishAccount(j.debitAccountName)}
                       </td>
                       <td className="py-2 px-3.5 text-rose-700 dark:text-rose-400 font-semibold whitespace-nowrap">
-                        CR: {j.creditAccountName}
+                        CR: {formatToEnglishAccount(j.creditAccountName)}
                       </td>
                       <td className="py-2 px-3.5 text-right font-mono font-extrabold text-slate-900 dark:text-white whitespace-nowrap">
                         {formatBDT(j.amount)}
@@ -1916,18 +1921,18 @@ export default function AccountingAndLedgerTab({
                     </td>
                     <td className="py-2 px-3.5 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                        {j.businessName || 'Consolidated'}
+                        {formatToEnglishBusiness(j.businessName, j.businessId)}
                       </span>
                     </td>
                     <td className="py-2 px-3.5 max-w-[220px] truncate">
-                      <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{j.description}</div>
-                      <div className="text-[10px] text-slate-400 truncate">{j.category} • {j.counterpartyName || 'Party'}</div>
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{formatToEnglishDescription(j.description, j.category)}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{formatToEnglishCategory(j.category)} • {formatToEnglishParty(j.counterpartyName) || 'Party'}</div>
                     </td>
                     <td className="py-2 px-3.5 font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
-                      DR: {j.debitAccountName}
+                      DR: {formatToEnglishAccount(j.debitAccountName)}
                     </td>
                     <td className="py-2 px-3.5 font-semibold text-rose-700 dark:text-rose-400 whitespace-nowrap">
-                      CR: {j.creditAccountName}
+                      CR: {formatToEnglishAccount(j.creditAccountName)}
                     </td>
                     <td className="py-2 px-3.5 text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
                       {formatBDT(j.amount)}

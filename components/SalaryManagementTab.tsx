@@ -38,6 +38,8 @@ import {
   ErpUser,
   UserRole,
   formatBDT,
+  formatToEnglishBusiness,
+  formatToEnglishDesignation,
 } from '@/lib/erp-types';
 import { settleStakeholderPayment, createStakeholderRecord, updateStakeholderRecord } from '@/lib/erp-service';
 
@@ -211,9 +213,8 @@ export default function SalaryManagementTab({
   }, [allEmployees, isBusinessManager, bmAssignedBizId, currentUser]);
 
   // Helper to get Business Name
-  const getBusinessName = (bizId?: string) => {
-    const found = (allBusinesses.length > 0 ? allBusinesses : businesses).find((b) => b.id === bizId);
-    return found ? (bn ? found.nameBn || found.name : found.name) : 'Agro Enterprise';
+  const getBusinessName = (bizId?: string, rawName?: string) => {
+    return formatToEnglishBusiness(rawName, bizId);
   };
 
   // Helper to parse salary period and calculate paid amount for an employee in a given month/year
@@ -1020,11 +1021,11 @@ export default function SalaryManagementTab({
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            {emp.businessName || getBusinessName(emp.businessId)}
+                            {formatToEnglishBusiness(emp.businessName, emp.businessId)}
                           </span>
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap font-medium text-slate-700 dark:text-slate-300">
-                          {emp.designationOrCategory}
+                          {formatToEnglishDesignation(emp.designationOrCategory)}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                           {formatBDT(monthlySalary)}
@@ -1178,11 +1179,11 @@ export default function SalaryManagementTab({
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                              {emp.businessName || getBusinessName(emp.businessId)}
+                              {formatToEnglishBusiness(emp.businessName, emp.businessId)}
                             </span>
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap font-medium text-slate-800 dark:text-slate-200">
-                            {emp.designationOrCategory}
+                            {formatToEnglishDesignation(emp.designationOrCategory)}
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap text-slate-600 dark:text-slate-300">
                             {deptName}
@@ -1609,7 +1610,7 @@ export default function SalaryManagementTab({
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
-                          {item.employee.businessName || getBusinessName(item.employee.businessId)}
+                          {formatToEnglishBusiness(item.employee.businessName, item.employee.businessId)}
                         </span>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
@@ -1778,7 +1779,7 @@ export default function SalaryManagementTab({
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
-                          {entry.businessName}
+                          {formatToEnglishBusiness(entry.businessName)}
                         </span>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -1811,7 +1812,7 @@ export default function SalaryManagementTab({
                                 type: 'salary_payslip',
                                 slipNo: entry.referenceNo,
                                 date: entry.date,
-                                businessName: entry.businessName,
+                                businessName: formatToEnglishBusiness(entry.businessName),
                                 recipientName: entry.employeeName,
                                 designation: 'Staff',
                                 amount: entry.amount,
@@ -1889,7 +1890,7 @@ export default function SalaryManagementTab({
                           <div className="text-[10px] text-slate-400">{party.phone}</div>
                         </td>
                         <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                          {party.businessName || getBusinessName(party.businessId)}
+                          {formatToEnglishBusiness(party.businessName, party.businessId)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold whitespace-nowrap">
                           {formatBDT(party.outstandingBalance || 0)}

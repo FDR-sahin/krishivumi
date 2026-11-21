@@ -517,3 +517,117 @@ export const BUSINESS_TEMPLATES: {
     description: 'Configurable enterprise template for Dairy Products, Fish Feed Mill, Rice Trading, Vegetable Wholesale, or Cold Storage operations.',
   },
 ];
+
+export function formatToEnglishBusiness(name?: string, bizId?: string): string {
+  const id = String(bizId || '').trim();
+  if (id === 'BIZ-POULTRY-01' || id.includes('POULTRY')) return 'Poultry Farming';
+  if (id === 'BIZ-CATTLE-02' || id.includes('CATTLE')) return 'Cattle Farming';
+  if (id === 'BIZ-GOAT-03' || id.includes('GOAT')) return 'Goat Farming';
+  if (id === 'BIZ-FISH-04' || id.includes('FISH')) return 'Fish Farming';
+  if (id === 'BIZ-TRANS-05' || id === 'BIZ-TRAN-06' || id.includes('TRANS')) return 'Truck & Transport Business';
+
+  const n = String(name || '').trim();
+  if (!n) return 'Agro Business';
+  if (n.includes('পোল্ট্রি') || n.toLowerCase().includes('poultry')) return 'Poultry Farming';
+  if (n.includes('গবাদি') || n.includes('গরু') || n.includes('ডেইরি') || n.toLowerCase().includes('cattle')) return 'Cattle Farming';
+  if (n.includes('ছাগল') || n.toLowerCase().includes('goat')) return 'Goat Farming';
+  if (n.includes('মৎস্য') || n.includes('মাছ') || n.toLowerCase().includes('fish')) return 'Fish Farming';
+  if (n.includes('ট্রাক') || n.includes('পরিবহন') || n.toLowerCase().includes('trans')) return 'Truck & Transport Business';
+  return n;
+}
+
+export function formatToEnglishCategory(cat?: string): string {
+  const c = String(cat || '').trim();
+  if (!c) return 'General Operation';
+  if (c.includes('বাচ্চা') && c.includes('ক্রয়')) return 'Day-Old Chicks (DOC) Purchase';
+  if (c.includes('বাচ্চা')) return 'Chicks / Flock Purchase';
+  if (c.includes('খাবার') || c.includes('ফিড')) return 'Animal Feed & Nutrition';
+  if (c.includes('ওষুধ') || c.includes('ভ্যাকসিন') || c.includes('চিকিৎসা')) return 'Veterinary & Vaccines';
+  if (c.includes('বেতন') || c.includes('মজুরি') || c.includes('রিম্যুনারেশন')) return 'Staff Salaries & Wages';
+  if (c.includes('ডিজেল') || c.includes('জ্বালানী') || c.includes('ফুয়েল')) return 'Diesel & Fuel';
+  if (c.includes('টোল') || c.includes('ঘাট')) return 'Highway Tolls & Transit';
+  if (c.includes('চালক') || c.includes('ড্রাইভার')) return 'Driver Allowance';
+  if (c.includes('মেরামত') || c.includes('সার্ভিসিং')) return 'Equipment Maintenance';
+  if (c.includes('ডিম') && c.includes('বিক্রি')) return 'Egg Sales Revenue';
+  if (c.includes('মুরগি') && c.includes('বিক্রি')) return 'Broiler & Poultry Sales';
+  if (c.includes('দুধ') && c.includes('বিক্রি')) return 'Dairy & Fresh Milk Sales';
+  if (c.includes('মাছ') && c.includes('বিক্রি')) return 'Fish Harvest Sales';
+  if (c.includes('গরু') && c.includes('বিক্রি')) return 'Cattle & Live Bull Sales';
+  if (c.includes('ছাগল') && c.includes('বিক্রি')) return 'Goat & Meat Sales';
+  if (c.includes('ট্রাক') || c.includes('ভাড়া') || c.includes('ট্রিপ')) return 'Commercial Freight Revenue';
+  if (c.includes('বাকি আদায়') || c.includes('Due Collection')) return 'Customer Due Collection (Accounts Receivable)';
+  if (c.includes('সাপ্লায়ার পাওনা') || c.includes('Due Settlement')) return 'Supplier Due Settlement (Accounts Payable)';
+  if (c.includes('বিক্রি') || c.includes('আয়')) return c.replace(/বিক্রি|আয়/g, 'Sales / Revenue');
+  if (c.includes('খরচ') || c.includes('ব্যয়')) return c.replace(/খরচ|ব্যয়/g, 'Operational Cost');
+  return c;
+}
+
+export function formatToEnglishDescription(desc?: string, fallbackCat?: string): string {
+  let d = String(desc || '').trim();
+  if (!d) return formatToEnglishCategory(fallbackCat);
+  d = d.replace(/পোল্ট্রি ফার্মিং/g, 'Poultry Farming')
+       .replace(/গবাদি পশু খামার/g, 'Cattle Farming')
+       .replace(/ছাগল পালন খামার/g, 'Goat Farming')
+       .replace(/মৎস্য চাষ প্রকল্প/g, 'Fish Farming')
+       .replace(/ট্রাক ও পরিবহন ব্যবসা/g, 'Truck & Transport Business');
+  d = d.replace(/পণ্য বিক্রি \(Sales\)/g, 'Product Sales')
+       .replace(/পণ্য বিক্রি/g, 'Product Sales')
+       .replace(/খামার খরচ \(Expense\)/g, 'Operating Expense')
+       .replace(/খামার খরচ/g, 'Farm Operating Cost')
+       .replace(/মুরগি বিক্রি/g, 'Broiler Sales')
+       .replace(/ডিম বিক্রি/g, 'Egg Sales')
+       .replace(/দুধ বিক্রি/g, 'Milk Sales')
+       .replace(/মাছ বিক্রি/g, 'Fish Harvest Sales')
+       .replace(/গরু বিক্রি/g, 'Cattle Sales')
+       .replace(/ছাগল বিক্রি/g, 'Goat Sales')
+       .replace(/ট্রিপ ভাড়া/g, 'Trip Freight Fare')
+       .replace(/ফিড ক্রয়/g, 'Feed Purchase')
+       .replace(/খাবার ক্রয়/g, 'Animal Feed Purchase')
+       .replace(/ওষুধ ক্রয়/g, 'Medicine / Vet Purchase')
+       .replace(/ডিজেল/g, 'Diesel Fuel')
+       .replace(/বেতন প্রদান/g, 'Salary Payment')
+       .replace(/বাকি আদায়/g, 'Due Collection')
+       .replace(/সাপ্লায়ার পরিশোধ/g, 'Supplier Payment')
+       .replace(/মালিকের ডিপোজিট/g, 'Owner Capital Deposit')
+       .replace(/নগদ জমা/g, 'Cash Deposit')
+       .replace(/ব্যাংক ট্রান্সফার/g, 'Bank Transfer')
+       .replace(/খরচ বাবদ/g, 'Expense for')
+       .replace(/বিক্রি বাবদ/g, 'Sales revenue for')
+       .replace(/বাবদ/g, 'for')
+       .replace(/হিসাব/g, 'Account');
+  return d;
+}
+
+export function formatToEnglishAccount(accName?: string, code?: string): string {
+  const n = String(accName || '').trim();
+  const c = String(code || '').trim();
+  if (c === '1010' || n.includes('নগদ') || n.includes('ক্যাশ')) return 'Central Cash in Hand (HQ Vault)';
+  if (c === '1020' || n.includes('ইসলামী') || n.includes('Islami')) return 'Islami Bank PLC — Corporate A/C';
+  if (c === '1025' || n.includes('ব্র্যাক') || n.includes('BRAC')) return 'BRAC Bank PLC — Agro SME A/C';
+  if (c === '1100' || n.includes('বাকী') || n.includes('বাকি') || n.includes('Receivable')) return 'Accounts Receivable (Wholesale Buyers)';
+  if (c === '1200' || n.includes('মজুত') || n.includes('ইনভেন্টরি') || n.includes('Inventory')) return 'Feed, Medicine & Biological Inventory';
+  if (c === '2010' || n.includes('পাওনাদার') || n.includes('Payable')) return 'Accounts Payable (Feed & Vet Suppliers)';
+  if (c === '3010' || n.includes('মূলধন') || n.includes('Equity')) return 'Sponsor Equity & Retained Capital';
+  if (c === '4010' || n.includes('বিক্রি') || n.includes('আয়') || n.includes('Revenue')) return 'Operating Sales & Freight Revenue';
+  if (c === '5010' || n.includes('খরচ') || n.includes('ব্যয়') || n.includes('Expense')) return 'Direct Farm, Feed, Vet & Fleet Expenses';
+  if (c === '5020' || n.includes('বেতন') || n.includes('Payroll')) return 'Staff Salaries & Farm Wages';
+  return n;
+}
+
+export function formatToEnglishParty(party?: string): string {
+  const p = String(party || '').trim();
+  if (p === 'পাইকারি ক্রেতা') return 'Wholesale Buyer';
+  if (p === 'সাপ্লায়ার' || p === 'সাপ্লায়ার') return 'Supplier / Vendor';
+  if (p === 'দোকানের নাম') return 'Retail Outlet';
+  return p;
+}
+
+export function formatToEnglishDesignation(desig?: string): string {
+  const d = String(desig || '').trim();
+  if (d.includes('স্বত্বাধিকারী') || d.includes('চেয়ারম্যান')) return 'Owner & Chairman';
+  if (d.includes('জেনারেল ম্যানেজার') || d.includes('COO')) return 'General Manager (COO)';
+  if (d.includes('ম্যানেজার') || d.includes('ইনচার্জ')) return 'Branch Manager';
+  if (d.includes('কর্মী') || d.includes('লেবার')) return 'Farm Staff';
+  if (d.includes('ড্রাইভার') || d.includes('চালক')) return 'Fleet Driver';
+  return d;
+}

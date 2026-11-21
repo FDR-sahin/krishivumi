@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { getSessionUser, parseUserPermissions } from '@/lib/auth';
+import {
+  formatToEnglishBusiness,
+  formatToEnglishCategory,
+  formatToEnglishDescription,
+  formatToEnglishAccount,
+  formatToEnglishParty,
+  formatToEnglishDesignation,
+} from '@/lib/erp-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,16 +153,49 @@ export async function GET() {
           (u) => String(u.id) === sessionUser.id
         );
 
+    const sanitizedBusinesses = filteredBusinesses.map((b) => ({
+      ...b,
+      name: formatToEnglishBusiness(String(b.name || ''), String(b.id || b._id || '')),
+      nameBn: formatToEnglishBusiness(String(b.name || ''), String(b.id || b._id || '')),
+    }));
+
+    const sanitizedAccounts = serializeDocs(accounts as Record<string, unknown>[]).map((a) => ({
+      ...a,
+      name: formatToEnglishAccount(String(a.name || ''), String(a.code || '')),
+    }));
+
+    const sanitizedStakeholders = filterByBiz(stakeholders as Record<string, unknown>[]).map((s) => ({
+      ...s,
+      businessName: formatToEnglishBusiness(String(s.businessName || ''), String(s.businessId || '')),
+      designationOrCategory: formatToEnglishDesignation(String(s.designationOrCategory || '')),
+    }));
+
+    const sanitizedJournalEntries = filterByBiz(journalEntries as Record<string, unknown>[], true).map((j) => ({
+      ...j,
+      businessName: formatToEnglishBusiness(String(j.businessName || ''), String(j.businessId || '')),
+      category: formatToEnglishCategory(String(j.category || '')),
+      description: formatToEnglishDescription(String(j.description || ''), String(j.category || '')),
+      counterpartyName: formatToEnglishParty(String(j.counterpartyName || '')),
+      debitAccountName: formatToEnglishAccount(String(j.debitAccountName || '')),
+      creditAccountName: formatToEnglishAccount(String(j.creditAccountName || '')),
+      actorDesignation: formatToEnglishDesignation(String(j.actorDesignation || '')),
+    }));
+
+    const sanitizedUsers = visibleUsers.map((u) => ({
+      ...u,
+      designation: formatToEnglishDesignation(String(u.designation || '')),
+    }));
+
     return NextResponse.json({
       ok: true,
       user: sessionUser,
       data: {
-        businesses: filteredBusinesses,
-        accounts: serializeDocs(accounts as Record<string, unknown>[]),
-        journalEntries: filterByBiz(journalEntries as Record<string, unknown>[], true),
+        businesses: sanitizedBusinesses,
+        accounts: sanitizedAccounts,
+        journalEntries: sanitizedJournalEntries,
         inventoryItems: filterByBiz(inventoryItems as Record<string, unknown>[]),
         stockMovements: filterByBiz(stockMovements as Record<string, unknown>[]),
-        stakeholders: filterByBiz(stakeholders as Record<string, unknown>[]),
+        stakeholders: sanitizedStakeholders,
         poultryBatches: filterByBiz(poultryBatches as Record<string, unknown>[]),
         livestockRecords: filterByBiz(livestockRecords as Record<string, unknown>[]),
         fishCycles: filterByBiz(fishCycles as Record<string, unknown>[]),
@@ -163,7 +204,7 @@ export async function GET() {
         auditLogs: isSuperAdmin
           ? serializeDocs(auditLogs as Record<string, unknown>[])
           : filterByBiz(auditLogs as Record<string, unknown>[], true),
-        erpUsers: visibleUsers,
+        erpUsers: sanitizedUsers,
       },
     });
   } catch (err) {
