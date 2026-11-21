@@ -70,11 +70,7 @@ export default function LivestockBarcodeScannerModal({
     setCameraError(null);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError(
-          bn
-            ? 'আপনার ব্রাউজারে ক্যামেরা সাপোর্ট নেই। নিচে বারকোড নম্বর লিখুন বা ইউএসবি স্ক্যানার ব্যবহার করুন।'
-            : 'Camera access is not supported in this browser. Please type or use a USB scanner.'
-        );
+        setCameraError('Camera access is not supported in this browser. Please type or use a USB scanner.');
         return;
       }
 
@@ -89,11 +85,7 @@ export default function LivestockBarcodeScannerModal({
         setCameraActive(true);
       }
     } catch (err: any) {
-      setCameraError(
-        bn
-          ? 'ক্যামেরা চালু করা যায়নি (অনুমতি দিন অথবা নিচে ট্যাগ লিখুন/ইউএসবি স্ক্যানার গান ব্যবহার করুন)।'
-          : 'Could not access camera. Please allow permission or enter Tag ID manually.'
-      );
+      setCameraError('Could not access camera. Please allow permission or enter Tag ID manually.');
       setCameraActive(false);
     }
   };
@@ -113,9 +105,7 @@ export default function LivestockBarcodeScannerModal({
     setScannedResult(matched);
     onSelectAnimal(matched.id);
     triggerGlobalToast(
-      bn
-        ? `ট্যাগ "${matched.animalTag}" (${matched.name}) সফলভাবে স্ক্যান হয়েছে!`
-        : `Tag "${matched.animalTag}" (${matched.name}) scanned successfully!`,
+      `Tag "${matched.animalTag}" (${matched.name}) scanned successfully!`,
       'success'
     );
     setTimeout(() => {
@@ -141,9 +131,7 @@ export default function LivestockBarcodeScannerModal({
       handleAnimalDetected(matched);
     } else {
       triggerGlobalToast(
-        bn
-          ? `ট্যাগ বা কোড "${rawQuery}"-এর সাথে কোনো ${isCattle ? 'গরু' : 'ছাগল'} মেলেনি!`
-          : `No ${isCattle ? 'cattle' : 'goat'} matches tag "${rawQuery}"!`,
+        `No ${isCattle ? 'cattle' : 'goat'} matches tag "${rawQuery}"!`,
         'info'
       );
     }
@@ -210,10 +198,10 @@ export default function LivestockBarcodeScannerModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                {bn ? `${isCattle ? 'গরুর' : 'ছাগলের'} ইয়ার ট্যাগ ও বারকোড স্ক্যানার` : `Livestock Ear Tag & Barcode Scanner`}
+                `Livestock Ear Tag & Barcode Scanner`
               </h3>
               <p className="text-[11px] text-slate-500">
-                {bn ? 'ক্যামেরা, ইউএসবি বারকোড রিডার গান অথবা ট্যাগ লিখে স্ক্যান করুন' : 'Scan via camera, USB barcode gun, or tag ID'}
+                'Scan via camera, USB barcode gun, or tag ID'
               </p>
             </div>
           </div>
@@ -248,7 +236,7 @@ export default function LivestockBarcodeScannerModal({
                   <div className="absolute left-0 right-0 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-bounce" />
                   <div className="absolute -top-6 left-0 right-0 text-center">
                     <span className="text-[10px] font-mono font-bold text-white bg-slate-900/80 px-2 py-0.5 rounded">
-                      {bn ? 'বারকোড/কিউআর মাঝখানে রাখুন' : 'Align Barcode / QR Inside'}
+                      'Align Barcode / QR Inside'
                     </span>
                   </div>
                 </div>
@@ -257,7 +245,7 @@ export default function LivestockBarcodeScannerModal({
               <div className="p-4 text-center space-y-2">
                 <Camera className="h-8 w-8 text-slate-600 mx-auto" />
                 <p className="text-xs text-slate-400 max-w-xs">
-                  {cameraError || (bn ? 'ক্যামেরা চালু করা হচ্ছে...' : 'Initializing camera stream...')}
+                  {cameraError || 'Initializing camera stream...'}
                 </p>
                 <button
                   type="button"
@@ -265,7 +253,7 @@ export default function LivestockBarcodeScannerModal({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
                 >
                   <RefreshCw className="h-3 w-3" />
-                  <span>{bn ? 'ক্যামেরা আবার চেষ্টা করুন' : 'Retry Camera'}</span>
+                  <span>Retry Camera</span>
                 </button>
               </div>
             )}
@@ -276,7 +264,7 @@ export default function LivestockBarcodeScannerModal({
                 <div className="text-base font-bold font-mono">{scannedResult.animalTag}</div>
                 <div className="text-sm font-semibold">{scannedResult.name}</div>
                 <div className="text-xs text-emerald-300 mt-1">
-                  {bn ? 'স্ক্যান সম্পন্ন! তথ্য লোড হচ্ছে...' : 'Scan Successful! Loading records...'}
+                  'Scan Successful! Loading records...'
                 </div>
               </div>
             )}
@@ -285,7 +273,7 @@ export default function LivestockBarcodeScannerModal({
           {/* Barcode Gun / Manual Scanner Input */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              {bn ? 'বারকোড স্ক্যানার গান বা ট্যাগ ইনপুট (Hardware Scanner Input):' : 'Barcode Reader Input / Manual Tag:'}
+              'Barcode Reader Input / Manual Tag:'
             </label>
             <div className="relative">
               <input
@@ -299,7 +287,7 @@ export default function LivestockBarcodeScannerModal({
                     processQuery(scanInput);
                   }
                 }}
-                placeholder={isCattle ? 'CAT-0001 লিখে Enter দিন বা বারকোড গান টিপুন...' : 'GOAT-0001...'}
+                placeholder={isCattle ? 'Enter CAT-0001 or scan with barcode gun...' : 'Enter GOAT-0001 or scan with barcode gun...'}
                 className="w-full pl-9 pr-24 py-2.5 text-xs font-mono font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
               <Scan className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -308,7 +296,7 @@ export default function LivestockBarcodeScannerModal({
                 onClick={() => processQuery(scanInput)}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white dark:bg-emerald-600 hover:opacity-90 cursor-pointer"
               >
-                {bn ? 'খুঁজুন' : 'Search'}
+                'Search'
               </button>
             </div>
           </div>
@@ -316,8 +304,8 @@ export default function LivestockBarcodeScannerModal({
           {/* Quick-Test / Registered Animal Ear Tags */}
           <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span>{bn ? 'খামারের নিবন্ধিত ট্যাগ তালিকা (এক ক্লিকে টেস্ট স্ক্যান):' : 'Registered Animal Tags (1-Click Test Scan):'}</span>
-              <span className="font-mono font-semibold">{animals.length} {bn ? 'টি' : 'tags'}</span>
+              <span>Registered Animal Tags (1-Click Test Scan):</span>
+              <span className="font-mono font-semibold">{animals.length} tags</span>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
               {animals.map((a) => (
@@ -340,7 +328,7 @@ export default function LivestockBarcodeScannerModal({
         <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <Volume2 className="h-3.5 w-3.5 text-emerald-500" />
-            <span>{bn ? 'স্ক্যান সম্পন্ন হলে সাউন্ড বিপ বাজবে' : 'Audible beep on scan'}</span>
+            <span>Audible beep on scan</span>
           </div>
           <button
             type="button"
@@ -350,7 +338,7 @@ export default function LivestockBarcodeScannerModal({
             }}
             className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 cursor-pointer"
           >
-            {bn ? 'বন্ধ করুন' : 'Close'}
+            'Close'
           </button>
         </div>
       </div>

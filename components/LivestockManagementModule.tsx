@@ -137,17 +137,17 @@ export default function LivestockManagementModule({
   );
 
   // ============================================================================
-  // A. নতুন গরু / ছাগল প্রোফাইল রেজিস্ট্রেশন (Digital Profile State)
+  // A. Cattle / Goat Digital Profile Registration State
   // ============================================================================
   const [aTag, setATag] = useState(
     isCattle ? `CAT-000${animals.length + 1}` : `GOAT-000${animals.length + 1}`
   );
-  const [aName, setAName] = useState(isCattle ? 'লক্ষ্মী (Laxmi)' : 'কুষ্টিয়া ব্ল্যাক পার্ল');
+  const [aName, setAName] = useState(isCattle ? 'Laxmi (Dairy Cow)' : 'Kushtia Black Pearl');
   const [aPurposeType, setAPurposeType] = useState(
-    isCattle ? 'Dairy Cow (দুধের গাভী)' : 'Breeding Doe (প্রজননক্ষম মা ছাগল)'
+    isCattle ? 'Dairy Cow' : 'Breeding Doe'
   );
   const [aBreed, setABreed] = useState(
-    isCattle ? 'Holstein Cross (হলস্টেইন ক্রস)' : 'Black Bengal (ব্ল্যাক বেঙ্গল)'
+    isCattle ? 'Holstein Cross' : 'Black Bengal'
   );
   const [aGender, setAGender] = useState<'Female' | 'Male'>('Female');
   const [aBirthYear, setABirthYear] = useState('2024');
@@ -162,7 +162,7 @@ export default function LivestockManagementModule({
   const [aDamTag, setADamTag] = useState(isCattle ? 'CAT-DAM-01' : 'GOAT-0001');
 
   // ============================================================================
-  // B. দুধ উৎপাদন (Morning + Evening) ও ওজন বৃদ্ধি (Milk & Weight State)
+  // B. Milk Production (Morning + Evening) & Weight Growth State
   // ============================================================================
   const [bMilkDate, setBMilkDate] = useState(new Date().toISOString().split('T')[0]);
   const [bMorningLiters, setBMorningLiters] = useState(isCattle ? 6 : 1.2);
@@ -170,7 +170,7 @@ export default function LivestockManagementModule({
   const [bFarmUseLiters, setBFarmUseLiters] = useState(0);
   const [bWastedLiters, setBWastedLiters] = useState(0);
   const [bMilkPricePerLiter, setBMilkPricePerLiter] = useState(isCattle ? 80 : 120);
-  const [bMilkBuyer, setBMilkBuyer] = useState('আড়ং ডেইরি চিলিং পয়েন্ট / স্থানীয় ক্রেতা');
+  const [bMilkBuyer, setBMilkBuyer] = useState('Aarong Dairy Chilling Center / Local Wholesale');
 
   const totalDailyMilk = Number((Number(bMorningLiters) + Number(bEveningLiters)).toFixed(2));
   const soldDailyMilk = Math.max(
@@ -186,10 +186,10 @@ export default function LivestockManagementModule({
   );
   const [wTargetWeightKg, setWTargetWeightKg] = useState(isCattle ? 450 : 38);
   const [wExpectedPricePerKg, setWExpectedPricePerKg] = useState(isCattle ? 650 : 1100);
-  const [wNotes, setWNotes] = useState('মাসিক ওজন পরিমাপ — শারীরিক বৃদ্ধি সন্তোষজনক');
+  const [wNotes, setWNotes] = useState('Monthly weight measurement — growth is normal');
 
   // ============================================================================
-  // C. খাবারের হিসাব — একক ও যৌথ (Individual & Group Feeding State)
+  // C. Feed Calculations — Individual & Group Feeding State
   // ============================================================================
   const [cFeedMode, setCFeedMode] = useState<
     'individual' | 'group_equal' | 'group_weight_ratio'
@@ -216,22 +216,22 @@ export default function LivestockManagementModule({
   const monthlyEstimatedFeedCost = Math.round(dailyRationCost * 30);
 
   // ============================================================================
-  // D. চিকিৎসা, ভ্যাকসিন, গর্ভধারণ ও বাচ্চা জন্ম (Vet, Breeding & Newborn Offspring)
+  // D. Veterinary, Vaccines, Breeding & Newborn Offspring State
   // ============================================================================
-  const [dDiseaseName, setDDiseaseName] = useState('রুটিন স্বাস্থ্য পরীক্ষা ও কৃমিনাশক');
-  const [dDoctorName, setDDoctorName] = useState('ডা. কামরুল ইসলাম (DVM)');
+  const [dDiseaseName, setDDiseaseName] = useState('Routine Health Checkup & Deworming');
+  const [dDoctorName, setDDoctorName] = useState('Dr. Kamrul Islam (DVM)');
   const [dTreatDate, setDTreatDate] = useState(new Date().toISOString().split('T')[0]);
   const [dMedicineName, setDMedicineName] = useState('Ivermectin + Livavet + Calcium');
   const [dMedCost, setDMedCost] = useState(isCattle ? 1500 : 450);
   const [dVaccineName, setDVaccineName] = useState(
-    isCattle ? 'FMD (ক্ষুরা রোগ টিকা)' : 'PPR (পিপিআর ভ্যাকসিন)'
+    isCattle ? 'FMD Vaccine' : 'PPR Vaccine'
   );
   const [dVaccineDate, setDVaccineDate] = useState(new Date().toISOString().split('T')[0]);
   const [dNextVaccineDate, setDNextVaccineDate] = useState('2027-05-12');
   const [dIsPregnant, setDIsPregnant] = useState(false);
   const [dBreedingDate, setDBreedingDate] = useState('2026-09-10');
   const [dSireUsed, setDSireUsed] = useState(
-    isCattle ? 'হলস্টেইন ফ্রিজিয়ান সিমেন #AF-88' : 'পাঠা ছাগল GOAT-0002'
+    isCattle ? 'Holstein Friesian Semen #AF-88' : 'Breeding Buck GOAT-0002'
   );
 
   // Auto-calculate expected delivery date (Cattle: ~283 days, Goat: ~150 days)
@@ -248,7 +248,7 @@ export default function LivestockManagementModule({
     isCattle ? `CAT-000${animals.length + 2}` : `GOAT-000${animals.length + 2}`
   );
   const [newbornName, setNewbornName] = useState(
-    isCattle ? 'নতুন বাছুর ( মা: লক্ষ্মী )' : 'নতুন ছাগলছানা (Kid)'
+    isCattle ? 'Newborn Calf (Dam: Laxmi)' : 'Newborn Kid'
   );
   const [newbornGender, setNewbornGender] = useState<'Female' | 'Male'>('Female');
   const [newbornWeight, setNewbornWeight] = useState(isCattle ? 28 : 2.2);
@@ -260,10 +260,10 @@ export default function LivestockManagementModule({
   );
 
   // ============================================================================
-  // F. পশু বিক্রির হিসাব ও Lifetime Profit (Sale & Profit State)
+  // F. Animal Sale & Lifetime Profit State
   // ============================================================================
   const [fSalePrice, setFSalePrice] = useState(isCattle ? 120000 : 32000);
-  const [fBuyerName, setFBuyerName] = useState('সাভার ডেইরি অ্যান্ড মিট মার্ট');
+  const [fBuyerName, setFBuyerName] = useState('Savar Dairy & Meat Mart');
   const [fSaleDate, setFSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [fPaymentMethod, setFPaymentMethod] = useState<'Cash' | 'Bank' | 'Mobile Payment'>('Cash');
   const [fDueAmount, setFDueAmount] = useState(0);
@@ -273,7 +273,7 @@ export default function LivestockManagementModule({
   // HANDLERS
   // ============================================================================
 
-  // 1-Click Load User's Exact Prompt Example: CAT-0001 (লক্ষ্মী) or GOAT-0001 Family Tree
+  // 1-Click Load User's Exact Prompt Example: CAT-0001 (Laxmi) or GOAT-0001 Family Tree
   const handleLoadPromptExample = async () => {
     setIsSubmitting(true);
     try {
@@ -283,8 +283,8 @@ export default function LivestockManagementModule({
             animalTag: 'CAT-0001',
             species: 'cattle',
             businessId: activeBusiness.id,
-            name: 'লক্ষ্মী (Laxmi - Dairy Cow)',
-            breed: 'Holstein Cross (হলস্টেইন ক্রস)',
+            name: 'Laxmi (Dairy Cow)',
+            breed: 'Holstein Cross',
             gender: 'Female',
             ageMonths: 28,
             purchaseDate: '2025-01-10',
@@ -293,9 +293,9 @@ export default function LivestockManagementModule({
             healthStatus: 'Lactating',
             feedCost: 18000,
             medicineAndVetCost: 7000,
-            vaccinationHistory: 'FMD (ক্ষুরা রোগ), Anthrax ও BQ ভ্যাকসিন সম্পন্ন | পরবর্তী: 2027-03-15',
+            vaccinationHistory: 'FMD, Anthrax and BQ vaccination completed | Next: 2027-03-15',
             breedingAndOffspringNotes:
-              'জন্ম: ২০২৪ | কেনা: ২০২৫ | বর্তমান অবস্থা: প্রতিদিন দুধ দেয় (সকাল ৬ লি. + বিকেল ৫ লি. = ১১ লি.)',
+              'Birth: 2024 | Acquired: 2025 | Current Status: Daily milking (Morning 6L + Evening 5L = 11L)',
             parentTag: 'Sire: HF-AU-88 | Dam: CAT-0000',
             totalMilkLiters: 330,
             milkSalesRevenue: 26400,
@@ -311,14 +311,14 @@ export default function LivestockManagementModule({
           module: 'Cattle Management',
           businessId: activeBusiness.id,
           details:
-            '[CAT-0001 | লক্ষ্মী] তারিখ: 2026-11-12 | সকাল: 6 লিটার | বিকেল: 5 লিটার | মোট: 11 লিটার | বিক্রি: 11 লিটার @ ৳80 = ৳880',
+            '[CAT-0001 | Laxmi] Date: 2026-11-12 | Morning: 6 L | Evening: 5 L | Total: 11 L | Sold: 11 L @ ৳80 = ৳880',
           severity: 'info',
           actorEmail,
           ownerId,
         });
 
         notify(
-          'উদাহরণের গাভী CAT-0001 (নাম: লক্ষ্মী, ক্রয়মূল্য ৳৮০,০০০, বরাদ্দ খরচ ৳২৫,০০০, বিক্রয়মূল্য ৳১,২০,০০০, প্রকৃত লাভ ৳১৫,০০০ + দুধের আয়) সফলভাবে লোড হয়েছে!'
+          'Sample Cow CAT-0001 (Name: Laxmi, Purchase ৳80,000, Feed & Care ৳25,000, Sale Value ৳120,000, Net Profit ৳15,000 + Milk Revenue) loaded successfully!'
         );
       } else {
         // Create Mother Goat + 2 Offspring Kids so Family Tree works out of the box
@@ -327,7 +327,7 @@ export default function LivestockManagementModule({
             animalTag: 'GOAT-0001',
             species: 'goat',
             businessId: activeBusiness.id,
-            name: 'কালো মানিক (Mother Doe)',
+            name: 'Kalo Manik (Mother Doe)',
             breed: 'Black Bengal Purebred',
             gender: 'Female',
             ageMonths: 24,
@@ -337,9 +337,9 @@ export default function LivestockManagementModule({
             healthStatus: 'Healthy',
             feedCost: 4200,
             medicineAndVetCost: 800,
-            vaccinationHistory: 'PPR ভ্যাকসিন ও কৃমিনাশক সম্পন্ন',
+            vaccinationHistory: 'PPR Vaccine and Deworming completed',
             breedingAndOffspringNotes:
-              '২টি বাচ্চা দিয়েছে (GOAT-K01 ও GOAT-K02) | পুনরায় গর্ভবতী',
+              'Gave birth to 2 kids (GOAT-K01 & GOAT-K02) | Currently Pregnant',
             parentTag: 'Sire: ROOT-BUCK | Dam: ROOT-DOE',
             totalMilkLiters: 0,
             milkSalesRevenue: 0,
@@ -355,7 +355,7 @@ export default function LivestockManagementModule({
             animalTag: 'GOAT-K01',
             species: 'goat',
             businessId: activeBusiness.id,
-            name: 'বিজলি (১ম বাচ্চা - মাদি)',
+            name: 'Bijli (1st Kid - Doe)',
             breed: 'Black Bengal Purebred',
             gender: 'Female',
             ageMonths: 7,
@@ -365,8 +365,8 @@ export default function LivestockManagementModule({
             healthStatus: 'Healthy',
             feedCost: 1600,
             medicineAndVetCost: 300,
-            vaccinationHistory: 'PPR ১ম ডোজ সম্পন্ন',
-            breedingAndOffspringNotes: 'খামারে জন্ম (জন্ম তারিখ: ১২ এপ্রিল ২০২৬)',
+            vaccinationHistory: 'PPR 1st dose completed',
+            breedingAndOffspringNotes: 'Farm Born (Birth Date: 12 April 2026)',
             parentTag: 'Sire: GOAT-0002 | Dam: GOAT-0001',
             totalMilkLiters: 0,
             milkSalesRevenue: 0,
@@ -382,7 +382,7 @@ export default function LivestockManagementModule({
             animalTag: 'GOAT-K02',
             species: 'goat',
             businessId: activeBusiness.id,
-            name: 'তুফান (২য় বাচ্চা - খাসি)',
+            name: 'Tufan (2nd Kid - Buck)',
             breed: 'Black Bengal Purebred',
             gender: 'Male',
             ageMonths: 7,
@@ -392,8 +392,8 @@ export default function LivestockManagementModule({
             healthStatus: 'Healthy',
             feedCost: 1800,
             medicineAndVetCost: 300,
-            vaccinationHistory: 'PPR ১ম ডোজ সম্পন্ন',
-            breedingAndOffspringNotes: 'খামারে জন্ম (জন্ম তারিখ: ১২ এপ্রিল ২০২৬)',
+            vaccinationHistory: 'PPR 1st dose completed',
+            breedingAndOffspringNotes: 'Farm Born (Birth Date: 12 April 2026)',
             parentTag: 'Sire: GOAT-0002 | Dam: GOAT-0001',
             totalMilkLiters: 0,
             milkSalesRevenue: 0,
@@ -405,7 +405,7 @@ export default function LivestockManagementModule({
         );
 
         notify(
-          'মা ছাগল GOAT-0001 এবং তার ২টি বাচ্চা (GOAT-K01 ও GOAT-K02) সহ সম্পূর্ণ Family Tree লোড করা হয়েছে!'
+          'Mother goat GOAT-0001 and 2 kids (GOAT-K01 & GOAT-K02) loaded with full Family Tree!'
         );
       }
     } finally {
@@ -419,7 +419,7 @@ export default function LivestockManagementModule({
     setIsSubmitting(true);
     try {
       const parentStr = `Sire: ${aSireTag || 'N/A'} | Dam: ${aDamTag || 'N/A'}`.slice(0, 40);
-      const profileNotes = `ধরন: ${aPurposeType} | জন্ম সাল: ${aBirthYear} | কেনা: ${aPurchaseDate}`.slice(
+      const profileNotes = `Category: ${aPurposeType} | Birth Year: ${aBirthYear} | Acquired: ${aPurchaseDate}`.slice(
         0,
         300
       );
@@ -440,8 +440,8 @@ export default function LivestockManagementModule({
           feedCost: 0,
           medicineAndVetCost: 0,
           vaccinationHistory: isCattle
-            ? 'প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন (FMD/BQ Scheduled)'
-            : 'প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন (PPR Scheduled)',
+            ? 'Initial health checkup completed (FMD/BQ Scheduled)'
+            : 'Initial health checkup completed (PPR Scheduled)',
           breedingAndOffspringNotes: profileNotes,
           parentTag: parentStr,
           totalMilkLiters: 0,
@@ -465,8 +465,8 @@ export default function LivestockManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'purchase',
-            category: `${isCattle ? 'গরু' : 'ছাগল'} ক্রয় (${aTag})`,
-            description: `${aTag} (${aName} - ${aBreed}), ওজন: ${aWeightKg} কেজি, ধরন: ${aPurposeType}`,
+            category: `${isCattle ? 'Cattle' : 'Goat'} Purchase (${aTag})`,
+            description: `${aTag} (${aName} - ${aBreed}), Weight: ${aWeightKg} KG, Type: ${aPurposeType}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: cashOrBank.id,
@@ -474,7 +474,7 @@ export default function LivestockManagementModule({
             amount: Number(aPurchasePrice),
             paymentStatus: 'paid',
             dueAmount: 0,
-            counterpartyName: 'খামার পশু হাট / ব্রিডার',
+            counterpartyName: 'Livestock Mart / Registered Breeder',
           },
           accounts,
           ownerId,
@@ -483,7 +483,7 @@ export default function LivestockManagementModule({
       }
 
       notify(
-        `নতুন ডিজিটাল প্রোফাইল ${aTag} (${aName}, ক্রয়মূল্য ${formatBDT(Number(aPurchasePrice))}) সফলভাবে তৈরি হয়েছে!`
+        `New digital profile ${aTag} (${aName}, Cost: ${formatBDT(Number(aPurchasePrice))}) created successfully!`
       );
     } finally {
       setIsSubmitting(false);
@@ -515,7 +515,7 @@ export default function LivestockManagementModule({
         action: 'DAILY_MILK_LOG',
         module: isCattle ? 'Cattle Management' : 'Goat Management',
         businessId: activeBusiness.id,
-        details: `[${selectedAnimal.animalTag} | ${selectedAnimal.name}] তারিখ: ${bMilkDate} | সকাল: ${bMorningLiters} লি. | বিকেল: ${bEveningLiters} লি. | মোট: ${totalDailyMilk} লি. | বিক্রি: ${soldDailyMilk} লি. | খামারে ব্যবহার: ${bFarmUseLiters} লি. | নষ্ট: ${bWastedLiters} লি. | দর: ৳${bMilkPricePerLiter} | আয়: ৳${dailyMilkRevenue}`,
+        details: `[${selectedAnimal.animalTag} | ${selectedAnimal.name}] Date: ${bMilkDate} | Morning: ${bMorningLiters} L | Evening: ${bEveningLiters} L | Total: ${totalDailyMilk} L | Sold: ${soldDailyMilk} L | Farm Use: ${bFarmUseLiters} L | Spoilage: ${bWastedLiters} L | Rate: ৳${bMilkPricePerLiter} | Revenue: ৳${dailyMilkRevenue}`,
         severity: 'info',
         actorEmail,
         ownerId,
@@ -532,8 +532,8 @@ export default function LivestockManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'sale',
-            category: `দুধ বিক্রি (${selectedAnimal.animalTag} - ${selectedAnimal.name})`,
-            description: `তারিখ: ${bMilkDate} | সকাল ${bMorningLiters} লি. + বিকেল ${bEveningLiters} লি. = মোট ${totalDailyMilk} {bn ? "লিটার" : "L"} (বিক্রি ${soldDailyMilk} লি. @ ৳${bMilkPricePerLiter})`,
+            category: `Milk Sales (${selectedAnimal.animalTag} - ${selectedAnimal.name})`,
+            description: `Date: ${bMilkDate} | Morning ${bMorningLiters} L + Evening ${bEveningLiters} L = Total ${totalDailyMilk} L (Sold ${soldDailyMilk} L @ ৳${bMilkPricePerLiter})`,
             debitAccountId: cashOrBank.id,
             debitAccountName: cashOrBank.name,
             creditAccountId: revAcc.id,
@@ -550,7 +550,7 @@ export default function LivestockManagementModule({
       }
 
       notify(
-        `${selectedAnimal.animalTag} (${selectedAnimal.name})-এর আজকের দুধ উৎপাদন: সকাল ${bMorningLiters} লি. + বিকেল ${bEveningLiters} লি. = ${totalDailyMilk} লিটার (আয় ${formatBDT(dailyMilkRevenue)}) সংরক্ষিত হয়েছে!`
+        `${selectedAnimal.animalTag} (${selectedAnimal.name}): Daily milk yield Morning ${bMorningLiters} L + Evening ${bEveningLiters} L = ${totalDailyMilk} L (Revenue: ${formatBDT(dailyMilkRevenue)}) saved successfully!`
       );
     } finally {
       setIsSubmitting(false);
@@ -577,14 +577,14 @@ export default function LivestockManagementModule({
         action: 'WEIGHT_GROWTH_LOG',
         module: isCattle ? 'Cattle Management' : 'Goat Management',
         businessId: activeBusiness.id,
-        details: `[${selectedAnimal.animalTag} | ${selectedAnimal.name}] তারিখ: ${wMeasureDate} | পূর্বের ওজন: ${prevWeight} কেজি ➔ বর্তমান ওজন: ${wNewWeightKg} কেজি (পরিবর্তন: ${diff >= 0 ? '+' : ''}${diff} কেজি) | টার্গেট: ${wTargetWeightKg} কেজি | নোট: ${wNotes}`,
+        details: `[${selectedAnimal.animalTag} | ${selectedAnimal.name}] Date: ${wMeasureDate} | Prev Weight: ${prevWeight} KG ➔ Current: ${wNewWeightKg} KG (Change: ${diff >= 0 ? '+' : ''}${diff} KG) | Target: ${wTargetWeightKg} KG | Notes: ${wNotes}`,
         severity: 'info',
         actorEmail,
         ownerId,
       });
 
       notify(
-        `${selectedAnimal.animalTag}-এর নতুন ওজন ${wNewWeightKg} কেজি (${diff >= 0 ? '+' : ''}${diff} কেজি) আপডেট হয়েছে!`
+        `${selectedAnimal.animalTag}: New weight ${wNewWeightKg} KG (${diff >= 0 ? '+' : ''}${diff} KG) updated!`
       );
     } finally {
       setIsSubmitting(false);
@@ -637,30 +637,30 @@ export default function LivestockManagementModule({
           totalKgUsed,
           invItem.warehouse,
           cFeedMode === 'individual' ? selectedAnimal.animalTag : `Group Herd (${targets.length})`,
-          `ঘাস ${cGrassKg}kg, খড় ${cStrawKg}kg, ভুসি ${cBranKg}kg, অন্যান্য ${cOtherKg}kg (${cDaysCount} দিন)`,
+          `Grass ${cGrassKg}kg, Straw ${cStrawKg}kg, Bran ${cBranKg}kg, Other ${cOtherKg}kg (${cDaysCount} days)`,
           actorEmail
         );
       }
 
       const modeLabel =
         cFeedMode === 'individual'
-          ? `একক পশু (${selectedAnimal.animalTag})`
+          ? `Individual Animal (${selectedAnimal.animalTag})`
           : cFeedMode === 'group_equal'
-          ? `যৌথ খাবার (${targets.length}টি পশুর মধ্যে সমান বণ্টন)`
-          : `যৌথ খাবার (${targets.length}টি পশুর ওজন অনুপাতে বণ্টন)`;
+          ? `Group Feed (Equal across ${targets.length} animals)`
+          : `Group Feed (Weight-proportional across ${targets.length} animals)`;
 
       await logAuditEvent({
         action: 'LIVESTOCK_FEED_LOG',
         module: isCattle ? 'Cattle Management' : 'Goat Management',
         businessId: activeBusiness.id,
-        details: `[${modeLabel}] দৈনিক রেশন: ঘাস ${cGrassKg} কেজি, খড় ${cStrawKg} কেজি, ভুসি ${cBranKg} কেজি, অন্যান্য ${cOtherKg} কেজি (দৈনিক ৳${dailyRationCost} × ${cDaysCount} দিন = মোট ৳${totalPeriodFeedCost})`,
+        details: `[${modeLabel}] Daily Ration: Grass ${cGrassKg} KG, Straw ${cStrawKg} KG, Bran ${cBranKg} KG, Other ${cOtherKg} KG (Daily ৳${dailyRationCost} × ${cDaysCount} days = Total ৳${totalPeriodFeedCost})`,
         severity: 'info',
         actorEmail,
         ownerId,
       });
 
       notify(
-        `খাবারের হিসাব (${modeLabel}: মোট ${formatBDT(totalPeriodFeedCost)}) সফলভাবে প্রোফাইলে যুক্ত হয়েছে!`
+        `Feed allocation (${modeLabel}: Total ${formatBDT(totalPeriodFeedCost)}) recorded successfully!`
       );
     } finally {
       setIsSubmitting(false);
@@ -673,16 +673,16 @@ export default function LivestockManagementModule({
     if (!selectedAnimal) return;
     setIsSubmitting(true);
     try {
-      const newVacHistory = `${dVaccineName} (${dVaccineDate}, পরবর্তী: ${dNextVaccineDate}) | ডা. ${dDoctorName}`.slice(
+      const newVacHistory = `${dVaccineName} (${dVaccineDate}, Next: ${dNextVaccineDate}) | Dr. ${dDoctorName}`.slice(
         0,
         300
       );
       const newBreedingNotes = dIsPregnant
-        ? `গর্ভবতী (প্রজনন: ${dBreedingDate}, বীজ/পাঠা: ${dSireUsed}, সম্ভাব্য প্রসব: ${expectedDeliveryDate}) | রোগ/চিকিৎসা: ${dDiseaseName} (${dMedicineName})`.slice(
+        ? `Pregnant (Breeding Date: ${dBreedingDate}, Sire/Straw: ${dSireUsed}, Expected Delivery: ${expectedDeliveryDate}) | Treatment: ${dDiseaseName} (${dMedicineName})`.slice(
             0,
             300
           )
-        : `${selectedAnimal.breedingAndOffspringNotes} | চিকিৎসা (${dTreatDate}): ${dDiseaseName} - ${dMedicineName}`.slice(
+        : `${selectedAnimal.breedingAndOffspringNotes} | Treatment (${dTreatDate}): ${dDiseaseName} - ${dMedicineName}`.slice(
             0,
             300
           );
@@ -701,12 +701,12 @@ export default function LivestockManagementModule({
       // Create Vaccine Reminder Notification
       if (dNextVaccineDate) {
         await createNotificationRecord({
-          title: `টিকা ও প্রজনন রিমাইন্ডার: ${selectedAnimal.animalTag} (${selectedAnimal.name})`.slice(
+          title: `Vaccine & Breeding Reminder: ${selectedAnimal.animalTag} (${selectedAnimal.name})`.slice(
             0,
             140
           ),
-          message: `${selectedAnimal.animalTag}-এর পরবর্তী ভ্যাকসিন (${dVaccineName}): ${dNextVaccineDate}${
-            dIsPregnant ? ` | সম্ভাব্য বাচ্চা প্রসবের তারিখ: ${expectedDeliveryDate}` : ''
+          message: `${selectedAnimal.animalTag} Next Vaccine (${dVaccineName}): ${dNextVaccineDate}${
+            dIsPregnant ? ` | Expected Delivery Date: ${expectedDeliveryDate}` : ''
           }`.slice(0, 400),
           category: 'vaccination',
           priority: 'high',
@@ -715,7 +715,7 @@ export default function LivestockManagementModule({
       }
 
       notify(
-        `${selectedAnimal.animalTag}-এর চিকিৎসা ও ভ্যাকসিন খরচ (${formatBDT(Number(dMedCost))}) এবং পরবর্তী ভ্যাকসিন রিমাইন্ডার (${dNextVaccineDate}) সেভ হয়েছে!`
+        `${selectedAnimal.animalTag} vet & vaccine cost (${formatBDT(Number(dMedCost))}) and next booster reminder (${dNextVaccineDate}) saved!`
       );
     } finally {
       setIsSubmitting(false);
@@ -748,8 +748,8 @@ export default function LivestockManagementModule({
           healthStatus: 'Healthy',
           feedCost: 0,
           medicineAndVetCost: 0,
-          vaccinationHistory: 'খামারে সদ্যজাত — শালদুধ (Colostrum) প্রদান করা হয়েছে',
-          breedingAndOffspringNotes: `খামারে জন্ম: ${newbornBirthDate} | মা: ${selectedAnimal.animalTag} (${selectedAnimal.name})`,
+          vaccinationHistory: 'Farm Newborn — Fed Colostrum',
+          breedingAndOffspringNotes: `Farm Born: ${newbornBirthDate} | Dam: ${selectedAnimal.animalTag} (${selectedAnimal.name})`,
           parentTag: parentLink,
           totalMilkLiters: 0,
           milkSalesRevenue: 0,
@@ -761,7 +761,7 @@ export default function LivestockManagementModule({
       );
 
       // Update Mother's breedingAndOffspringNotes to record the newborn ID
-      const updatedMotherNotes = `সন্তান জন্ম (${newbornBirthDate}): ${newbornTag} (${newbornName}) | ${selectedAnimal.breedingAndOffspringNotes}`.slice(
+      const updatedMotherNotes = `Offspring Birth (${newbornBirthDate}): ${newbornTag} (${newbornName}) | ${selectedAnimal.breedingAndOffspringNotes}`.slice(
         0,
         300
       );
@@ -775,7 +775,7 @@ export default function LivestockManagementModule({
       );
 
       notify(
-        `অভিনন্দন! মা ${selectedAnimal.animalTag}-এর নতুন বাচ্চা ${newbornTag} (${newbornName}) স্বয়ংক্রিয় বংশলতিকা (Parent Link) সহ রেজিস্ট্রেশন হয়েছে!`
+        `Congratulations! Dam ${selectedAnimal.animalTag}'s new offspring ${newbornTag} (${newbornName}) registered with automated parent lineage!`
       );
     } finally {
       setIsSubmitting(false);
@@ -810,8 +810,8 @@ export default function LivestockManagementModule({
               businessId: activeBusiness.id,
               businessName: activeBusiness.name,
               transactionType: 'sale',
-              category: `${isCattle ? 'গরু' : 'ছাগল'} বিক্রি (${selectedAnimal.animalTag})`,
-              description: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed}), ওজন: ${selectedAnimal.currentWeightKg} {bn ? 'কেজি' : 'KG'} | ক্রেতা: ${fBuyerName} | মাধ্যম: ${fPaymentMethod}`,
+              category: `${isCattle ? 'Cattle' : 'Goat'} Sale (${selectedAnimal.animalTag})`,
+              description: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed}), Weight: ${selectedAnimal.currentWeightKg} KG | Buyer: ${fBuyerName} | Payment: ${fPaymentMethod}`,
               debitAccountId: cashOrBank.id,
               debitAccountName: cashOrBank.name,
               creditAccountId: revAcc.id,
@@ -829,7 +829,7 @@ export default function LivestockManagementModule({
       }
 
       notify(
-        `${selectedAnimal.animalTag} (${selectedAnimal.name})-এর বিক্রয়মূল্য ${formatBDT(Number(fSalePrice))} আপডেট হয়েছে!`
+        `${selectedAnimal.animalTag} (${selectedAnimal.name}) sale price ${formatBDT(Number(fSalePrice))} updated successfully!`
       );
     } finally {
       setIsSubmitting(false);
@@ -901,11 +901,11 @@ export default function LivestockManagementModule({
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {isCattle
-                ? 'প্রতিটি গরুর আলাদা Digital ID, দুধ উৎপাদন, খাবার, চিকিৎসা, বাছুর ও আজীবন লাভ-ক্ষতি'
-                : 'প্রতিটি ছাগলের আলাদা Digital ID, বংশলতিকা (Family Tree), বাচ্চা, খাবার ও আজীবন লাভ-ক্ষতি'}
+                ? 'Individual Digital ID, Milk Yield, Feed Ration, Vet Care, Calving & Lifetime Profit'
+                : 'Individual Digital ID, Family Tree, Kids, Feed Ration & Lifetime Profit'}
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              সার্চ বক্সে <span className="font-mono font-bold">{isCattle ? 'CAT-0001' : 'GOAT-0001'}</span> বা পশুর নাম লিখলেই ওই পশুর জন্ম থেকে বিক্রি পর্যন্ত সম্পূর্ণ ইতিহাস চলে আসবে।
+              Search by <span className="font-mono font-bold">{isCattle ? 'CAT-0001' : 'GOAT-0001'}</span> or animal name to view complete lifecycle history from birth to sale.
             </p>
           </div>
 
@@ -919,15 +919,15 @@ export default function LivestockManagementModule({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>{bn ? 'লোড করা হচ্ছে...' : 'Loading demo...'}</span>
+                  <span>Loading demo...</span>
                 </>
               ) : (
                 <>
                   <Plus className="h-3.5 w-3.5" />
                   <span>
                     {isCattle
-                      ? 'উদাহরণ গরু (CAT-0001 লক্ষ্মী) লোড করুন'
-                      : 'উদাহরণ ছাগল ও Family Tree লোড করুন'}
+                      ? 'Load Demo Cattle (CAT-0001 Laxmi)'
+                      : 'Load Demo Goat & Family Tree'}
                   </span>
                 </>
               )}
@@ -939,7 +939,7 @@ export default function LivestockManagementModule({
                 type="text"
                 value={tagSearchQuery}
                 onChange={(e) => setTagSearchQuery(e.target.value)}
-                placeholder={`${isCattle ? 'CAT-0001 বা লক্ষ্মী' : 'GOAT-0001'} লিখে সার্চ করুন...`}
+                placeholder={`${isCattle ? 'CAT-0001 or Laxmi' : 'GOAT-0001'} - Type to search...`}
                 className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -953,10 +953,10 @@ export default function LivestockManagementModule({
               type="button"
               onClick={() => setIsScannerOpen(true)}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
-              title={bn ? 'ক্যামেরা অথবা বারকোড স্ক্যানার গান দিয়ে স্ক্যান করুন' : 'Scan Tag with Camera or Barcode Gun'}
+              title="Scan Tag with Camera or Barcode Gun"
             >
               <Scan className="h-4 w-4" />
-              <span>{bn ? 'বারকোড স্ক্যানার' : 'Scan Barcode/QR'}</span>
+              <span>Scan Barcode/QR</span>
             </button>
 
             <div className="relative min-w-[260px] max-w-md flex-1">
@@ -966,11 +966,11 @@ export default function LivestockManagementModule({
                 className="w-full pl-3 pr-8 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer"
               >
                 {filteredAnimals.length === 0 ? (
-                  <option value="" disabled>{bn ? 'কোনো পশু পাওয়া যায়নি' : 'No animal found'}</option>
+                  <option value="" disabled>No animal found</option>
                 ) : (
                   filteredAnimals.map((a) => (
                     <option key={a.id} value={a.id}>
-                      [{a.animalTag}] {a.name} · {a.breed} · {a.currentWeightKg} কেজি ({a.healthStatus || 'সুস্থ'})
+                      [{a.animalTag}] {a.name} · {a.breed} · {a.currentWeightKg} KG ({a.healthStatus || 'Healthy'})
                     </option>
                   ))
                 )}
@@ -978,7 +978,7 @@ export default function LivestockManagementModule({
             </div>
 
             <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
-              {bn ? `মোট ${animals.length}টি ${isCattle ? 'গরু' : 'ছাগল'}` : `Total ${animals.length} ${isCattle ? 'Cattle' : 'Goats'}`}
+              `Total ${animals.length} ${isCattle ? 'Cattle' : 'Goats'}`
             </span>
           </div>
 
@@ -990,7 +990,7 @@ export default function LivestockManagementModule({
                 <span className="text-slate-300 dark:text-slate-700">•</span>
                 <span className="text-slate-700 dark:text-slate-300 font-medium">{selectedAnimal.name}</span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{selectedAnimal.currentWeightKg} কেজি</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{selectedAnimal.currentWeightKg} KG</span>
               </div>
 
               {/* View/Print Ear Tag & Barcode Modal Button */}
@@ -998,10 +998,10 @@ export default function LivestockManagementModule({
                 type="button"
                 onClick={() => setShowEarTagModal(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors shadow-2xs cursor-pointer"
-                title={bn ? 'বারকোড ইয়ার ট্যাগ স্লিপ দেখুন ও প্রিন্ট করুন' : 'View & Print Barcode Ear Tag'}
+                title="View & Print Barcode Ear Tag"
               >
                 <Printer className="h-3.5 w-3.5 text-emerald-600" />
-                <span>{bn ? 'বারকোড ট্যাগ' : 'Ear Tag'}</span>
+                <span>Ear Tag</span>
               </button>
 
               {/* Delete Animal Button */}
@@ -1010,20 +1010,18 @@ export default function LivestockManagementModule({
                 disabled={isSubmitting}
                 onClick={() => {
                   triggerConfirmDelete({
-                    title: bn ? 'পশুর রেকর্ড ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Animal',
-                    message: bn
-                      ? `আপনি কি নিশ্চিতভাবে এই পশুর রেকর্ডটি (${selectedAnimal.animalTag}) ডিলিট করতে চান? এর সাথে যুক্ত যাবতীয় তথ্য মুছে যাবে।`
-                      : `Are you sure you want to delete animal record ${selectedAnimal.animalTag}?`,
+                    title: 'Confirm Delete Animal',
+                    message: `Are you sure you want to delete animal record ${selectedAnimal.animalTag}? All associated records will be removed.`,
                     itemName: `${selectedAnimal.animalTag} (${selectedAnimal.name} - ${selectedAnimal.breed})`,
                     onConfirm: async () => {
                       setIsSubmitting(true);
                       try {
                         await deleteLivestockAnimal(selectedAnimal.id);
                         triggerGlobalToast(
-                          bn ? `${selectedAnimal.animalTag} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedAnimal.animalTag} deleted!`,
+                          `${selectedAnimal.animalTag} deleted!`,
                           'delete'
                         );
-                        onNotify(bn ? `${selectedAnimal.animalTag} ডিলিট সম্পন্ন!` : `Record deleted!`);
+                        onNotify(`${selectedAnimal.animalTag} record deleted!`);
                       } catch (err: any) {
                         triggerGlobalToast(err?.message || 'Delete failed', 'info');
                       } finally {
@@ -1035,7 +1033,7 @@ export default function LivestockManagementModule({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-2xs cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span>{bn ? 'মুছুন' : 'Delete'}</span>
+                <span>Delete</span>
               </button>
             </div>
           )}
@@ -1050,43 +1048,43 @@ export default function LivestockManagementModule({
           {
             id: 'A_PROFILE' as LivestockSubTab,
             step: 'A',
-            titleBn: 'Digital ID ও প্রোফাইল',
             titleEn: 'Digital Profile',
+            subEn: 'Digital ID & Records',
             icon: QrCode,
           },
           {
             id: 'B_MILK_WEIGHT' as LivestockSubTab,
             step: 'B',
-            titleBn: isCattle ? 'দুধ উৎপাদন ও ওজন' : 'ওজন বৃদ্ধি ও দুধ',
             titleEn: 'Milk & Weight Log',
+            subEn: isCattle ? 'Milk Yield & Weight' : 'Weight Growth & Milk',
             icon: Milk,
           },
           {
             id: 'C_FEEDING' as LivestockSubTab,
             step: 'C',
-            titleBn: 'খাবারের খরচ (একক/যৌথ)',
             titleEn: 'Individual & Group Feed',
+            subEn: 'Daily Ration & Feed Cost',
             icon: Utensils,
           },
           {
             id: 'D_VET_BREEDING' as LivestockSubTab,
             step: 'D',
-            titleBn: 'চিকিৎসা, প্রজনন ও বাচ্চা',
             titleEn: 'Vet, Vaccine & Birth',
+            subEn: 'Health & Offspring Records',
             icon: Stethoscope,
           },
           {
             id: 'E_FAMILY_TREE' as LivestockSubTab,
             step: 'E',
-            titleBn: 'বংশলতিকা (Family Tree)',
             titleEn: 'Parent & Kids Tree',
+            subEn: 'Pedigree & Lineage Tree',
             icon: GitBranch,
           },
           {
             id: 'F_SALE_PROFIT' as LivestockSubTab,
             step: 'F',
-            titleBn: 'বিক্রি ও প্রকৃত লাভ-ক্ষতি',
             titleEn: 'Sale & Lifetime Profit',
+            subEn: 'ROI & Lifetime Net Profit',
             icon: BadgeDollarSign,
           },
         ].map((tab) => {
@@ -1111,18 +1109,18 @@ export default function LivestockManagementModule({
                       : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
                   }`}
                 >
-                  {bn ? `ধাপ ${tab.step}` : `Step ${tab.step}`}
+                  Step {tab.step}
                 </span>
                 <Icon className="h-4 w-4 opacity-85" />
               </div>
               <div>
-                <div className="text-xs font-bold leading-tight">{bn ? tab.titleBn : tab.titleEn}</div>
+                <div className="text-xs font-bold leading-tight">{tab.titleEn}</div>
                 <div
                   className={`text-[10px] mt-0.5 ${
                     active ? 'text-emerald-100' : 'text-slate-400'
                   }`}
                 >
-                  {bn ? tab.titleEn : tab.titleBn}
+                  {tab.subEn}
                 </div>
               </div>
             </button>
@@ -1131,7 +1129,7 @@ export default function LivestockManagementModule({
       </div>
 
       {/* =====================================================================
-          TAB A: প্রতিটি গরু / ছাগলের Digital Profile & New Registration
+          TAB A: Livestock Individual Digital Profile & New Registration
          ===================================================================== */}
       {activeSubTab === 'A_PROFILE' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1148,7 +1146,7 @@ export default function LivestockManagementModule({
                       {selectedAnimal?.animalTag || 'N/A'}
                     </span>
                     <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                      {selectedAnimal?.status === 'active' ? 'Active (সক্রিয়)' : selectedAnimal?.status}
+                      {'Active'}
                     </span>
                   </div>
                   <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -1162,19 +1160,19 @@ export default function LivestockManagementModule({
                   type="button"
                   onClick={() => setIsScannerOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 transition-colors cursor-pointer"
-                  title={bn ? 'ক্যামেরা অথবা বারকোড স্ক্যানার গান দিয়ে স্ক্যান করুন' : 'Scan via Camera or Barcode Gun'}
+                  title="Scan via Camera or Barcode Gun"
                 >
                   <Scan className="h-4 w-4" />
-                  <span>{bn ? 'স্ক্যান' : 'Scan'}</span>
+                  <span>Scan</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowEarTagModal(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
-                  title={bn ? 'বারকোড ইয়ার ট্যাগ স্লিপ প্রিন্ট করুন' : 'Print Barcode Ear Tag'}
+                  title="Print Barcode Ear Tag"
                 >
                   <Printer className="h-4 w-4 text-emerald-600" />
-                  <span>{bn ? 'স্লিপ' : 'Slip'}</span>
+                  <span>Slip</span>
                 </button>
               </div>
             </div>
@@ -1184,14 +1182,14 @@ export default function LivestockManagementModule({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">
-                      <th className="py-2.5 px-4 w-2/5">{bn ? "বিষয় (Field)" : "Metric / Field"}</th>
-                      <th className="py-2.5 px-4">{bn ? "তথ্য (Information)" : "Details / Records"}</th>
+                      <th className="py-2.5 px-4 w-2/5">Metric / Field</th>
+                      <th className="py-2.5 px-4">Details / Records</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'ডিজিটাল ট্যাগ (Unique ID)' : 'Digital Tag ID'}
+                        Digital Tag ID
                       </td>
                       <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                         {selectedAnimal.animalTag}
@@ -1199,7 +1197,7 @@ export default function LivestockManagementModule({
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'পশুর নাম (Animal Name)' : 'Animal Name'}
+                        Animal Name
                       </td>
                       <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
                         {selectedAnimal.name}
@@ -1207,67 +1205,67 @@ export default function LivestockManagementModule({
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'ধরন ও লিঙ্গ (Type & Gender)' : 'Category & Gender'}
+                        Category & Gender
                       </td>
                       <td className="py-2.5 px-4">
                         {selectedAnimal.gender === 'Female'
                           ? isCattle
-                            ? (bn ? 'Dairy Cow / গাভী (Female)' : 'Dairy Cow (Female)')
-                            : (bn ? 'মা ছাগল / Doe (Female)' : 'Breeding Doe (Female)')
+                            ? 'Dairy Cow (Female)'
+                            : 'Breeding Doe (Female)'
                           : isCattle
-                          ? (bn ? 'ষাঁড় / Bull (Male)' : 'Bull (Male)')
-                          : (bn ? 'পাঠা বা খাসি / Buck (Male)' : 'Buck / Wether (Male)')}
+                          ? 'Bull (Male)'
+                          : 'Buck / Wether (Male)'}
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'জাত ও বয়স (Breed & Age)' : 'Breed & Age'}
+                        Breed & Age
                       </td>
                       <td className="py-2.5 px-4 font-semibold">
-                        {selectedAnimal.breed} ({selectedAnimal.ageMonths} {bn ? 'মাস' : 'Months'})
+                        {selectedAnimal.breed} ({selectedAnimal.ageMonths} Months)
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'কেনার / জন্মের তারিখ' : 'Purchase / Birth Date'}
+                        Purchase / Birth Date
                       </td>
                       <td className="py-2.5 px-4 font-mono">{selectedAnimal.purchaseDate}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'ক্রয়মূল্য (Purchase Price)' : 'Procurement Cost'}
+                        Procurement Cost
                       </td>
                       <td className="py-2.5 px-4 font-mono font-bold">
                         {selectedAnimal.purchasePrice > 0
                           ? formatBDT(selectedAnimal.purchasePrice)
-                          : (bn ? 'খামারে জন্ম (৳০)' : 'Farm Born (৳0)')}
+                          : 'Farm Born (৳0)'}
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'বর্তমান ওজন (Current Weight)' : 'Current Live Weight'}
+                        Current Live Weight
                       </td>
                       <td className="py-2.5 px-4 font-mono font-bold text-slate-900 dark:text-slate-100">
-                        {selectedAnimal.currentWeightKg} কেজি
+                        {selectedAnimal.currentWeightKg} KG
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'স্বাস্থ্য ও বর্তমান অবস্থা' : 'Health & Physiological Status'}
+                        Health & Physiological Status
                       </td>
                       <td className="py-2.5 px-4 font-bold text-emerald-700 dark:text-emerald-400">
                         {selectedAnimal.healthStatus === 'Lactating'
-                          ? (bn ? 'ভালো — দুধ দেয় (Lactating)' : 'Healthy — Lactating')
+                          ? 'Healthy — Lactating'
                           : selectedAnimal.healthStatus === 'Pregnant'
-                          ? (bn ? 'ভালো — গর্ভবতী (Pregnant)' : 'Healthy — Pregnant')
+                          ? 'Healthy — Pregnant'
                           : selectedAnimal.healthStatus === 'Healthy'
-                          ? (bn ? 'ভালো — সুস্থ (Healthy)' : 'Healthy & Active')
+                          ? 'Healthy & Active'
                           : selectedAnimal.healthStatus}
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'বংশ ও বাবা-মায়ের পরিচয়' : 'Pedigree & Lineage'}
+                        Pedigree & Lineage
                       </td>
                       <td className="py-2.5 px-4 font-mono text-[11px]">
                         {selectedAnimal.parentTag}
@@ -1275,22 +1273,22 @@ export default function LivestockManagementModule({
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'ভ্যাকসিন ও চিকিৎসার ইতিহাস' : 'Vaccination & Medical History'}
+                        Vaccination & Medical History
                       </td>
                       <td className="py-2.5 px-4">{selectedAnimal.vaccinationHistory}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'প্রজনন ও বাচ্চা জন্মের ইতিহাস' : 'Breeding & Offspring History'}
+                        Breeding & Offspring History
                       </td>
                       <td className="py-2.5 px-4">{selectedAnimal.breedingAndOffspringNotes}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {bn ? 'খাবার ও চিকিৎসার মোট খরচ' : 'Total Feed & Vet Cost'}
+                        Total Feed & Vet Cost
                       </td>
                       <td className="py-2.5 px-4 font-mono">
-                        {bn ? 'খাবার: ' : 'Feed: '}{formatBDT(selectedAnimal.feedCost)} + {bn ? 'চিকিৎসা: ' : 'Vet: '}
+                        'Feed: '{formatBDT(selectedAnimal.feedCost)} + 'Vet: '
                         {formatBDT(selectedAnimal.medicineAndVetCost)} ={' '}
                         <span className="font-bold">
                           {formatBDT(selectedAnimal.feedCost + selectedAnimal.medicineAndVetCost)}
@@ -1300,16 +1298,16 @@ export default function LivestockManagementModule({
                     {isCattle && (
                       <tr>
                         <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                          {bn ? 'মোট দুধ উৎপাদন ও আয়' : 'Cumulative Milk Production & Sales'}
+                          Cumulative Milk Production & Sales
                         </td>
                         <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                          {selectedAnimal.totalMilkLiters} {bn ? 'লিটার' : 'Liters'} ({formatBDT(selectedAnimal.milkSalesRevenue)})
+                          {selectedAnimal.totalMilkLiters} Liters ({formatBDT(selectedAnimal.milkSalesRevenue)})
                         </td>
                       </tr>
                     )}
                     <tr className="bg-emerald-50/70 dark:bg-emerald-950/30">
                       <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
-                        {bn ? 'আজীবন নিট লাভ (Lifetime Profit)' : 'Lifetime Cumulative Net Profit'}
+                        Lifetime Cumulative Net Profit
                       </td>
                       <td className="py-2.5 px-4 font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
                         {formatBDT(animLifetimeTotalProfit)}
@@ -1321,10 +1319,10 @@ export default function LivestockManagementModule({
             ) : (
               <div className="text-xs text-slate-500 py-12 text-center space-y-2">
             <p className="font-semibold text-slate-700 dark:text-slate-300">
-              {bn ? 'কোনো পশু নিবন্ধিত নেই।' : 'No livestock registered yet.'}
+              No livestock registered yet.
             </p>
             <p className="text-slate-400">
-              {bn ? 'ডানপাশের ফর্ম পূরণ করে প্রথম পশুর ডিজিটাল প্রোফাইল তৈরি করুন।' : 'Use the form on the right to register your first livestock profile.'}
+              Use the form on the right to register your first livestock profile.
             </p>
           </div>
             )}
@@ -1334,17 +1332,17 @@ export default function LivestockManagementModule({
           <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Plus className="h-4 w-4 text-emerald-600" />
-              {bn ? `নতুন ${isCattle ? 'গরুর' : 'ছাগলের'} Digital Profile তৈরি করুন` : `Register New ${isCattle ? 'Cattle' : 'Goat'} Profile`}
+              `Register New ${isCattle ? 'Cattle' : 'Goat'} Profile`
             </h3>
             <p className="text-xs text-slate-500 mt-1 mb-4">
-              {bn ? `খামারে নতুন ${isCattle ? 'গরু' : 'ছাগল'} কিনলে বা যোগ করলে আলাদা ইউনিক আইডি দিয়ে নিবন্ধন করুন।` : `Register new ${isCattle ? 'cattle' : 'goat'} with a unique ID tag, breed, procurement cost and health status.`}
+              `Register new ${isCattle ? 'cattle' : 'goat'} with a unique ID tag, breed, procurement cost and health status.`
             </p>
 
             <form onSubmit={handleCreateAnimalA} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-semibold mb-1">
-                    {bn ? 'ডিজিটাল ট্যাগ নাম্বার (Unique ID) *' : 'Digital Tag ID *'}
+                    Digital Tag ID *
                   </label>
                   <input
                     type="text"
@@ -1357,14 +1355,14 @@ export default function LivestockManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">
-                    {bn ? (isCattle ? 'গরুর নাম (Name) *' : 'ছাগলের নাম (Name) *') : (isCattle ? 'Cattle Name *' : 'Goat Name *')}
+                    isCattle ? 'Cattle Name *' : 'Goat Name *'
                   </label>
                   <input
                     type="text"
                     required
                     value={aName}
                     onChange={(e) => setAName(e.target.value)}
-                    placeholder={bn ? (isCattle ? 'যেমন: লক্ষ্মী / সুলতান' : 'যেমন: কালো মানিক') : (isCattle ? 'e.g. Laxmi / Sultan' : 'e.g. Kalo Manik')}
+                    placeholder={isCattle ? 'e.g. Laxmi / Sultan' : 'e.g. Kalo Manik'}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   />
                 </div>
@@ -1372,7 +1370,7 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'ধরন (Category / Type)' : 'Category / Type'}</label>
+                  <label className="block font-semibold mb-1">Category / Type</label>
                   <select
                     value={aPurposeType}
                     onChange={(e) => setAPurposeType(e.target.value)}
@@ -1380,23 +1378,23 @@ export default function LivestockManagementModule({
                   >
                     {isCattle ? (
                       <>
-                        <option value="Dairy Cow">{bn ? "Dairy Cow (দুধের গাভী)" : "Dairy Cow"}</option>
-                        <option value="Bull Fattening">{bn ? "কোরবানির ষাঁড় (Bull Fattening)" : "Beef Fattening Bull"}</option>
-                        <option value="Heifer">{bn ? "Heifer (বকনা বাছুর)" : "Heifer"}</option>
-                        <option value="Breeding Bull">{bn ? "Breeding Bull (প্রজনন ষাঁড়)" : "Breeding Bull"}</option>
+                        <option value="Dairy Cow">Dairy Cow</option>
+                        <option value="Bull Fattening">Beef Fattening Bull</option>
+                        <option value="Heifer">Heifer</option>
+                        <option value="Breeding Bull">Breeding Bull</option>
                       </>
                     ) : (
                       <>
-                        <option value="Breeding Doe">{bn ? "Breeding Doe (মা ছাগল)" : "Breeding Doe"}</option>
-                        <option value="Meat Goat">{bn ? "Meat Goat (মাংসের খাসি)" : "Meat Goat"}</option>
-                        <option value="Breeding Buck">{bn ? "Breeding Buck (প্রজনন পাঠা)" : "Breeding Buck"}</option>
-                        <option value="Kid">{bn ? "Kid (ছাগলছানা)" : "Kid"}</option>
+                        <option value="Breeding Doe">Breeding Doe</option>
+                        <option value="Meat Goat">Meat Goat</option>
+                        <option value="Breeding Buck">Breeding Buck</option>
+                        <option value="Kid">Kid</option>
                       </>
                     )}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'জাত (Breed)' : 'Breed'}</label>
+                  <label className="block font-semibold mb-1">Breed</label>
                   <input
                     type="text"
                     value={aBreed}
@@ -1409,18 +1407,18 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'লিঙ্গ (Gender)' : 'Gender'}</label>
+                  <label className="block font-semibold mb-1">Gender</label>
                   <select
                     value={aGender}
                     onChange={(e) => setAGender(e.target.value as 'Female' | 'Male')}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Female">{bn ? "মাদি (Female)" : "Female"}</option>
-                    <option value="Male">{bn ? "মর্দা (Male)" : "Male"}</option>
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'জন্ম সাল (Birth Year)' : 'Birth Year'}</label>
+                  <label className="block font-semibold mb-1">Birth Year</label>
                   <input
                     type="text"
                     value={aBirthYear}
@@ -1429,7 +1427,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'বয়স (মাস)' : 'Age (Months)'}</label>
+                  <label className="block font-semibold mb-1">Age (Months)</label>
                   <input
                     type="number"
                     min={0}
@@ -1443,7 +1441,7 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'কেনার তারিখ' : 'Purchase Date'}</label>
+                  <label className="block font-semibold mb-1">Purchase Date</label>
                   <input
                     type="date"
                     value={aPurchaseDate}
@@ -1452,7 +1450,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'ক্রয়মূল্য (৳)' : 'Purchase Price (৳)'}</label>
+                  <label className="block font-semibold mb-1">Purchase Price (৳)</label>
                   <input
                     type="number"
                     min={0}
@@ -1463,7 +1461,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'বর্তমান ওজন (কেজি)' : 'Current Weight (KG)'}</label>
+                  <label className="block font-semibold mb-1">Current Weight (KG)</label>
                   <input
                     type="number"
                     min={1}
@@ -1478,21 +1476,21 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'বর্তমান অবস্থা' : 'Current Status'}</label>
+                  <label className="block font-semibold mb-1">Current Status</label>
                   <select
                     value={aHealthStatus}
                     onChange={(e) => setAHealthStatus(e.target.value as any)}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Lactating">{bn ? "দুধ দেয় (Lactating)" : "Lactating"}</option>
-                    <option value="Healthy">{bn ? "সুস্থ (Healthy)" : "Healthy"}</option>
-                    <option value="Pregnant">{bn ? "গর্ভবতী (Pregnant)" : "Pregnant"}</option>
-                    <option value="Under Observation">{bn ? "পর্যবেক্ষণে (Under Observation)" : "Under Observation"}</option>
-                    <option value="Treatment">{bn ? "চিকিৎসাধীন (Under Treatment)" : "Under Treatment"}</option>
+                    <option value="Lactating">Lactating</option>
+                    <option value="Healthy">Healthy</option>
+                    <option value="Pregnant">Pregnant</option>
+                    <option value="Under Observation">Under Observation</option>
+                    <option value="Treatment">Under Treatment</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'বাবার আইডি (Sire ID)' : 'Sire ID (Father)'}</label>
+                  <label className="block font-semibold mb-1">Sire ID (Father)</label>
                   <input
                     type="text"
                     value={aSireTag}
@@ -1501,7 +1499,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'মায়ের আইডি (Dam ID)' : 'Dam ID (Mother)'}</label>
+                  <label className="block font-semibold mb-1">Dam ID (Mother)</label>
                   <input
                     type="text"
                     value={aDamTag}
@@ -1519,10 +1517,10 @@ export default function LivestockManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    <span>{bn ? 'সেভ করা হচ্ছে...' : 'Saving...'}</span>
+                    <span>Saving...</span>
                   </>
                 ) : (
-                  <span>{bn ? `+ নতুন ${isCattle ? 'গরুর' : 'ছাগলের'} Digital ID সেভ করুন` : `+ Save New ${isCattle ? 'Cattle' : 'Goat'} ID Profile`}</span>
+                  <span>{`+ Save New ${isCattle ? 'Cattle' : 'Goat'} ID Profile`}</span>
                 )}
               </button>
             </form>
@@ -1531,7 +1529,7 @@ export default function LivestockManagementModule({
       )}
 
       {/* =====================================================================
-          TAB B: দুধ উৎপাদনের হিসাব (Morning + Evening) ও ওজন বৃদ্ধি (ADG)
+          TAB B: Milk Production & Weight Growth Tracking
          ===================================================================== */}
       {activeSubTab === 'B_MILK_WEIGHT' && (
         <div className="space-y-6">
@@ -1542,10 +1540,10 @@ export default function LivestockManagementModule({
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <Milk className="h-4 w-4 text-emerald-600" />
-                    {bn ? 'B1. প্রতিদিনের দুধ উৎপাদনের হিসাব (Morning + Evening Milk Log)' : 'B1. Daily Milk Production & Sales Log'}
+                    B1. Daily Milk Production & Sales Log
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    পশু:{' '}
+                    Animal:{' '}
                     <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                       {selectedAnimal?.animalTag} ({selectedAnimal?.name})
                     </span>
@@ -1556,7 +1554,7 @@ export default function LivestockManagementModule({
               <form onSubmit={handleRecordDailyMilkB} className="space-y-3.5 text-xs">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1">{bn ? 'তারিখ (Date)' : 'Date'}</label>
+                    <label className="block font-semibold mb-1">Date</label>
                     <input
                       type="date"
                       value={bMilkDate}
@@ -1566,7 +1564,7 @@ export default function LivestockManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                      {bn ? 'সকাল (Morning লিটার) *' : 'Morning Yield (Liters) *'}
+                      Morning Yield (Liters) *
                     </label>
                     <input
                       type="number"
@@ -1580,7 +1578,7 @@ export default function LivestockManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                      {bn ? 'বিকেল (Evening লিটার) *' : 'Evening Yield (Liters) *'}
+                      Evening Yield (Liters) *
                     </label>
                     <input
                       type="number"
@@ -1596,7 +1594,7 @@ export default function LivestockManagementModule({
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1">{bn ? 'খামারে/বাছুরকে ব্যবহার (লি.)' : 'Calf / Farm Usage (Liters)'}</label>
+                    <label className="block font-semibold mb-1">Calf / Farm Usage (Liters)</label>
                     <input
                       type="number"
                       step="0.5"
@@ -1608,7 +1606,7 @@ export default function LivestockManagementModule({
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">{bn ? 'নষ্ট দুধ (Wasted লি.)' : 'Wasted / Spoilage (Liters)'}</label>
+                    <label className="block font-semibold mb-1">Wasted / Spoilage (Liters)</label>
                     <input
                       type="number"
                       step="0.5"
@@ -1620,7 +1618,7 @@ export default function LivestockManagementModule({
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">{bn ? 'প্রতি লিটার দাম (৳)' : 'Rate / Liter (৳)'}</label>
+                    <label className="block font-semibold mb-1">Rate / Liter (৳)</label>
                     <input
                       type="number"
                       min={1}
@@ -1635,19 +1633,19 @@ export default function LivestockManagementModule({
                 {/* Live Calculation Summary Strip */}
                 <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 p-3.5 grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <div className="text-[11px] text-slate-500">{bn ? "আজকের মোট দুধ" : "Total Daily Yield"}</div>
+                    <div className="text-[11px] text-slate-500">Total Daily Yield</div>
                     <div className="text-base font-mono font-bold text-slate-900 dark:text-slate-100">
-                      {totalDailyMilk} লিটার
+                      {totalDailyMilk} L
                     </div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-slate-500">{bn ? "বিক্রিযোগ্য দুধ" : "Commercial Sold"}</div>
+                    <div className="text-[11px] text-slate-500">Commercial Sold</div>
                     <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                      {soldDailyMilk} {bn ? "লিটার" : "L"}
+                      {soldDailyMilk} L
                     </div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-slate-500">{bn ? "আজকের দুধ বিক্রির আয়" : "Daily Milk Revenue"}</div>
+                    <div className="text-[11px] text-slate-500">Daily Milk Revenue</div>
                     <div className="text-base font-mono font-bold text-emerald-700 dark:text-emerald-400">
                       {formatBDT(dailyMilkRevenue)}
                     </div>
@@ -1662,10 +1660,10 @@ export default function LivestockManagementModule({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                      <span>{bn ? 'দুধের হিসাব সেভ হচ্ছে...' : 'Saving Milk Log...'}</span>
+                      <span>Saving Milk Log...</span>
                     </>
                   ) : (
-                    <span>{bn ? '+ আজকের দুধের হিসাব ও বিক্রয় আয় সেভ করুন' : '+ Save Daily Milk Yield & Revenue'}</span>
+                    <span>+ Save Daily Milk Yield & Revenue</span>
                   )}
                 </button>
               </form>
@@ -1675,16 +1673,16 @@ export default function LivestockManagementModule({
             <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Scale className="h-4 w-4 text-emerald-600" />
-                {bn ? 'B2. ওজনের ইতিহাস ও মোটাতাজাকরণ (Weight Growth & Target Tracker)' : 'B2. Weight Growth & Beef Fattening Target Tracker'}
+                B2. Weight Growth & Beef Fattening Target Tracker
               </h3>
               <p className="text-xs text-slate-500">
-                প্রতি মাসে বা সপ্তাহে ওজন মেপে রেকর্ড রাখুন এবং বিক্রির সম্ভাব্য বাজারমূল্য দেখুন।
+                Record monthly or weekly weights to track growth and projected market valuation.
               </p>
 
               <form onSubmit={handleUpdateWeightB} className="space-y-3.5 text-xs">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1">{bn ? 'পরিমাপের তারিখ' : 'Weighing Date'}</label>
+                    <label className="block font-semibold mb-1">Weighing Date</label>
                     <input
                       type="date"
                       value={wMeasureDate}
@@ -1693,17 +1691,17 @@ export default function LivestockManagementModule({
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">{bn ? 'পূর্বের ওজন' : 'Previous Weight'}</label>
+                    <label className="block font-semibold mb-1">Previous Weight</label>
                     <input
                       type="text"
                       disabled
-                      value={`${selectedAnimal?.currentWeightKg || 0} কেজি`}
+                      value={`${selectedAnimal?.currentWeightKg || 0} KG`}
                       className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/50 px-3 py-2 font-mono"
                     />
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                      {bn ? 'নতুন ওজন (কেজি) *' : 'New Weight (KG) *'}
+                      New Weight (KG) *
                     </label>
                     <input
                       type="number"
@@ -1720,7 +1718,7 @@ export default function LivestockManagementModule({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1">
-                      {bn ? 'টার্গেট ওজন (কোরবানি/বিক্রি কেজি)' : 'Target Market Weight (KG)'}
+                      Target Market Weight (KG)
                     </label>
                     <input
                       type="number"
@@ -1732,7 +1730,7 @@ export default function LivestockManagementModule({
                   </div>
                   <div>
                     <label className="block font-semibold mb-1">
-                      {bn ? 'আনুমানিক লাইভ ওয়েট দর (৳/কেজি)' : 'Live Weight Rate (৳/KG)'}
+                      Live Weight Rate (৳/KG)
                     </label>
                     <input
                       type="number"
@@ -1746,13 +1744,13 @@ export default function LivestockManagementModule({
 
                 <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 p-3.5 grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-[11px] text-slate-500">{bn ? "বর্তমান ওজনে সম্ভাব্য বাজারমূল্য" : "Current Live Valuation"}</div>
+                    <div className="text-[11px] text-slate-500">Current Live Valuation</div>
                     <div className="text-sm font-mono font-bold text-slate-900 dark:text-slate-100">
                       {formatBDT(Number(wNewWeightKg) * Number(wExpectedPricePerKg))}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-slate-500">{bn ? "টার্গেট ওজনে সম্ভাব্য বাজারমূল্য" : "Target Market Valuation"}</div>
+                    <div className="text-[11px] text-slate-500">Target Market Valuation</div>
                     <div className="text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400">
                       {formatBDT(Number(wTargetWeightKg) * Number(wExpectedPricePerKg))}
                     </div>
@@ -1767,10 +1765,10 @@ export default function LivestockManagementModule({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                      <span>{bn ? 'ওজন আপডেট হচ্ছে...' : 'Updating Weight...'}</span>
+                      <span>Updating Weight...</span>
                     </>
                   ) : (
-                    <span>{bn ? `+ নতুন ওজন (${wNewWeightKg} কেজি) সংরক্ষণ করুন` : `+ Save Weight Log (${wNewWeightKg} KG)`}</span>
+                    <span>{`+ Save Weight Log (${wNewWeightKg} KG)`}</span>
                   )}
                 </button>
               </form>
@@ -1782,10 +1780,10 @@ export default function LivestockManagementModule({
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  {bn ? 'কোন পশু কত দুধ দিচ্ছে ও ওজন কত — তুলনামূলক তালিকা ও ইতিহাস (Milk & Weight History)' : 'Livestock Comparative Performance, Milk Yield & Weight Tracker'}
+                  Livestock Comparative Performance, Milk Yield & Weight Tracker
                 </h4>
                 <p className="text-xs text-slate-500">
-                  এতে সহজেই বুঝবেন কোন গরু বেশি দুধ দিচ্ছে এবং কার উৎপাদন কমে যাচ্ছে
+                  Easily identify peak-producing cows and monitor yield fluctuations over time.
                 </p>
               </div>
             </div>
@@ -1793,11 +1791,11 @@ export default function LivestockManagementModule({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">
-                    <th className="py-3 px-4">{bn ? "Digital ID ও নাম" : "Digital ID & Name"}</th>
-                    <th className="py-3 px-4">{bn ? "জাত ও বর্তমান অবস্থা" : "Breed & Status"}</th>
-                    <th className="py-3 px-4 text-right">{bn ? "বর্তমান ওজন" : "Current Weight"}</th>
-                    <th className="py-3 px-4 text-right">{bn ? "মোট দুধ উৎপাদন (লিটার)" : "Total Milk (Liters)"}</th>
-                    <th className="py-3 px-4 text-right">{bn ? "মোট দুধ বিক্রির আয়" : "Milk Sales Revenue"}</th>
+                    <th className="py-3 px-4">Digital ID & Name</th>
+                    <th className="py-3 px-4">Breed & Status</th>
+                    <th className="py-3 px-4 text-right">Current Weight</th>
+                    <th className="py-3 px-4 text-right">Total Milk (Liters)</th>
+                    <th className="py-3 px-4 text-right">Milk Sales Revenue</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -1810,10 +1808,10 @@ export default function LivestockManagementModule({
                         {a.breed} · <span className="text-emerald-600 font-semibold">{a.healthStatus}</span>
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold">
-                        {a.currentWeightKg} কেজি
+                        {a.currentWeightKg} KG
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                        {a.totalMilkLiters} লিটার
+                        {a.totalMilkLiters} L
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold">
                         {formatBDT(a.milkSalesRevenue)}
@@ -1827,7 +1825,7 @@ export default function LivestockManagementModule({
             {milkHistoryLogs.length > 0 && (
               <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 space-y-2">
                 <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {bn ? 'সাম্প্রতিক সকাল-বিকেল দুধ উৎপাদনের লগ (Daily Morning/Evening Logs):' : 'Recent Morning & Evening Milk Production Logs:'}
+                  Recent Morning & Evening Milk Production Logs:
                 </div>
                 {milkHistoryLogs.slice(0, 5).map((log) => (
                   <div
@@ -1844,23 +1842,23 @@ export default function LivestockManagementModule({
       )}
 
       {/* =====================================================================
-          TAB C: খাবারের খরচ — Individual ও Group Feeding Record
+          TAB C: Individual & Group Feeding Records
          ===================================================================== */}
       {activeSubTab === 'C_FEEDING' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Utensils className="h-4 w-4 text-emerald-600" />
-              {bn ? 'C. প্রতিদিনের খাবারের হিসাব (Individual & Group Feeding Calculator)' : 'C. Daily Feed Calculator (Individual & Group Feeding)'}
+              C. Daily Feed Calculator (Individual & Group Feeding)
             </h3>
             <p className="text-xs text-slate-500">
-              সব গরু/ছাগলকে একই পরিমাণ খাবার দেওয়া হয় না। আপনি চাইলে নির্দিষ্ট ১টি পশুর জন্য অথবা সব পশুর জন্য একসঙ্গে (Group Feeding) হিসাব রাখতে পারবেন।
+              Feed amounts vary per animal. You can record rations for an individual animal or allocate group feeding across the herd.
             </p>
 
             <form onSubmit={handleRecordFeedingC} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold mb-1.5">
-                  {bn ? 'খাবার বণ্টনের পদ্ধতি নির্বাচন করুন (Feeding Allocation Method):' : 'Select Feeding Method:'}
+                  Select Feeding Method:
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <button
@@ -1872,9 +1870,9 @@ export default function LivestockManagementModule({
                         : 'border-slate-200 dark:border-slate-800'
                     }`}
                   >
-                    <div>{bn ? "১. একক পশুর খাবার" : "1. Individual Animal"}</div>
+                    <div>1. Individual Animal</div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
-                      {bn ? `শুধু ${selectedAnimal?.animalTag}-এর জন্য` : `Only for ${selectedAnimal?.animalTag}`}
+                      `Only for ${selectedAnimal?.animalTag}`
                     </div>
                   </button>
                   <button
@@ -1886,9 +1884,9 @@ export default function LivestockManagementModule({
                         : 'border-slate-200 dark:border-slate-800'
                     }`}
                   >
-                    <div>{bn ? "২. যৌথ খাবার (সমান ভাগ)" : "2. Group Feeding (Equal)"}</div>
+                    <div>2. Group Feeding (Equal)</div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
-                      {bn ? "সব পশুর মধ্যে সমানভাবে বণ্টন" : "Equal split across herd"}
+                      Equal split across herd
                     </div>
                   </button>
                   <button
@@ -1900,9 +1898,9 @@ export default function LivestockManagementModule({
                         : 'border-slate-200 dark:border-slate-800'
                     }`}
                   >
-                    <div>{bn ? "৩. যৌথ (ওজন অনুপাতে)" : "3. Group (Weight Ratio)"}</div>
+                    <div>3. Group (Weight Ratio)</div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
-                      {bn ? "পশুর শরীরের ওজন অনুযায়ী বণ্টন" : "Proportional by body weight"}
+                      Proportional by body weight
                     </div>
                   </button>
                 </div>
@@ -1913,15 +1911,15 @@ export default function LivestockManagementModule({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                      <th className="py-2.5 px-3">{bn ? "খাবারের নাম (Feed Item)" : "Feed Item"}</th>
-                      <th className="py-2.5 px-3">{bn ? "দৈনিক পরিমাণ (কেজি)" : "Daily Qty (KG)"}</th>
-                      <th className="py-2.5 px-3">{bn ? "প্রতি কেজির দাম (৳)" : "Price / KG (৳)"}</th>
-                      <th className="py-2.5 px-3 text-right">{bn ? "দৈনিক খরচ (৳)" : "Daily Cost (৳)"}</th>
+                      <th className="py-2.5 px-3">Feed Item</th>
+                      <th className="py-2.5 px-3">Daily Qty (KG)</th>
+                      <th className="py-2.5 px-3">Price / KG (৳)</th>
+                      <th className="py-2.5 px-3 text-right">Daily Cost (৳)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                     <tr>
-                      <td className="py-2 px-3 font-semibold">{bn ? "কাঁচা ঘাস (Green Grass / Napier)" : "Green Grass / Napier"}</td>
+                      <td className="py-2 px-3 font-semibold">Green Grass / Napier</td>
                       <td className="py-2 px-3">
                         <input
                           type="number"
@@ -1948,7 +1946,7 @@ export default function LivestockManagementModule({
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-3 font-semibold">{bn ? "খড় (Dry Paddy Straw)" : "Dry Paddy Straw"}</td>
+                      <td className="py-2 px-3 font-semibold">Dry Paddy Straw</td>
                       <td className="py-2 px-3">
                         <input
                           type="number"
@@ -1975,7 +1973,7 @@ export default function LivestockManagementModule({
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-3 font-semibold">{bn ? "ভুসি ও দানাদার (Wheat Bran)" : "Wheat Bran & Concentrates"}</td>
+                      <td className="py-2 px-3 font-semibold">Wheat Bran & Concentrates</td>
                       <td className="py-2 px-3">
                         <input
                           type="number"
@@ -2002,7 +2000,7 @@ export default function LivestockManagementModule({
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-3 font-semibold">{bn ? "অন্যান্য খাবার (খৈল / মিনারেল / ভিটামিন)" : "Oil Cake, Minerals & Salt"}</td>
+                      <td className="py-2 px-3 font-semibold">Oil Cake, Minerals & Salt</td>
                       <td className="py-2 px-3">
                         <input
                           type="number"
@@ -2034,29 +2032,29 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'কত দিনের খাবার একসাথে যোগ করবেন?' : 'Ration Duration (Days):'}</label>
+                  <label className="block font-semibold mb-1">Ration Duration (Days):</label>
                   <select
                     value={cDaysCount}
                     onChange={(e) => setCDaysCount(Number(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-semibold"
                   >
-                    <option value={1}>{bn ? "১ দিনের খাবার (Daily Entry)" : "1 Day (Daily Entry)"}</option>
-                    <option value={7}>{bn ? "৭ দিনের খাবার (Weekly Entry)" : "7 Days (Weekly Ration)"}</option>
-                    <option value={15}>{bn ? "১৫ দিনের খাবার (Bi-Weekly)" : "15 Days (Bi-Weekly)"}</option>
-                    <option value={30}>{bn ? "৩০ দিনের / ১ মাসের খাবার (Monthly)" : "30 Days (Monthly Ration)"}</option>
+                    <option value={1}>1 Day (Daily Entry)</option>
+                    <option value={7}>7 Days (Weekly Ration)</option>
+                    <option value={15}>15 Days (Bi-Weekly)</option>
+                    <option value={30}>30 Days (Monthly Ration)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'গোডাউন স্টক থেকে কমান (ঐচ্ছিক)' : 'Deduct from Warehouse Stock (Optional)'}</label>
+                  <label className="block font-semibold mb-1">Deduct from Warehouse Stock (Optional)</label>
                   <select
                     value={cSelectedInvId}
                     onChange={(e) => setCSelectedInvId(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="">{bn ? "সরাসরি বাজার/খামার থেকে (স্টক অপরিবর্তিত)" : "Direct Farm/Market (Inventory Unchanged)"}</option>
+                    <option value="">Direct Farm/Market (Inventory Unchanged)</option>
                     {feedInventory.map((fi) => (
                       <option key={fi.id} value={fi.id}>
-                        {fi.name} (মজুদ: {fi.quantity} {fi.unit})
+                        {fi.name} (Stock: {fi.quantity} {fi.unit})
                       </option>
                     ))}
                   </select>
@@ -2071,10 +2069,10 @@ export default function LivestockManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    <span>{bn ? 'খাবারের খরচ যোগ হচ্ছে...' : 'Adding Feed Expense...'}</span>
+                    <span>Adding Feed Expense...</span>
                   </>
                 ) : (
-                  <span>{bn ? `+ খাবারের খরচ (${formatBDT(totalPeriodFeedCost)}) প্রোফাইলে যোগ করুন` : `+ Add Feed Expense (${formatBDT(totalPeriodFeedCost)}) to Record`}</span>
+                  <span>{`+ Add Feed Expense (${formatBDT(totalPeriodFeedCost)}) to Record`}</span>
                 )}
               </button>
             </form>
@@ -2083,28 +2081,28 @@ export default function LivestockManagementModule({
           {/* Right: Daily & Monthly Ration Summary Card */}
           <div className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              {bn ? 'দৈনিক ও মাসিক খাবারের হিসাব সারসংক্ষেপ (Ration Summary)' : 'Daily & Monthly Ration Cost Summary'}
+              Daily & Monthly Ration Cost Summary
             </h4>
             <div className="space-y-3 text-xs">
               <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center">
-                <span>{bn ? "দৈনিক মোট খাবারের ওজন:" : "Daily Total Ration Weight:"}</span>
-                <span className="font-mono font-bold text-sm">{dailyRationKg} কেজি / দিন</span>
+                <span>Daily Total Ration Weight:</span>
+                <span className="font-mono font-bold text-sm">{dailyRationKg} KG / day</span>
               </div>
               <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center">
-                <span>{bn ? "দৈনিক খাবারের খরচ (Daily Cost):" : "Daily Feed Cost:"}</span>
+                <span>Daily Feed Cost:</span>
                 <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
                   {formatBDT(dailyRationCost)}
                 </span>
               </div>
               <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center">
-                <span>{bn ? "মাসিক প্রাক্কলিত খরচ (৩০ দিন):" : "Estimated Monthly Cost (30 Days):"}</span>
+                <span>Estimated Monthly Cost (30 Days):</span>
                 <span className="font-mono font-bold text-sm text-amber-600 dark:text-amber-400">
                   {formatBDT(monthlyEstimatedFeedCost)}
                 </span>
               </div>
               <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
                 <span className="font-bold">
-                  {selectedAnimal?.animalTag} — {bn ? 'এ পর্যন্ত মোট খাবার খরচ:' : 'Cumulative Lifetime Feed Cost:'}
+                  {selectedAnimal?.animalTag} — Cumulative Lifetime Feed Cost:
                 </span>
                 <span className="font-mono font-bold text-base text-emerald-700 dark:text-emerald-400">
                   {formatBDT(selectedAnimal?.feedCost || 0)}
@@ -2116,7 +2114,7 @@ export default function LivestockManagementModule({
       )}
 
       {/* =====================================================================
-          TAB D: চিকিৎসা, ভ্যাকসিন, গর্ভধারণ ও বাছুর/বাচ্চা জন্ম রেজিস্ট্রেশন
+          TAB D: Vet, Vaccine, Breeding & Newborn Offspring Registration
          ===================================================================== */}
       {activeSubTab === 'D_VET_BREEDING' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -2124,13 +2122,13 @@ export default function LivestockManagementModule({
           <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Stethoscope className="h-4 w-4 text-emerald-600" />
-              {bn ? 'D1. চিকিৎসা, ভ্যাকসিন ও গর্ভধারণের হিসাব (Vet, Vaccine & Pregnancy)' : 'D1. Veterinary Care, Vaccines & Pregnancy Tracking'}
+              D1. Veterinary Care, Vaccines & Pregnancy Tracking
             </h3>
 
             <form onSubmit={handleRecordVetAndBreedingD} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? '১. রোগের নাম ও লক্ষণ' : '1. Disease / Symptoms'}</label>
+                  <label className="block font-semibold mb-1">1. Disease / Symptoms</label>
                   <input
                     type="text"
                     value={dDiseaseName}
@@ -2139,7 +2137,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? '২. চিকিৎসকের নাম (Vet Doctor)' : '2. Attending Veterinarian'}</label>
+                  <label className="block font-semibold mb-1">2. Attending Veterinarian</label>
                   <input
                     type="text"
                     value={dDoctorName}
@@ -2151,7 +2149,7 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? '৩. চিকিৎসার তারিখ' : '3. Treatment Date'}</label>
+                  <label className="block font-semibold mb-1">3. Treatment Date</label>
                   <input
                     type="date"
                     value={dTreatDate}
@@ -2160,7 +2158,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? '৪. ওষুধের নাম' : '4. Administered Medicines'}</label>
+                  <label className="block font-semibold mb-1">4. Administered Medicines</label>
                   <input
                     type="text"
                     value={dMedicineName}
@@ -2169,7 +2167,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'ওষুধ ও ডাক্তার খরচ (৳)' : 'Vet & Medicine Cost (৳)'}</label>
+                  <label className="block font-semibold mb-1">Vet & Medicine Cost (৳)</label>
                   <input
                     type="number"
                     min={0}
@@ -2183,7 +2181,7 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'ভ্যাকসিনের নাম' : 'Vaccine Name'}</label>
+                  <label className="block font-semibold mb-1">Vaccine Name</label>
                   <input
                     type="text"
                     value={dVaccineName}
@@ -2192,7 +2190,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? '৫. ভ্যাকসিনের তারিখ' : '5. Vaccination Date'}</label>
+                  <label className="block font-semibold mb-1">5. Vaccination Date</label>
                   <input
                     type="date"
                     value={dVaccineDate}
@@ -2202,7 +2200,7 @@ export default function LivestockManagementModule({
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-amber-600 dark:text-amber-400">
-                    {bn ? '৬. পরবর্তী ভ্যাকসিনের তারিখ (Booster Date)' : '6. Next Booster Vaccine Date'}
+                    6. Next Booster Vaccine Date
                   </label>
                   <input
                     type="date"
@@ -2222,13 +2220,13 @@ export default function LivestockManagementModule({
                     onChange={(e) => setDIsPregnant(e.target.checked)}
                     className="rounded border-slate-300"
                   />
-                  <span>{bn ? "৭. গর্ভধারণের তথ্য যুক্ত করুন (Mark as Pregnant & Calculate Delivery Date)" : "7. Mark as Pregnant & Calculate Delivery Date"}</span>
+                  <span>7. Mark as Pregnant & Calculate Delivery Date</span>
                 </label>
 
                 {dIsPregnant && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                     <div>
-                      <label className="block font-semibold mb-1">{bn ? 'বীজ দেওয়ার / প্রজননের তারিখ' : 'Insemination / Breeding Date'}</label>
+                      <label className="block font-semibold mb-1">Insemination / Breeding Date</label>
                       <input
                         type="date"
                         value={dBreedingDate}
@@ -2237,7 +2235,7 @@ export default function LivestockManagementModule({
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold mb-1">ষাঁড় বা পাঠার আইডি/সিমেন</label>
+                      <label className="block font-semibold mb-1">Sire Tag / Semen Straw ID</label>
                       <input
                         type="text"
                         value={dSireUsed}
@@ -2247,7 +2245,7 @@ export default function LivestockManagementModule({
                     </div>
                     <div>
                       <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                        ৮. সম্ভাব্য বাচ্চা জন্মের তারিখ
+                        8. Expected Calving / Delivery Date
                       </label>
                       <input
                         type="text"
@@ -2268,10 +2266,10 @@ export default function LivestockManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    <span>{bn ? 'তথ্য সেভ হচ্ছে...' : 'Saving Information...'}</span>
+                    <span>Saving Information...</span>
                   </>
                 ) : (
-                  <span>+ চিকিৎসা, ভ্যাকসিন ও প্রজনন তথ্য সেভ করুন</span>
+                  <span>+ Save Vet, Vaccine & Breeding Record</span>
                 )}
               </button>
             </form>
@@ -2281,17 +2279,17 @@ export default function LivestockManagementModule({
           <div className="lg:col-span-5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Baby className="h-5 w-5 text-emerald-600" />
-              ৯. বাচ্চা জন্ম নিলে নতুন Digital ID তৈরি করুন (Newborn Offspring)
+              9. Register Newborn Offspring (Calf / Kid)
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              একটি {isCattle ? 'গরু বাছুর' : 'ছাগল বাচ্চা'} জন্ম দিলে এখানে ক্লিক করলেই সেই বাচ্চার জন্য নতুন ID তৈরি হবে এবং তার <strong>মা ({selectedAnimal?.animalTag})</strong> ও <strong>বাবার সম্পর্ক</strong> স্বয়ংক্রিয়ভাবে সংরক্ষিত থাকবে।
+              When an animal gives birth, click here to generate a new Digital ID. Dam <strong>({selectedAnimal?.animalTag})</strong> and Sire relationships are automatically linked.
             </p>
 
             <form onSubmit={handleRegisterNewbornOffspring} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">
-                    নতুন {isCattle ? 'বাছুরের' : 'বাচ্চার'} Digital ID *
+                    Newborn Digital ID *
                   </label>
                   <input
                     type="text"
@@ -2302,7 +2300,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">{bn ? 'বাচ্চার নাম *' : 'Newborn Name *'}</label>
+                  <label className="block font-semibold mb-1">Newborn Name *</label>
                   <input
                     type="text"
                     required
@@ -2315,18 +2313,18 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">লিঙ্গ</label>
+                  <label className="block font-semibold mb-1">Gender</label>
                   <select
                     value={newbornGender}
                     onChange={(e) => setNewbornGender(e.target.value as 'Female' | 'Male')}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Female">মাদি (Female)</option>
-                    <option value="Male">মর্দা (Male)</option>
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">জন্ম ওজন (কেজি)</label>
+                  <label className="block font-semibold mb-1">Birth Weight (KG)</label>
                   <input
                     type="number"
                     step="0.2"
@@ -2337,7 +2335,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">জন্মের তারিখ</label>
+                  <label className="block font-semibold mb-1">Birth Date</label>
                   <input
                     type="date"
                     value={newbornBirthDate}
@@ -2349,7 +2347,7 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">মায়ের আইডি (Mother / Dam)</label>
+                  <label className="block font-semibold mb-1">Dam ID (Mother)</label>
                   <input
                     type="text"
                     disabled
@@ -2358,7 +2356,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">বাবার আইডি (Father / Sire)</label>
+                  <label className="block font-semibold mb-1">Sire ID (Father)</label>
                   <input
                     type="text"
                     value={newbornSireTag}
@@ -2376,10 +2374,10 @@ export default function LivestockManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    <span>{bn ? 'বাচ্চার ID তৈরি হচ্ছে...' : 'Creating Offspring ID...'}</span>
+                    <span>Creating Offspring ID...</span>
                   </>
                 ) : (
-                  <span>+ সদ্যজাত {isCattle ? 'বাছুরের' : 'ছাগলছানার'} নতুন ID তৈরি করুন</span>
+                  <span>+ Register Newborn {isCattle ? 'Calf' : 'Kid'} Digital Profile</span>
                 )}
               </button>
             </form>
@@ -2388,7 +2386,7 @@ export default function LivestockManagementModule({
       )}
 
       {/* =====================================================================
-          TAB E: বংশলতিকা ও পরিবার বৃক্ষ (Interactive Family Tree)
+          TAB E: Interactive Pedigree & Family Tree
          ===================================================================== */}
       {activeSubTab === 'E_FAMILY_TREE' && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-6">
@@ -2396,10 +2394,10 @@ export default function LivestockManagementModule({
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <GitBranch className="h-5 w-5 text-emerald-600" />
-                E. বংশলতিকা ও সন্তানদের তালিকা (Interactive Family Tree — মা, বাবা ও বাচ্চাদের সম্পর্ক)
+                E. Interactive Pedigree & Family Tree (Parent & Offspring Relationships)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                কোন মা {isCattle ? 'গাভী' : 'ছাগলের'} কয়টি বাচ্চা হয়েছে, কোন বাচ্চা কখন জন্মেছে এবং তাদের বর্তমান অবস্থা কী—সবকিছু Family Tree আকারে দেখুন।
+                Track dam maternal records, registered offspring, birth dates and current growth status in an interactive hierarchy.
               </p>
             </div>
           </div>
@@ -2409,10 +2407,10 @@ export default function LivestockManagementModule({
               {/* Generation 1: Parents of Selected Animal */}
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  ১ম প্রজন্ম — পিতা-মাতা (Parents / Lineage of {selectedAnimal.animalTag})
+                  1st Generation — Parents / Lineage of {selectedAnimal.animalTag}
                 </div>
                 <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-                  {selectedAnimal.parentTag || 'খামারের মূল ফাউন্ডেশন ব্রিড'}
+                  {selectedAnimal.parentTag || 'Foundation Farm Stock'}
                 </div>
               </div>
 
@@ -2420,23 +2418,22 @@ export default function LivestockManagementModule({
               <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                    নির্বাচিত পশু (Selected Animal)
+                    Selected Animal
                   </span>
                   <div className="text-lg font-bold text-slate-900 dark:text-slate-100">
                     <span className="font-mono">{selectedAnimal.animalTag}</span> — {selectedAnimal.name}
                   </div>
                   <div className="text-xs text-slate-600 dark:text-slate-300">
-                    জাত: {selectedAnimal.breed} · বয়স: {selectedAnimal.ageMonths} মাস · ওজন:{' '}
-                    {selectedAnimal.currentWeightKg} কেজি · অবস্থা: {selectedAnimal.healthStatus}
+                    Breed: {selectedAnimal.breed} · Age: {selectedAnimal.ageMonths} mos · Weight: {selectedAnimal.currentWeightKg} KG · Status: {selectedAnimal.healthStatus}
                   </div>
                   <div className="text-xs text-slate-500">
                     {selectedAnimal.breedingAndOffspringNotes}
                   </div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-xs text-slate-500">সন্তান সংখ্যা (Registered Offspring)</div>
+                  <div className="text-xs text-slate-500">Registered Offspring</div>
                   <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                    {getOffspringOf(selectedAnimal.animalTag).length} টি
+                    {getOffspringOf(selectedAnimal.animalTag).length} Offspring
                   </div>
                 </div>
               </div>
@@ -2444,12 +2441,12 @@ export default function LivestockManagementModule({
               {/* Generation 3: Offspring / Kids Cards */}
               <div className="space-y-3">
                 <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  পরবর্তী প্রজন্ম — {selectedAnimal.animalTag}-এর বাচ্চাগুলোর আলাদা প্রোফাইল (Offspring / Kids):
+                  Next Generation — Offspring of {selectedAnimal.animalTag}:
                 </div>
 
                 {getOffspringOf(selectedAnimal.animalTag).length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center text-xs text-slate-500">
-                    এই পশুটির অধীনে এখনো আলাদা বাচ্চা নিবন্ধিত হয়নি। উপরের <strong>&ldquo;ধাপ D: চিকিৎসা, প্রজনন ও বাচ্চা&rdquo;</strong> ট্যাবে গিয়ে ১ ক্লিকে বাচ্চার নতুন ID যোগ করতে পারেন।
+                    No offspring registered under this animal yet. Go to <strong>&ldquo;Step D: Vet, Vaccine & Birth&rdquo;</strong> tab to register a newborn offspring.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2471,13 +2468,13 @@ export default function LivestockManagementModule({
                           {kid.name}
                         </div>
                         <div className="text-xs text-slate-500">
-                          লিঙ্গ: {kid.gender === 'Female' ? 'মাদি' : 'মর্দা'} · বর্তমান ওজন:{' '}
+                          Gender: {kid.gender} · Current Weight:{' '}
                           <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                            {kid.currentWeightKg} কেজি
+                            {kid.currentWeightKg} KG
                           </span>
                         </div>
                         <div className="text-[11px] font-mono text-slate-500">
-                          জন্মের তারিখ: {kid.purchaseDate}
+                          Birth Date: {kid.purchaseDate}
                         </div>
                         <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
                           {kid.parentTag}
@@ -2493,7 +2490,7 @@ export default function LivestockManagementModule({
       )}
 
       {/* =====================================================================
-          TAB F: পশু বিক্রির হিসাব ও চূড়ান্ত আজীবন লাভ-ক্ষতি (Sale & Lifetime Profit)
+          TAB F: Sale & Lifetime Profit Realization
          ===================================================================== */}
       {activeSubTab === 'F_SALE_PROFIT' && selectedAnimal && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -2505,7 +2502,7 @@ export default function LivestockManagementModule({
                   Individual Animal Financial Statement
                 </span>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  {selectedAnimal.animalTag} ({selectedAnimal.name}) — সম্পূর্ণ আর্থিক ও লাভ-ক্ষতি হিসাব
+                  {selectedAnimal.animalTag} ({selectedAnimal.name}) — Comprehensive Financial & P&L Statement
                 </h3>
               </div>
               <CheckCircle2 className="h-6 w-6 text-emerald-600" />
@@ -2515,20 +2512,20 @@ export default function LivestockManagementModule({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                    <th className="py-3 px-4">আর্থিক বিবরণ (Financial Breakdown)</th>
-                    <th className="py-3 px-4 text-right">টাকার পরিমাণ (BDT)</th>
+                    <th className="py-3 px-4">Financial Breakdown</th>
+                    <th className="py-3 px-4 text-right">Amount (BDT)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
-                    <td className="py-3 px-4 font-semibold">১. ক্রয়মূল্য (Purchase Price)</td>
+                    <td className="py-3 px-4 font-semibold">1. Purchase Price</td>
                     <td className="py-3 px-4 text-right font-mono font-bold">
                       {formatBDT(animPurchasePrice)}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-3 px-4 font-semibold">
-                      ২. খাবারের মোট খরচ (Allocated Feed Cost)
+                      2. Allocated Feed Cost
                     </td>
                     <td className="py-3 px-4 text-right font-mono">
                       {formatBDT(animFeedCost)}
@@ -2536,7 +2533,7 @@ export default function LivestockManagementModule({
                   </tr>
                   <tr>
                     <td className="py-3 px-4 font-semibold">
-                      ৩. চিকিৎসা, ভ্যাকসিন ও অন্যান্য বরাদ্দ খরচ (Vet & Care Cost)
+                      3. Veterinary, Vaccine & Care Cost
                     </td>
                     <td className="py-3 px-4 text-right font-mono">
                       {formatBDT(animVetCost)}
@@ -2544,7 +2541,7 @@ export default function LivestockManagementModule({
                   </tr>
                   <tr className="bg-amber-50/60 dark:bg-amber-950/20 font-bold">
                     <td className="py-3 px-4">
-                      মোট বিনিয়োগ (Total Investment = কেনা + খাবার + চিকিৎসা)
+                      Total Investment (Purchase + Feed + Vet)
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-amber-700 dark:text-amber-400">
                       {formatBDT(animTotalInvestment)}
@@ -2552,7 +2549,7 @@ export default function LivestockManagementModule({
                   </tr>
                   <tr>
                     <td className="py-3 px-4 font-semibold">
-                      ৪. পশু বিক্রয়মূল্য / বর্তমান বাজারমূল্য (Animal Sale Value)
+                      4. Animal Sale / Current Market Value
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
                       {formatBDT(animSaleOrMarketVal)}
@@ -2560,7 +2557,7 @@ export default function LivestockManagementModule({
                   </tr>
                   <tr>
                     <td className="py-3 px-4 font-bold">
-                      পশু বিক্রি থেকে প্রকৃত লাভ (Sale Price − Total Investment)
+                      Net Profit from Animal Sale (Sale Price − Total Investment)
                     </td>
                     <td
                       className={`py-3 px-4 text-right font-mono font-bold ${
@@ -2573,7 +2570,7 @@ export default function LivestockManagementModule({
                   {animMilkRevenue > 0 && (
                     <tr>
                       <td className="py-3 px-4 font-semibold text-emerald-700 dark:text-emerald-400">
-                        ৫. দুধ বিক্রির মোট আয় ({selectedAnimal.totalMilkLiters} লিটার দুধ)
+                        5. Cumulative Milk Sales Revenue ({selectedAnimal.totalMilkLiters} L Milk)
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
                         + {formatBDT(animMilkRevenue)}
@@ -2582,7 +2579,7 @@ export default function LivestockManagementModule({
                   )}
                   <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
                     <td className="py-3.5 px-4 text-slate-900 dark:text-slate-100">
-                      সর্বমোট আজীবন প্রকৃত লাভ (Total Lifetime Net Profit)
+                      Total Lifetime Net Profit
                     </td>
                     <td
                       className={`py-3.5 px-4 text-right font-mono text-base ${
@@ -2602,16 +2599,16 @@ export default function LivestockManagementModule({
           {/* Right: Record Animal Sale or Update Valuation Form */}
           <div className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              {selectedAnimal.animalTag} বিক্রির হিসাব লিখুন (Record Animal Sale)
+              Record Animal Sale ({selectedAnimal.animalTag})
             </h3>
             <p className="text-xs text-slate-500">
-              ধরুন, আপনি {selectedAnimal.animalTag} {formatBDT(animPurchasePrice)}-এ কিনেছিলেন এবং{' '}
-              {formatBDT(animAllocatedCost)} খরচ করেছেন। এখন বিক্রয়মূল্য দিলে সিস্টেম নিজে প্রকৃত লাভ হিসাব করবে।
+              Animal acquired for {formatBDT(animPurchasePrice)} with{' '}
+              {formatBDT(animAllocatedCost)} in allocated care. Enter sale price to realize final profit.
             </p>
 
             <form onSubmit={handleRecordAnimalSaleF} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">বিক্রয়মূল্য (Sale Price ৳) *</label>
+                <label className="block font-semibold mb-1">Sale Price (৳) *</label>
                 <input
                   type="number"
                   required
@@ -2625,7 +2622,7 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">ক্রেতার নাম (Buyer Name)</label>
+                  <label className="block font-semibold mb-1">Buyer Name</label>
                   <input
                     type="text"
                     value={fBuyerName}
@@ -2634,7 +2631,7 @@ export default function LivestockManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">বিক্রির তারিখ</label>
+                  <label className="block font-semibold mb-1">Sale Date</label>
                   <input
                     type="date"
                     value={fSaleDate}
@@ -2646,19 +2643,19 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">পেমেন্ট মাধ্যম</label>
+                  <label className="block font-semibold mb-1">Payment Method</label>
                   <select
                     value={fPaymentMethod}
                     onChange={(e) => setFPaymentMethod(e.target.value as any)}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Cash">Cash (নগদ)</option>
-                    <option value="Bank">Bank (ব্যাংক)</option>
-                    <option value="Mobile Payment">Mobile Payment (বিকাশ/নগদ)</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Mobile Payment">Mobile Payment (bKash/Nagad)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">বকেয়া টাকা (Due ৳)</label>
+                  <label className="block font-semibold mb-1">Due Amount (৳)</label>
                   <input
                     type="number"
                     min={0}
@@ -2676,7 +2673,7 @@ export default function LivestockManagementModule({
                   checked={fMarkAsSold}
                   onChange={(e) => setFMarkAsSold(e.target.checked)}
                 />
-                <span>চূড়ান্তভাবে বিক্রি সম্পন্ন হয়েছে এবং ক্যাশ/ব্যাংক খতিয়ানে জমা করুন</span>
+                <span>Mark as sold and post final balance to Cash/Bank Ledger</span>
               </label>
 
               <button
@@ -2687,10 +2684,10 @@ export default function LivestockManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    <span>{bn ? 'বিক্রির হিসাব আপডেট হচ্ছে...' : 'Updating Sales...'}</span>
+                    <span>Updating Sales...</span>
                   </>
                 ) : (
-                  <span>{bn ? 'বিক্রির হিসাব ও লাভ-ক্ষতি আপডেট করুন' : 'Update Sale & Profit'}</span>
+                  <span>Update Sale & Realize Profit</span>
                 )}
               </button>
             </form>
@@ -2708,7 +2705,7 @@ export default function LivestockManagementModule({
               <div className="flex items-center gap-2">
                 <Printer className="h-5 w-5 text-emerald-600" />
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  {bn ? 'পশুর ডিজিটাল বারকোড ও ইয়ার ট্যাগ স্লিপ' : 'Animal Barcode & Ear Tag Slip'}
+                  Animal Barcode & Ear Tag Slip
                 </h3>
               </div>
               <button
@@ -2766,35 +2763,33 @@ export default function LivestockManagementModule({
 
               <div className="grid grid-cols-2 gap-2 text-left text-xs bg-white/80 dark:bg-slate-900/80 p-3 rounded-lg border border-amber-200 dark:border-amber-900/50">
                 <div>
-                  <span className="text-slate-500 block text-[10px]">{bn ? 'জাত ও লিঙ্গ' : 'Breed & Gender'}</span>
+                  <span className="text-slate-500 block text-[10px]">Breed & Gender</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
                     {selectedAnimal.breed} ({selectedAnimal.gender})
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">{bn ? 'বর্তমান ওজন' : 'Current Weight'}</span>
+                  <span className="text-slate-500 block text-[10px]">Current Weight</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {selectedAnimal.currentWeightKg} কেজি
+                    {selectedAnimal.currentWeightKg} KG
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">{bn ? 'কেনার / জন্ম তারিখ' : 'Birth/Purchase Date'}</span>
+                  <span className="text-slate-500 block text-[10px]">Birth/Purchase Date</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">
                     {selectedAnimal.purchaseDate}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">{bn ? 'স্বাস্থ্য অবস্থা' : 'Health Status'}</span>
+                  <span className="text-slate-500 block text-[10px]">Health Status</span>
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    {selectedAnimal.healthStatus || 'সুস্থ'}
+                    {selectedAnimal.healthStatus || 'Healthy'}
                   </span>
                 </div>
               </div>
 
               <p className="text-[11px] text-slate-500 leading-tight">
-                {bn
-                  ? '💡 পরামর্শ: কানের হলুদ ট্যাগে বা কলার ট্যাগে এই বারকোড বা কিউআর কোডটি প্রিন্ট করে লাগান। ক্যামেরা বা স্ক্যানার গান দিয়ে মুহূর্তেই তথ্য পাওয়া যাবে।'
-                  : 'Attach this barcode to ear tag or neck collar for instant scanning via camera or barcode gun.'}
+'💡 Tip: Print this barcode/QR code on yellow ear tag or collar for instant scanning with camera or barcode gun.'
               </p>
             </div>
 
@@ -2804,7 +2799,7 @@ export default function LivestockManagementModule({
                 onClick={() => setShowEarTagModal(false)}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                {bn ? 'বন্ধ করুন' : 'Close'}
+                Close
               </button>
               <button
                 type="button"
@@ -2812,7 +2807,7 @@ export default function LivestockManagementModule({
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
-                <span>{bn ? 'ট্যাগ স্লিপ প্রিন্ট করুন (Print)' : 'Print Ear Tag'}</span>
+                <span>Print Ear Tag</span>
               </button>
             </div>
           </div>
