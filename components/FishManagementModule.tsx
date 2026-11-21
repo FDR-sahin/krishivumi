@@ -114,23 +114,23 @@ export default function FishManagementModule({
   );
 
   // ============================================================================
-  // B. মাছের পোনা কেনা ও নতুন Production Cycle (Fingerling Stocking State)
+  // B. Fingerling Stocking & New Production Cycle State
   // ============================================================================
   const [bPondId, setBPondId] = useState('POND-001');
-  const [bPondName, setBPondName] = useState('পুকুর নং-০১ (রুই-কাতলা মিশ্র চাষ)');
+  const [bPondName, setBPondName] = useState('Pond #01 (Polyculture Carp & Tilapia)');
   const [bCycleCode, setBCycleCode] = useState(`CYC-POND001-${cycles.length + 1}`);
   const [bAreaDecimals, setBAreaDecimals] = useState(50);
   const [bDepthFeet, setBDepthFeet] = useState(6);
-  const [bSpecies, setBSpecies] = useState('রুই, কাতলা ও তেলাপিয়া');
+  const [bSpecies, setBSpecies] = useState('Rui, Katla & Tilapia');
   const [bFingerlingQty, setBFingerlingQty] = useState(5000);
   const [bPricePerPiece, setBPricePerPiece] = useState(5);
-  const [bSupplier, setBSupplier] = useState('ত্রিশাল আদর্শ মৎস্য হ্যাচারি');
+  const [bSupplier, setBSupplier] = useState('Trishal Ideal Fish Hatchery');
   const [bStockingDate, setBStockingDate] = useState('2026-11-12');
 
   const totalFingerlingInvestment = Number(bFingerlingQty) * Number(bPricePerPiece);
 
   // ============================================================================
-  // C. মাছের খাবার, ওষুধ, পানির গুণাগুণ (pH/DO), মৃত্যু ও শ্রমিকের খরচ
+  // C. Feed, Medicine, Water Quality (pH/DO), Mortality & Labor State
   // ============================================================================
   const [cDate, setCDate] = useState(new Date().toISOString().split('T')[0]);
   const [cFeedKg, setCFeedKg] = useState(50);
@@ -141,7 +141,7 @@ export default function FishManagementModule({
   const [cWaterTemp, setCWaterTemp] = useState('28');
   const [cMortalityToday, setCMortalityToday] = useState(5);
   const [cWaterTreatmentName, setCWaterTreatmentName] = useState(
-    'চুন (Lime), জিওলাইট ও অক্সিজেন ট্যাবলেট'
+    'Lime, Zeolite & Oxygen Tablets'
   );
   const [cTreatmentCost, setCTreatmentCost] = useState(2500);
   const [cPondCleaningCost, setCPondCleaningCost] = useState(1500);
@@ -150,14 +150,14 @@ export default function FishManagementModule({
   const dailyFeedCost = Math.round(Number(cFeedKg) * Number(cFeedRatePerKg));
 
   // ============================================================================
-  // D. প্রজাতি অনুযায়ী মাছ বিক্রি (Multi-Species Harvest & Sales Calculator)
+  // D. Multi-Species Harvest & Sales Calculator State
   // ============================================================================
   const [dHarvestDate, setDHarvestDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dBuyerName, setDBuyerName] = useState('ময়মনসিংহ মৎস্য আড়তদার সমিতি');
+  const [dBuyerName, setDBuyerName] = useState('Mymensingh Fish Wholesale Market Association');
   const [dPaymentMethod, setDPaymentMethod] = useState<'Cash' | 'Bank' | 'Mobile Payment'>('Cash');
   const [dDueAmount, setDDueAmount] = useState(0);
 
-  // Exact example from user prompt: রুই ৩০০ কেজি @৳২৮০, কাতলা ২০০ কেজি @৳৩২০, তেলাপিয়া ১০০ কেজি @৳১৮০
+  // Multi-species harvest: Rui 300 KG @ 280, Katla 200 KG @ 320, Tilapia 100 KG @ 180
   const [ruiKg, setRuiKg] = useState(300);
   const [ruiPrice, setRuiPrice] = useState(280);
 
@@ -167,7 +167,7 @@ export default function FishManagementModule({
   const [tilapiaKg, setTilapiaKg] = useState(100);
   const [tilapiaPrice, setTilapiaPrice] = useState(180);
 
-  const [otherSpeciesName, setOtherSpeciesName] = useState('পাবদা / কার্প');
+  const [otherSpeciesName, setOtherSpeciesName] = useState('Pabda / Silver Carp');
   const [otherKg, setOtherKg] = useState(0);
   const [otherPrice, setOtherPrice] = useState(350);
 
@@ -192,13 +192,13 @@ export default function FishManagementModule({
         {
           cycleCode: 'CYC-POND001-2026',
           pondId: 'POND-001',
-          pondName: 'পুকুর নং-০১ (প্রধান রুই-কাতলা পুকুর)',
+          pondName: 'Pond #01 (Main Carp & Tilapia Pond)',
           businessId: activeBusiness.id,
           areaDecimals: 50,
           depthFeet: 6,
           location: activeBusiness.location,
-          waterQualityNotes: 'pH: 7.6 | DO (অক্সিজেন): 6.5 mg/L | তাপমাত্রা: 28°C | পানির মান উত্তম',
-          fishSpecies: 'রুই, কাতলা ও তেলাপিয়া',
+          waterQualityNotes: 'pH: 7.6 | DO (Dissolved Oxygen): 6.5 mg/L | Temp: 28°C | Optimal Water Quality',
+          fishSpecies: 'Rui, Katla & Tilapia',
           stockingDate: '2026-11-12',
           initialQuantity: 5000,
           mortalityCount: 45,
@@ -208,7 +208,7 @@ export default function FishManagementModule({
           labourCost: 15000,
           harvestDate: '2026-11-12',
           harvestWeightKg: 600,
-          totalSalesRevenue: 166000, // রুই 84,000 + কাতলা 64,000 + তেলাপিয়া 18,000 = 1,66,000
+          totalSalesRevenue: 166000, // Rui 84,000 + Katla 64,000 + Tilapia 18,000 = 166,000
           status: 'active',
         },
         ownerId,
@@ -216,7 +216,7 @@ export default function FishManagementModule({
       );
 
       notify(
-        'উদাহরণের পুকুর POND-001 (আয়তন ৫০ শতাংশ, গভীরতা ৬ ফুট, রুই-কাতলা ৫,০০০ পোনা, রুই ৩০০ কেজি + কাতলা ২০০ কেজি + তেলাপিয়া ১০০ কেজি = ৬০০ কেজি বিক্রি, মোট আয় ৳১,৬৬,০০০) সফলভাবে লোড হয়েছে!'
+        'Sample Pond POND-001 (Area 50 Decimals, Depth 6 ft, 5,000 fingerlings, Rui 300kg + Katla 200kg + Tilapia 100kg = 600kg harvest, Revenue ৳166,000) loaded successfully!'
       );
     } finally {
       setIsSubmitting(false);
@@ -237,7 +237,7 @@ export default function FishManagementModule({
           areaDecimals: Number(bAreaDecimals),
           depthFeet: Number(bDepthFeet),
           location: activeBusiness.location,
-          waterQualityNotes: 'pH: 7.5 | অক্সিজেন (DO): 6.5 mg/L | নতুন পোনা ছাড়ার উপযুক্ত',
+          waterQualityNotes: 'pH: 7.5 | DO (Dissolved Oxygen): 6.5 mg/L | Suitable for fingerling release',
           fishSpecies: bSpecies,
           stockingDate: bStockingDate,
           initialQuantity: Number(bFingerlingQty),
@@ -246,7 +246,7 @@ export default function FishManagementModule({
           feedCost: 0,
           medicineAndLimeCost: 0,
           labourCost: 0,
-          harvestDate: 'চলমান (Active Cycle)',
+          harvestDate: 'Active Cycle',
           harvestWeightKg: 0,
           totalSalesRevenue: 0,
           status: 'active',
@@ -266,8 +266,8 @@ export default function FishManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'purchase',
-            category: `মাছের পোনা ক্রয় (${bPondId} - ${bCycleCode})`,
-            description: `${bPondId} (${bPondName}): ${bFingerlingQty}টি ${bSpecies} পোনা @ ৳${bPricePerPiece} | সাপ্লায়ার: ${bSupplier}`,
+            category: `Fingerlings Purchase (${bPondId} - ${bCycleCode})`,
+            description: `${bPondId} (${bPondName}): ${bFingerlingQty} fingerlings (${bSpecies}) @ ৳${bPricePerPiece} | Supplier: ${bSupplier}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: cashOrBank.id,
@@ -284,7 +284,7 @@ export default function FishManagementModule({
       }
 
       notify(
-        `${bPondId}-এ নতুন Production Cycle (${bCycleCode}: ${bFingerlingQty}টি পোনা, বিনিয়োগ ${formatBDT(totalFingerlingInvestment)}) চালু হয়েছে!`
+        `${bPondId}: Initialized new production cycle (${bCycleCode}: ${bFingerlingQty} fingerlings, Investment: ${formatBDT(totalFingerlingInvestment)})!`
       );
     } finally {
       setIsSubmitting(false);
@@ -297,7 +297,7 @@ export default function FishManagementModule({
     if (!selectedCycle) return;
     setIsSubmitting(true);
     try {
-      const waterQualityStr = `pH: ${cWaterPh} | DO (অক্সিজেন): ${cWaterDo} mg/L | তাপমাত্রা: ${cWaterTemp}°C | চিকিৎসা: ${cWaterTreatmentName}`.slice(
+      const waterQualityStr = `pH: ${cWaterPh} | DO: ${cWaterDo} mg/L | Temp: ${cWaterTemp}°C | Treatment: ${cWaterTreatmentName}`.slice(
         0,
         200
       );
@@ -323,7 +323,7 @@ export default function FishManagementModule({
           Number(cFeedKg),
           feedInv.warehouse,
           `${selectedCycle.pondId} (${selectedCycle.cycleCode})`,
-          `${cDate} তারিখে ${selectedCycle.pondId}-এ ${cFeedKg} কেজি খাবার প্রদান`,
+          `Date ${cDate}: Dispensed ${cFeedKg} KG feed in ${selectedCycle.pondId}`,
           actorEmail
         );
       }
@@ -340,8 +340,8 @@ export default function FishManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'expense',
-            category: `পুকুরের খাবার, ওষুধ ও পরিচর্যা (${selectedCycle.pondId})`,
-            description: `${selectedCycle.pondId}: খাবার ${cFeedKg}kg (৳${dailyFeedCost}), পানি চিকিৎসা ও পরিষ্কার (৳${addedMedAndCleaning}), শ্রমিক (৳${cLabourCost}) | pH:${cWaterPh}, DO:${cWaterDo}`,
+            category: `Pond Feed, Medicine & Maintenance (${selectedCycle.pondId})`,
+            description: `${selectedCycle.pondId}: Feed ${cFeedKg}kg (৳${dailyFeedCost}), Water treatment & cleaning (৳${addedMedAndCleaning}), Labor (৳${cLabourCost}) | pH:${cWaterPh}, DO:${cWaterDo}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: cashOrBank.id,
@@ -349,7 +349,7 @@ export default function FishManagementModule({
             amount: totalDayExpense,
             paymentStatus: 'paid',
             dueAmount: 0,
-            counterpartyName: 'খামার পুকুর ব্যবস্থাপনা',
+            counterpartyName: 'Pond Farm Operations',
           },
           accounts,
           ownerId,
@@ -358,7 +358,7 @@ export default function FishManagementModule({
       }
 
       notify(
-        `${selectedCycle.pondId}-এ খাবার (${cFeedKg} কেজি), পানির মান (pH ${cWaterPh}, DO ${cWaterDo}) এবং পরিচর্যা খরচ (${formatBDT(totalDayExpense)}) আপডেট হয়েছে!`
+        `${selectedCycle.pondId}: Feed (${cFeedKg} KG), Water Quality (pH ${cWaterPh}, DO ${cWaterDo}), and Expenses (${formatBDT(totalDayExpense)}) updated!`
       );
     } finally {
       setIsSubmitting(false);
@@ -384,7 +384,7 @@ export default function FishManagementModule({
         actorEmail
       );
 
-      const breakdownDesc = `রুই: ${ruiKg}kg@৳${ruiPrice} (৳${ruiTotal}) | কাতলা: ${katlaKg}kg@৳${katlaPrice} (৳${katlaTotal}) | তেলাপিয়া: ${tilapiaKg}kg@৳${tilapiaPrice} (৳${tilapiaTotal})${
+      const breakdownDesc = `Rui: ${ruiKg}kg@৳${ruiPrice} (৳${ruiTotal}) | Katla: ${katlaKg}kg@৳${katlaPrice} (৳${katlaTotal}) | Tilapia: ${tilapiaKg}kg@৳${tilapiaPrice} (৳${tilapiaTotal})${
         otherKg > 0 ? ` | ${otherSpeciesName}: ${otherKg}kg@৳${otherPrice}` : ''
       }`;
 
@@ -399,8 +399,8 @@ export default function FishManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'sale',
-            category: `পুকুরের মাছ বিক্রি (${selectedCycle.pondId})`,
-            description: `${selectedCycle.pondId} (${selectedCycle.cycleCode}): মোট ${totalHarvestKg} কেজি মাছ বিক্রি | ${breakdownDesc}`,
+            category: `Fish Harvest Sales (${selectedCycle.pondId})`,
+            description: `${selectedCycle.pondId} (${selectedCycle.cycleCode}): Total ${totalHarvestKg} KG fish sold | ${breakdownDesc}`,
             debitAccountId: cashOrBank.id,
             debitAccountName: cashOrBank.name,
             creditAccountId: revAcc.id,
@@ -420,14 +420,14 @@ export default function FishManagementModule({
         action: 'FISH_HARVEST_SALE',
         module: 'Fish Management',
         businessId: activeBusiness.id,
-        details: `[${selectedCycle.pondId} | ${selectedCycle.cycleCode}] তারিখ: ${dHarvestDate} | ${breakdownDesc} | মোট ওজন: ${totalHarvestKg} কেজি | মোট বিক্রয়মূল্য: ৳${totalHarvestRevenue}`,
+        details: `[${selectedCycle.pondId} | ${selectedCycle.cycleCode}] Date: ${dHarvestDate} | ${breakdownDesc} | Total Harvest: ${totalHarvestKg} KG | Revenue: ৳${totalHarvestRevenue}`,
         severity: 'info',
         actorEmail,
         ownerId,
       });
 
       notify(
-        `${selectedCycle.pondId} থেকে মোট ${totalHarvestKg} কেজি মাছ ${formatBDT(totalHarvestRevenue)}-এ বিক্রি সম্পন্ন হয়েছে!`
+        `${selectedCycle.pondId}: Total ${totalHarvestKg} KG fish harvested and sold for ${formatBDT(totalHarvestRevenue)}!`
       );
     } finally {
       setIsSubmitting(false);
@@ -460,10 +460,10 @@ export default function FishManagementModule({
               <span>Fish Farming — Pond & Production Cycle System (A to D)</span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              পুকুরভিত্তিক (POND-001, POND-002, POND-003) পোনা ছাড়া, খাবার, পানির মান ও মাছ বিক্রির লাভ-ক্ষতি
+              Pond-Wise (POND-001, POND-002, POND-003) Stocking, Feed, Water Quality & Harvest Sales
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              একই পুকুরে নতুন করে মাছ ছাড়লে নতুন Production Cycle তৈরি হবে এবং প্রতিটি পুকুরের আলাদা হিসাব থাকবে।
+              Each production cycle tracks stocking density, feed consumption, water parameters (pH/DO), and species-wise sales revenue separately.
             </p>
           </div>
 
@@ -478,12 +478,12 @@ export default function FishManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>{bn ? 'লোড করা হচ্ছে...' : 'Loading demo...'}</span>
+                    <span>Loading demo...</span>
                   </>
                 ) : (
                   <>
                     <Plus className="h-3.5 w-3.5" />
-                    <span>উদাহরণ পুকুর (POND-001) লোড করুন</span>
+                    <span>Load Demo Pond (POND-001)</span>
                   </>
                 )}
               </button>
@@ -495,7 +495,7 @@ export default function FishManagementModule({
                 type="text"
                 value={pondSearch}
                 onChange={(e) => setPondSearch(e.target.value)}
-                placeholder="POND-001 বা মাছের নাম সার্চ..."
+                placeholder="Search POND-001 or fish species..."
                 className="pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-60 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -507,7 +507,7 @@ export default function FishManagementModule({
           <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
             <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 whitespace-nowrap">
               <Fish className="h-4 w-4 text-emerald-600" />
-              <span>{bn ? 'সক্রিয় পুকুর নির্বাচন (Select Pond):' : 'Select Active Pond:'}</span>
+              <span>Select Active Pond:</span>
             </label>
 
             <div className="relative min-w-[280px] max-w-md flex-1">
@@ -517,11 +517,11 @@ export default function FishManagementModule({
                 className="w-full pl-3 pr-8 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer"
               >
                 {filteredCycles.length === 0 ? (
-                  <option value="" disabled>{bn ? 'কোনো পুকুর পাওয়া যায়নি' : 'No pond found'}</option>
+                  <option value="" disabled>No pond found</option>
                 ) : (
                   filteredCycles.map((c) => (
                     <option key={c.id} value={c.id}>
-                      [{c.pondId}] {c.pondName} · {c.areaDecimals} {bn ? 'শতক' : 'Dec'} · {c.fishSpecies} ({c.status === 'active' ? (bn ? 'চলমান' : 'Active') : c.status})
+                      [{c.pondId}] {c.pondName} · {c.areaDecimals} Dec · {c.fishSpecies} ({c.status === 'active' ? 'Active' : c.status})
                     </option>
                   ))
                 )}
@@ -529,7 +529,7 @@ export default function FishManagementModule({
             </div>
 
             <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
-              {bn ? `মোট ${cycles.length}টি পুকুর` : `Total ${cycles.length} Ponds`}
+              `Total ${cycles.length} Ponds`
             </span>
           </div>
 
@@ -550,20 +550,18 @@ export default function FishManagementModule({
                 disabled={isSubmitting}
                 onClick={() => {
                   triggerConfirmDelete({
-                    title: bn ? 'পুকুর সাইকেল ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Pond Cycle',
-                    message: bn
-                      ? `আপনি কি নিশ্চিতভাবে এই পুকুর/সাইকেলের রেকর্ডটি (${selectedCycle.pondId} - ${selectedCycle.cycleCode}) ডিলিট করতে চান? এর সাথে যুক্ত সমস্ত তথ্য মুছে যাবে।`
-                      : `Are you sure you want to delete cycle ${selectedCycle.pondId} - ${selectedCycle.cycleCode}?`,
+                    title: 'Confirm Delete Pond Cycle',
+                    message: `Are you sure you want to delete cycle ${selectedCycle.pondId} - ${selectedCycle.cycleCode}? All associated feed, water and harvest records will be removed.`,
                     itemName: `${selectedCycle.pondId} (${selectedCycle.pondName} - ${selectedCycle.fishSpecies})`,
                     onConfirm: async () => {
                       setIsSubmitting(true);
                       try {
                         await deleteFishCycle(selectedCycle.id);
                         triggerGlobalToast(
-                          bn ? `${selectedCycle.pondId} সফলভাবে ডিলিট করা হয়েছে!` : `${selectedCycle.pondId} deleted!`,
+                          `${selectedCycle.pondId} deleted!`,
                           'delete'
                         );
-                        onNotify(bn ? `${selectedCycle.pondId} ডিলিট সম্পন্ন!` : `Cycle deleted!`);
+                        onNotify(`${selectedCycle.pondId} deleted!`);
                       } catch (err: any) {
                         triggerGlobalToast(err?.message || 'Delete failed', 'info');
                       } finally {
@@ -575,7 +573,7 @@ export default function FishManagementModule({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors shadow-2xs cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span>{bn ? 'মুছুন' : 'Delete'}</span>
+                <span>Delete</span>
               </button>
             </div>
           )}
@@ -590,29 +588,29 @@ export default function FishManagementModule({
           {
             id: 'A_POND_PROFILE' as FishSubTab,
             step: 'A',
-            titleBn: 'Pond Profile ও সারসংক্ষেপ',
             titleEn: 'Pond Profile & Status',
+            subEn: 'Area, Stock & Economics',
             icon: Waves,
           },
           {
             id: 'B_FINGERLING' as FishSubTab,
             step: 'B',
-            titleBn: 'মাছের পোনা কেনা ও নতুন সাইকেল',
             titleEn: 'Fingerling & New Cycle',
+            subEn: 'Stocking & Initial Setup',
             icon: Fish,
           },
           {
             id: 'C_FEED_WATER' as FishSubTab,
             step: 'C',
-            titleBn: 'খাবার, ওষুধ ও পানির মান (pH/DO)',
             titleEn: 'Feed, Medicine & Water',
+            subEn: 'Daily pH, DO & Expenses',
             icon: Droplets,
           },
           {
             id: 'D_HARVEST_SALES' as FishSubTab,
             step: 'D',
-            titleBn: 'মাছ বিক্রি ও পুকুরের লাভ-ক্ষতি',
             titleEn: 'Species Sales & Profit',
+            subEn: 'Multi-Species Harvest P&L',
             icon: Scale,
           },
         ].map((tab) => {
@@ -637,18 +635,18 @@ export default function FishManagementModule({
                       : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
                   }`}
                 >
-                  {bn ? `ধাপ ${tab.step}` : `Step ${tab.step}`}
+                  Step {tab.step}
                 </span>
                 <Icon className="h-4 w-4 opacity-85" />
               </div>
               <div>
-                <div className="text-xs font-bold leading-tight">{bn ? tab.titleBn : tab.titleEn}</div>
+                <div className="text-xs font-bold leading-tight">{tab.titleEn}</div>
                 <div
                   className={`text-[10px] mt-0.5 ${
                     active ? 'text-emerald-100' : 'text-slate-400'
                   }`}
                 >
-                  {bn ? tab.titleEn : tab.titleBn}
+                  {tab.subEn}
                 </div>
               </div>
             </button>
@@ -657,7 +655,7 @@ export default function FishManagementModule({
       </div>
 
       {/* =====================================================================
-          TAB A: Pond Profile (যেমন POND-001 প্রোফাইল ও আর্থিক অবস্থা)
+          TAB A: Pond Profile & Production Economics
          ===================================================================== */}
       {activeSubTab === 'A_POND_PROFILE' && selectedCycle && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -673,7 +671,7 @@ export default function FishManagementModule({
                 </h3>
               </div>
               <span className="px-2.5 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                {selectedCycle.status === 'active' ? 'Active (চলমান)' : selectedCycle.status}
+                {'Active'}
               </span>
             </div>
 
@@ -681,14 +679,14 @@ export default function FishManagementModule({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                    <th className="py-2.5 px-4 w-2/5">{bn ? "বিষয় (Field)" : "Metric / Field"}</th>
-                    <th className="py-2.5 px-4">{bn ? "তথ্য (Information)" : "Value / Record"}</th>
+                    <th className="py-2.5 px-4 w-2/5">Metric / Field</th>
+                    <th className="py-2.5 px-4">Value / Record</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'পুকুর আইডি (Pond ID)' : 'Pond ID'}
+                      Pond ID
                     </td>
                     <td className="py-2.5 px-4 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                       {selectedCycle.pondId} (Cycle: {selectedCycle.cycleCode})
@@ -696,23 +694,23 @@ export default function FishManagementModule({
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'আয়তন (Pond Area)' : 'Surface Area'}
+                      Surface Area
                     </td>
                     <td className="py-2.5 px-4 font-mono font-bold">
-                      {selectedCycle.areaDecimals} {bn ? 'শতাংশ (Decimals)' : 'Decimals'}
+                      {selectedCycle.areaDecimals} Decimals
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'পানির গভীরতা (Water Depth)' : 'Water Depth'}
+                      Water Depth
                     </td>
                     <td className="py-2.5 px-4 font-mono font-bold">
-                      {selectedCycle.depthFeet} {bn ? 'ফুট' : 'Feet'}
+                      {selectedCycle.depthFeet} Feet
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'মাছের ধরন (Fish Species)' : 'Species Planted'}
+                      Species Planted
                     </td>
                     <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
                       {selectedCycle.fishSpecies}
@@ -720,22 +718,21 @@ export default function FishManagementModule({
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'চাষ শুরুর তারিখ (Stocking Date)' : 'Stocking Date'}
+                      Stocking Date
                     </td>
                     <td className="py-2.5 px-4 font-mono">{selectedCycle.stockingDate}</td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'পোনা সংখ্যা ও বর্তমান জীবিত মাছ' : 'Stocking Density & Live Biomass'}
+                      Stocking Density & Live Biomass
                     </td>
                     <td className="py-2.5 px-4 font-mono font-bold">
-                      পোনা ছাড়া: {selectedCycle.initialQuantity.toLocaleString()} টি | মৃত:{' '}
-                      {selectedCycle.mortalityCount} টি | জীবিত: {pondAliveFish.toLocaleString()} টি
+                      Stocked: {selectedCycle.initialQuantity.toLocaleString()} | Mortality: {selectedCycle.mortalityCount} | Live: {pondAliveFish.toLocaleString()}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'পানির গুণগত মান (pH & Oxygen)' : 'Water Quality (pH & DO)'}
+                      Water Quality (pH & DO)
                     </td>
                     <td className="py-2.5 px-4 font-mono text-emerald-700 dark:text-emerald-400">
                       {selectedCycle.waterQualityNotes}
@@ -743,7 +740,7 @@ export default function FishManagementModule({
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                      {bn ? 'বর্তমান অবস্থা (Current Status)' : 'Cycle Status'}
+                      Cycle Status
                     </td>
                     <td className="py-2.5 px-4 font-bold text-emerald-700 dark:text-emerald-400">
                       {selectedCycle.status.toUpperCase()}
@@ -758,60 +755,60 @@ export default function FishManagementModule({
           <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-              {selectedCycle.pondId} — {bn ? 'পুকুরের মোট বিনিয়োগ, বিক্রি ও লাভ-ক্ষতি' : 'Pond Production Economics & Lifetime P&L'}
+              {selectedCycle.pondId} — Pond Production Economics & Lifetime P&L
             </h3>
 
             <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                    <th className="py-2.5 px-4">{bn ? "খাত (Category)" : "Cost / Revenue Head"}</th>
-                    <th className="py-2.5 px-4 text-right">{bn ? "টাকা (BDT)" : "Amount (BDT)"}</th>
+                    <th className="py-2.5 px-4">Cost / Revenue Head</th>
+                    <th className="py-2.5 px-4 text-right">Amount (BDT)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
-                    <td className="py-2.5 px-4">{bn ? "১. মাছের পোনা ক্রয় (Fingerling Investment)" : "1. Fingerling Stocking Investment"}</td>
+                    <td className="py-2.5 px-4">1. Fingerling Stocking Investment</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(pondFingerlingCost)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4">{bn ? "২. মাছের খাবার খরচ (Floating/Pellet Feed)" : "2. Floating & Sinking Feed Cost"}</td>
+                    <td className="py-2.5 px-4">2. Floating & Sinking Feed Cost</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(pondFeedCost)}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4">
-                      {bn ? '৩. পানির চিকিৎসা, চুন, ওষুধ ও পুকুর পরিষ্কার খরচ' : '3. Lime, Zeolite, Oxygen & Water Care'}
+                      3. Lime, Zeolite, Oxygen & Water Care
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(pondMedCost)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-4">{bn ? "৪. শ্রমিক ও পরিচর্যা খরচ (Labour Cost)" : "4. Pond Care & Harvesting Labor"}</td>
+                    <td className="py-2.5 px-4">4. Pond Care & Harvesting Labor</td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold">
                       {formatBDT(pondLabourCost)}
                     </td>
                   </tr>
                   <tr className="bg-amber-50/70 dark:bg-amber-950/20 font-bold">
-                    <td className="py-2.5 px-4">{bn ? "মোট বিনিয়োগ / খরচ (Total Pond Cost)" : "Total Pond Operating Cost"}</td>
+                    <td className="py-2.5 px-4">Total Pond Operating Cost</td>
                     <td className="py-2.5 px-4 text-right font-mono text-amber-700 dark:text-amber-400">
                       {formatBDT(pondTotalInvestment)}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-2.5 px-4 font-bold">
-                      {bn ? `মোট মাছ বিক্রি (${selectedCycle.harvestWeightKg.toLocaleString()} কেজি)` : `Total Harvest Sales (${selectedCycle.harvestWeightKg.toLocaleString()} KG)`}
+                      `Total Harvest Sales (${selectedCycle.harvestWeightKg.toLocaleString()} KG)`
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
                       {formatBDT(pondTotalRevenue)}
                     </td>
                   </tr>
                   <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
-                    <td className="py-3 px-4">{bn ? "পুকুরের নিট লাভ (Pond Net Profit)" : "Net Pond Harvest Profit"}</td>
+                    <td className="py-3 px-4">Net Pond Harvest Profit</td>
                     <td
                       className={`py-3 px-4 text-right font-mono text-base ${
                         pondNetProfit >= 0
@@ -830,22 +827,22 @@ export default function FishManagementModule({
       )}
 
       {/* =====================================================================
-          TAB B: মাছের পোনা কেনা ও নতুন Production Cycle শুরু করা
+          TAB B: Fingerling Stocking & New Production Cycle
          ===================================================================== */}
       {activeSubTab === 'B_FINGERLING' && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 max-w-3xl">
           <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Plus className="h-4 w-4 text-emerald-600" />
-            {bn ? 'B. মাছের পোনা কেনা ও পুকুরে নতুন Production Cycle শুরু করুন' : 'B. Stock Fingerlings & Initialize Production Cycle'}
+            B. Stock Fingerlings & Initialize Production Cycle
           </h3>
           <p className="text-xs text-slate-500 mt-1 mb-4">
-            কোন মাছের পোনা কিনলেন, কতটি কিনলেন, প্রতি পোনার দাম, সাপ্লায়ার ও কোন পুকুরে ছাড়লেন তা লিখলে স্বয়ংক্রিয়ভাবে মোট বিনিয়োগ হিসাব হবে।
+            Enter species stocked, fingerling count, unit price, hatchery supplier and target pond to automatically compute stocking investment.
           </p>
 
           <form onSubmit={handleCreateCycleB} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'কোন পুকুরে ছাড়লেন? (Pond ID) *' : 'Target Pond ID *'}</label>
+                <label className="block font-semibold mb-1">Target Pond ID *</label>
                 <input
                   type="text"
                   required
@@ -856,7 +853,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পুকুরের নাম (Pond Name) *' : 'Pond Name *'}</label>
+                <label className="block font-semibold mb-1">Pond Name *</label>
                 <input
                   type="text"
                   required
@@ -866,7 +863,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'Production Cycle কোড *' : 'Cycle Code *'}</label>
+                <label className="block font-semibold mb-1">Cycle Code *</label>
                 <input
                   type="text"
                   required
@@ -879,7 +876,7 @@ export default function FishManagementModule({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পুকুরের আয়তন (শতাংশ)' : 'Surface Area (Decimals)'}</label>
+                <label className="block font-semibold mb-1">Surface Area (Decimals)</label>
                 <input
                   type="number"
                   min={1}
@@ -890,7 +887,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পানির গভীরতা (ফুট)' : 'Water Depth (Feet)'}</label>
+                <label className="block font-semibold mb-1">Water Depth (Feet)</label>
                 <input
                   type="number"
                   step="0.5"
@@ -901,7 +898,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পোনা ছাড়ার তারিখ' : 'Stocking Date'}</label>
+                <label className="block font-semibold mb-1">Stocking Date</label>
                 <input
                   type="date"
                   value={bStockingDate}
@@ -914,19 +911,19 @@ export default function FishManagementModule({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block font-semibold mb-1">
-                  {bn ? 'কোন মাছের পোনা কিনলেন? (Fish Species) *' : 'Fish Species Stocked *'}
+                  Fish Species Stocked *
                 </label>
                 <input
                   type="text"
                   required
                   value={bSpecies}
                   onChange={(e) => setBSpecies(e.target.value)}
-                  placeholder={bn ? "রুই, কাতলা, তেলাপিয়া, পাবদা..." : "e.g. Rui, Katla, Tilapia, Pabda..."}
+                  placeholder="e.g. Rui, Katla, Tilapia, Pabda..."
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'সাপ্লায়ার / হ্যাচারি (Supplier)' : 'Hatchery Supplier'}</label>
+                <label className="block font-semibold mb-1">Hatchery Supplier</label>
                 <input
                   type="text"
                   value={bSupplier}
@@ -938,7 +935,7 @@ export default function FishManagementModule({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পোনা সংখ্যা (কতটি কিনলেন) *' : 'Fingerling Quantity (Count) *'}</label>
+                <label className="block font-semibold mb-1">Fingerling Quantity (Count) *</label>
                 <input
                   type="number"
                   required
@@ -950,7 +947,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'প্রতি পোনার দাম (৳) *' : 'Price per Fingerling (৳) *'}</label>
+                <label className="block font-semibold mb-1">Price per Fingerling (৳) *</label>
                 <input
                   type="number"
                   step="0.5"
@@ -963,7 +960,7 @@ export default function FishManagementModule({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                  {bn ? 'মোট বিনিয়োগ (Auto Total)' : 'Total Stocking Investment (Auto)'}
+                  Total Stocking Investment (Auto)
                 </label>
                 <div className="w-full rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 font-mono font-bold text-emerald-800 dark:text-emerald-300">
                   {formatBDT(totalFingerlingInvestment)}
@@ -979,10 +976,10 @@ export default function FishManagementModule({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                  <span>{bn ? 'সাইকেল সেভ করা হচ্ছে...' : 'Saving Cycle...'}</span>
+                  <span>Saving Cycle...</span>
                 </>
               ) : (
-                <span>{bn ? '+ পোনা ক্রয় ও নতুন Production Cycle সেভ করুন' : '+ Save Stocking & Initialize Cycle'}</span>
+                <span>+ Save Stocking & Initialize Cycle</span>
               )}
             </button>
           </form>
@@ -990,19 +987,19 @@ export default function FishManagementModule({
       )}
 
       {/* =====================================================================
-          TAB C: মাছের খাবার, ওষুধ, পানির মান (pH/Oxygen), মৃত্যু ও শ্রমিকের খরচ
+          TAB C: Feed, Medicine, Water Quality (pH/DO), Mortality & Labor
          ===================================================================== */}
       {activeSubTab === 'C_FEED_WATER' && selectedCycle && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 max-w-4xl space-y-4">
           <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Droplets className="h-4 w-4 text-emerald-600" />
-            {bn ? `C. মাছের খাবার, পানির গুণাগুণ (pH ও অক্সিজেন), চিকিৎসা ও শ্রমিকের খরচ (${selectedCycle.pondId})` : `C. Daily Feeding, Water Quality (pH/DO) & Maintenance (${selectedCycle.pondId})`}
+            `C. Daily Feeding, Water Quality (pH/DO) & Maintenance (${selectedCycle.pondId})`
           </h3>
 
           <form onSubmit={handleRecordFeedAndWaterC} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'তারিখ' : 'Date'}</label>
+                <label className="block font-semibold mb-1">Date</label>
                 <input
                   type="date"
                   value={cDate}
@@ -1011,7 +1008,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'কত কেজি খাবার দেওয়া হয়েছে?' : 'Feed Dispensed (KG)'}</label>
+                <label className="block font-semibold mb-1">Feed Dispensed (KG)</label>
                 <input
                   type="number"
                   min={0}
@@ -1022,7 +1019,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'প্রতি কেজি খাবারের দাম (৳)' : 'Feed Rate / KG (৳)'}</label>
+                <label className="block font-semibold mb-1">Feed Rate / KG (৳)</label>
                 <input
                   type="number"
                   min={0}
@@ -1033,7 +1030,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'আজকের খাবারের মোট দাম' : 'Total Feed Cost (Auto)'}</label>
+                <label className="block font-semibold mb-1">Total Feed Cost (Auto)</label>
                 <div className="w-full rounded-lg border border-slate-200 bg-slate-50 dark:bg-slate-800 px-3 py-2 font-mono font-bold">
                   {formatBDT(dailyFeedCost)}
                 </div>
@@ -1043,7 +1040,7 @@ export default function FishManagementModule({
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                  {bn ? 'পানির pH মান' : 'Water pH Level'}
+                  Water pH Level
                 </label>
                 <input
                   type="text"
@@ -1054,7 +1051,7 @@ export default function FishManagementModule({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-emerald-700 dark:text-emerald-400">
-                  {bn ? 'অক্সিজেন (DO mg/L)' : 'Dissolved Oxygen (DO mg/L)'}
+                  Dissolved Oxygen (DO mg/L)
                 </label>
                 <input
                   type="text"
@@ -1064,7 +1061,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পানির তাপমাত্রা (°C)' : 'Water Temp (°C)'}</label>
+                <label className="block font-semibold mb-1">Water Temp (°C)</label>
                 <input
                   type="text"
                   value={cWaterTemp}
@@ -1074,7 +1071,7 @@ export default function FishManagementModule({
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-red-600">
-                  {bn ? 'মাছের মৃত্যুর সংখ্যা (টি)' : 'Mortality Count (Birds/Fish)'}
+                  Fish Mortality Count
                 </label>
                 <input
                   type="number"
@@ -1089,7 +1086,7 @@ export default function FishManagementModule({
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পানির চিকিৎসা (চুন/জিওলাইট/ওষুধ)' : 'Water Treatment (Lime/Zeolite/Probiotics)'}</label>
+                <label className="block font-semibold mb-1">Water Treatment (Lime/Zeolite/Probiotics)</label>
                 <input
                   type="text"
                   value={cWaterTreatmentName}
@@ -1098,7 +1095,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পানির চিকিৎসা খরচ (৳)' : 'Treatment Cost (৳)'}</label>
+                <label className="block font-semibold mb-1">Treatment Cost (৳)</label>
                 <input
                   type="number"
                   min={0}
@@ -1109,7 +1106,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'পুকুর পরিষ্কারের খরচ (৳)' : 'Weeding & Pond Cleaning (৳)'}</label>
+                <label className="block font-semibold mb-1">Weeding & Pond Cleaning (৳)</label>
                 <input
                   type="number"
                   min={0}
@@ -1120,7 +1117,7 @@ export default function FishManagementModule({
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">{bn ? 'শ্রমিকের খরচ (Labour ৳)' : 'Labor & Guarding (৳)'}</label>
+                <label className="block font-semibold mb-1">Labor & Guarding (৳)</label>
                 <input
                   type="number"
                   min={0}
@@ -1140,10 +1137,10 @@ export default function FishManagementModule({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                  <span>{bn ? 'তথ্য সেভ করা হচ্ছে...' : 'Saving Data...'}</span>
+                  <span>Saving Data...</span>
                 </>
               ) : (
-                <span>{bn ? '+ পুকুরের খাবার, পানির মান (pH/DO) ও খরচ সেভ করুন' : '+ Save Daily Feed, Water Quality & Expenses'}</span>
+                <span>+ Save Daily Feed, Water Quality & Expenses</span>
               )}
             </button>
           </form>
@@ -1151,17 +1148,17 @@ export default function FishManagementModule({
       )}
 
       {/* =====================================================================
-          TAB D: মাছ বিক্রি (রুই, কাতলা, তেলাপিয়া প্রজাতি অনুযায়ী হিসাব)
+          TAB D: Multi-Species Fish Harvest & Sales
          ===================================================================== */}
       {activeSubTab === 'D_HARVEST_SALES' && selectedCycle && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Scale className="h-4 w-4 text-emerald-600" />
-              {bn ? `D. পুকুর থেকে মাছ বিক্রি (${selectedCycle.pondId} — প্রজাতি অনুযায়ী ওজন ও দর)` : `D. Multi-Species Harvest Sales Calculator (${selectedCycle.pondId})`}
+              `D. Multi-Species Harvest Sales Calculator (${selectedCycle.pondId})`
             </h3>
             <p className="text-xs text-slate-500">
-              ধরুন, {selectedCycle.pondId} থেকে রুই, কাতলা ও তেলাপিয়া তুললেন। প্রতিটি মাছের পরিমাণ ও প্রতি কেজির দাম দিলে সিস্টেম মোট বিক্রয়মূল্য ও পুকুরের লাভ হিসাব করবে।
+              Record species-wise harvested weights (Rui, Katla, Tilapia, etc.) and wholesale rates to realize harvest revenue and post to accounts.
             </p>
 
             <form onSubmit={handleRecordHarvestSaleD} className="space-y-4 text-xs">
@@ -1169,15 +1166,15 @@ export default function FishManagementModule({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-bold">
-                      <th className="py-2.5 px-3">মাছের ধরন (Fish Type)</th>
-                      <th className="py-2.5 px-3">পরিমাণ (কেজি)</th>
-                      <th className="py-2.5 px-3">প্রতি কেজি দাম (৳)</th>
-                      <th className="py-2.5 px-3 text-right">মোট বিক্রয়মূল্য (৳)</th>
+                      <th className="py-2.5 px-3">Fish Species</th>
+                      <th className="py-2.5 px-3">Harvest Qty (KG)</th>
+                      <th className="py-2.5 px-3">Rate / KG (৳)</th>
+                      <th className="py-2.5 px-3 text-right">Total Revenue (৳)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                     <tr>
-                      <td className="py-2.5 px-3 font-bold">রুই (Rui)</td>
+                      <td className="py-2.5 px-3 font-bold">Rui (Rohu Carp)</td>
                       <td className="py-2.5 px-3">
                         <input
                           type="number"
@@ -1203,7 +1200,7 @@ export default function FishManagementModule({
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2.5 px-3 font-bold">কাতলা (Katla)</td>
+                      <td className="py-2.5 px-3 font-bold">Katla (Major Carp)</td>
                       <td className="py-2.5 px-3">
                         <input
                           type="number"
@@ -1229,7 +1226,7 @@ export default function FishManagementModule({
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2.5 px-3 font-bold">তেলাপিয়া (Tilapia)</td>
+                      <td className="py-2.5 px-3 font-bold">Tilapia</td>
                       <td className="py-2.5 px-3">
                         <input
                           type="number"
@@ -1288,14 +1285,14 @@ export default function FishManagementModule({
                       </td>
                     </tr>
                     <tr className="bg-emerald-50 dark:bg-emerald-950/40 font-bold text-sm">
-                      <td className="py-3 px-3">সর্বমোট বিক্রি (Total Harvest)</td>
-                      <td className="py-3 px-3 font-mono">{totalHarvestKg} কেজি</td>
+                      <td className="py-3 px-3">Total Harvest</td>
+                      <td className="py-3 px-3 font-mono">{totalHarvestKg} KG</td>
                       <td className="py-3 px-3 font-mono">
-                        গড় দর:{' '}
+                        Avg Rate:{' '}
                         {totalHarvestKg > 0
                           ? formatBDT(Math.round(totalHarvestRevenue / totalHarvestKg))
-                          : '৳০'}
-                        /কেজি
+                          : '৳0'}
+                        / KG
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-emerald-700 dark:text-emerald-400">
                         {formatBDT(totalHarvestRevenue)}
@@ -1307,7 +1304,7 @@ export default function FishManagementModule({
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">বিক্রির তারিখ</label>
+                  <label className="block font-semibold mb-1">Harvest / Sale Date</label>
                   <input
                     type="date"
                     value={dHarvestDate}
@@ -1316,7 +1313,7 @@ export default function FishManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">ক্রেতা / আড়তদারের নাম</label>
+                  <label className="block font-semibold mb-1">Buyer / Commission Agent</label>
                   <input
                     type="text"
                     value={dBuyerName}
@@ -1325,19 +1322,19 @@ export default function FishManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">পেমেন্ট মাধ্যম</label>
+                  <label className="block font-semibold mb-1">Payment Method</label>
                   <select
                     value={dPaymentMethod}
                     onChange={(e) => setDPaymentMethod(e.target.value as any)}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
                   >
-                    <option value="Cash">Cash (নগদ)</option>
-                    <option value="Bank">Bank (ব্যাংক)</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
                     <option value="Mobile Payment">Mobile Payment</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">বকেয়া (Due ৳)</label>
+                  <label className="block font-semibold mb-1">Remaining Due (৳)</label>
                   <input
                     type="number"
                     min={0}
@@ -1357,10 +1354,10 @@ export default function FishManagementModule({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    <span>{bn ? 'চালান সেভ করা হচ্ছে...' : 'Saving Invoice...'}</span>
+                    <span>Saving Invoice...</span>
                   </>
                 ) : (
-                  <span>+ মাছ বিক্রির চালান ({totalHarvestKg} কেজি = {formatBDT(totalHarvestRevenue)}) সেভ করুন</span>
+                  <span>+ Save Harvest Consignment ({totalHarvestKg} KG = {formatBDT(totalHarvestRevenue)})</span>
                 )}
               </button>
             </form>
@@ -1369,27 +1366,27 @@ export default function FishManagementModule({
           {/* Right: Live Profit Preview after this Harvest */}
           <div className="lg:col-span-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
             <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              {selectedCycle.pondId} — বিক্রির পর পুকুরের মোট লাভের হিসাব
+              {selectedCycle.pondId} — Post-Harvest Net Profit Summary
             </h4>
             <div className="space-y-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between">
-                <span>বর্তমান চালানের বিক্রয়মূল্য:</span>
+                <span>Current Consignment Revenue:</span>
                 <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
                   {formatBDT(totalHarvestRevenue)}
                 </span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex justify-between">
-                <span>পুকুরের পূর্বের মোট বিক্রি:</span>
+                <span>Cumulative Past Revenue:</span>
                 <span className="font-mono font-bold">{formatBDT(pondTotalRevenue)}</span>
               </div>
               <div className="p-3 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 flex justify-between">
-                <span>পুকুরের মোট খরচ (পোনা+খাবার+ওষুধ+শ্রমিক):</span>
+                <span>Total Pond Cost (Stocking+Feed+Care+Labor):</span>
                 <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
                   {formatBDT(pondTotalInvestment)}
                 </span>
               </div>
               <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
-                <span className="font-bold">পুকুরের নিট লাভ:</span>
+                <span className="font-bold">Net Pond Harvest Profit:</span>
                 <span className="font-mono font-bold text-base text-emerald-700 dark:text-emerald-400">
                   {formatBDT(pondTotalRevenue + totalHarvestRevenue - pondTotalInvestment)}
                 </span>

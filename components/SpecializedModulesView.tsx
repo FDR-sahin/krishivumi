@@ -420,10 +420,10 @@ export default function SpecializedModulesView({
       setStfDesignation(bn ? 'ছাগল প্রজনন ও যত্নকর্মী' : 'Goat Breeding & Feed Keeper');
       setStfSalary(18000);
     } else if (tpl === 'fish') {
-      setStfDesignation(bn ? 'পুকুর ও মাছের খাদ্য ইনচার্জ' : 'Pond & Feed Lead');
+      setStfDesignation('Pond & Feed Lead');
       setStfSalary(22000);
     } else if (tpl === 'transport') {
-      setStfDesignation(bn ? 'হেভি ট্রাক ড্রাইভার' : 'Heavy Truck Driver');
+      setStfDesignation('Heavy Truck Driver');
       setStfSalary(28000);
     } else {
       setStfDesignation(bn ? 'খামার কর্মী' : 'Farm Assistant');
@@ -712,7 +712,7 @@ export default function SpecializedModulesView({
         actorEmail
       );
       setShowAddModal(false);
-      notify(bn ? `নতুন পুকুরের মাছ চাষ চক্র (${fPondName}) যুক্ত হয়েছে!` : `New fish pond cycle (${fPondName}) added!`);
+      notify(`New fish pond cycle (${fPondName}) added successfully!`);
     } catch (err) {
       console.error(err);
       triggerGlobalToast(String(err), 'error');
@@ -819,9 +819,9 @@ export default function SpecializedModulesView({
                     : tpl === 'goat'
                     ? (bn ? 'ছাগল বিক্রি' : 'Goat Sales')
                     : tpl === 'fish'
-                    ? (bn ? 'মাছ বিক্রি' : 'Fish Sales')
+                    ? 'Fish Sales'
                     : tpl === 'transport'
-                    ? (bn ? 'ট্রাক ভাড়া আয়' : 'Truck Freight Revenue')
+                    ? 'Truck Freight Revenue'
                     : (bn ? 'পণ্য বিক্রি (Sales)' : 'Product Sales')
                 );
                 setShowQuickTxModal('sale');
@@ -843,9 +843,9 @@ export default function SpecializedModulesView({
                     : tpl === 'goat'
                     ? (bn ? 'ছাগলের খাবার ও পরিচর্যা খরচ' : 'Goat Feed & Care Expense')
                     : tpl === 'fish'
-                    ? (bn ? 'মাছের খাবার ও পুকুর খরচ' : 'Fish Feed & Pond Maintenance')
+                    ? 'Fish Feed & Pond Maintenance'
                     : tpl === 'transport'
-                    ? (bn ? 'ডিজেল, টোল ও মেরামত খরচ' : 'Diesel Fuel, Toll & Maintenance')
+                    ? 'Diesel Fuel, Toll & Maintenance'
                     : (bn ? 'ব্যবসায়িক খরচ (Expense)' : 'Operating Expense')
                 );
                 setShowQuickTxModal('expense');
@@ -869,9 +869,9 @@ export default function SpecializedModulesView({
                 : tpl === 'goat'
                 ? (bn ? '+ নতুন ছাগল যুক্ত করুন (Add Goat)' : '+ Register Goat')
                 : tpl === 'fish'
-                ? (bn ? '+ নতুন পুকুর/মাছের চক্র (New Pond)' : '+ New Pond Cycle')
+                ? '+ New Pond Cycle'
                 : tpl === 'transport'
-                ? (bn ? '+ নতুন ট্রিপ লিখুন (Add Trip)' : '+ Record Fleet Trip')
+                ? '+ Record Fleet Trip'
                 : (bn ? '+ নতুন এন্ট্রি (New Record)' : '+ New Record')}
             </button>
           </div>
@@ -897,13 +897,9 @@ export default function SpecializedModulesView({
                 ? 'এখানে প্রতিটি ছাগলের আলাদা আইডি (GOAT-0001), বংশতালিকা (বাবা/মা), বাচ্চা (Kids) উৎপাদন, ওজন, এবং ছাগলটির আজীবন লাভ-ক্ষতি হিসাব রাখা হয়।'
                 : 'Manage individual goats by Tag ID, sire/dam pedigree family trees, kid births, health logs, and cumulative profitability.')}
             {tpl === 'fish' &&
-              (bn
-                ? 'এখানে প্রতিটি পুকুরের আয়তন, পোনা ছাড়ার সংখ্যা, পানির মান (pH/Oxygen), খাবারের খরচ এবং মাছ বিক্রির পর পুকুরভিত্তিক নিট লাভ-ক্ষতি দেখা যায়।'
-                : 'Log pond water surface area, fingerling stocking density, water quality (pH, DO), feed consumption, multi-species harvest sales, and net profit per pond.')}
+              'Log pond water surface area, fingerling stocking density, water quality (pH, DO), feed consumption, multi-species harvest sales, and net profit per pond.'}
             {tpl === 'transport' &&
-              (bn
-                ? 'এখানে প্রতিটি ট্রাকের নাম্বার প্লেট, ড্রাইভার, ট্রিপের ভাড়া, ডিজেল ও টোল খরচ বাদ দিয়ে প্রতি ট্রিপে কত টাকা নিট লাভ থাকছে এবং ফিটনেস/ট্যাক্স টোকেনের মেয়াদ কবে শেষ হবে তা দেখা যায়।'
-                : 'Track fleet commercial vehicles, inter-district freight routes, diesel fuel & toll deductions, driver allowances, net margins per trip, and BRTA document expiry dates.')}
+              'Track fleet commercial vehicles, inter-district freight routes, diesel fuel & toll deductions, driver allowances, net margins per trip, and BRTA document expiry dates.'}
             {tpl === 'custom' &&
               (bn
                 ? 'এটি আপনার তৈরি করা কাস্টম ব্যবসা। উপরের "+ বিক্রি / আয় লিখুন" এবং "+ খরচ লিখুন" বাটনে ক্লিক করে প্রতিদিনের লেনদেন লিখলে নিচে স্বয়ংক্রিয়ভাবে লাভ-ক্ষতি ও খতিয়ান তৈরি হবে।'
@@ -1514,13 +1510,13 @@ export default function SpecializedModulesView({
                       ]
                     : tpl === 'fish'
                     ? [
-                        bn ? 'পুকুর ও মাছের খাদ্য ইনচার্জ' : 'Pond & Feed Lead',
-                        bn ? 'জাল টানা ও মাছ ধরা সহকারী' : 'Netting Hand',
+                        'Pond & Feed Lead',
+                        'Netting & Fish Harvest Assistant',
                       ]
                     : tpl === 'transport'
                     ? [
-                        bn ? 'হেভি ট্রাক ড্রাইভার' : 'Heavy Truck Driver',
-                        bn ? 'ট্রাক হেলপার ও খালাসি' : 'Truck Helper',
+                        'Heavy Truck Driver',
+                        'Truck Helper',
                         bn ? 'ফ্লিট সুপারভাইজার' : 'Fleet Supervisor',
                       ]
                     : [bn ? 'খামার সহকারী' : 'Farm Assistant', bn ? 'সুপারভাইজার' : 'Supervisor']
@@ -2013,7 +2009,7 @@ export default function SpecializedModulesView({
             <div className="flex items-center gap-2.5">
               <Fish className="h-5 w-5 text-emerald-600" />
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                {bn ? 'পুকুর ও মাছ চাষের হিসাব (Pond Management & Fish Harvest)' : 'Pond Management & Fish Harvest P&L'}
+                'Pond Management & Fish Harvest P&L'
               </h2>
             </div>
           </div>
@@ -2022,12 +2018,12 @@ export default function SpecializedModulesView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="py-3 px-4">{bn ? 'পুকুরের নাম ও আয়তন' : 'Pond Name & Area'}</th>
-                  <th className="py-3 px-4">{bn ? 'মাছের প্রজাতি ও পোনা' : 'Species & Fingerlings'}</th>
-                  <th className="py-3 px-4">{bn ? 'পানির গুণাগুণ (pH/Oxygen)' : 'Water Quality (pH/DO)'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'মোট খরচ' : 'Total Production Cost'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'মাছ বিক্রি ও ওজন' : 'Harvest Revenue & Weight'}</th>
-                  <th className="py-3 px-4 text-right">{bn ? 'নিট লাভ' : 'Net Profit'}</th>
+                  <th className="py-3 px-4">Pond Name & Area</th>
+                  <th className="py-3 px-4">Species & Fingerlings</th>
+                  <th className="py-3 px-4">Water Quality (pH/DO)</th>
+                  <th className="py-3 px-4 text-right">Total Production Cost</th>
+                  <th className="py-3 px-4 text-right">Harvest Revenue & Weight</th>
+                  <th className="py-3 px-4 text-right">Net Profit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -2042,7 +2038,7 @@ export default function SpecializedModulesView({
                           {fc.pondId} — {fc.pondName}
                         </div>
                         <div className="text-slate-500">
-                          {bn ? `আয়তন: ${fc.areaDecimals} শতক · গভীরতা: ${fc.depthFeet} ফুট` : `Area: ${fc.areaDecimals} Dec · Depth: ${fc.depthFeet} ft`}
+                          `Area: ${fc.areaDecimals} Dec · Depth: ${fc.depthFeet} ft`
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
@@ -2050,7 +2046,7 @@ export default function SpecializedModulesView({
                           {fc.fishSpecies}
                         </div>
                         <div className="font-mono tabular-nums text-slate-500">
-                          {bn ? `পোনা: ${fc.initialQuantity.toLocaleString()} টি (${fc.stockingDate})` : `Fingerlings: ${fc.initialQuantity.toLocaleString()} (${fc.stockingDate})`}
+                          `Fingerlings: ${fc.initialQuantity.toLocaleString()} (${fc.stockingDate})`
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-emerald-700 dark:text-emerald-400">
@@ -2061,7 +2057,7 @@ export default function SpecializedModulesView({
                           {formatBDT(totalCost)}
                         </div>
                         <div className="text-slate-500">
-                          {bn ? 'পোনা: ' : 'Stocking: '}{formatBDT(fc.fingerlingCost)} · {bn ? 'খাবার: ' : 'Feed: '}{formatBDT(fc.feedCost)}
+                          'Stocking: ' + formatBDT(fc.fingerlingCost) + ' · Feed: ' + formatBDT(fc.feedCost)
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -2069,7 +2065,7 @@ export default function SpecializedModulesView({
                           {formatBDT(fc.totalSalesRevenue)}
                         </div>
                         <div className="text-slate-500">
-                          {bn ? 'মাছের ওজন: ' : 'Harvest Weight: '}{fc.harvestWeightKg.toLocaleString()} {bn ? 'কেজি' : 'kg'}
+                          'Harvest Weight: ' + fc.harvestWeightKg.toLocaleString() + ' KG'
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
@@ -2413,9 +2409,9 @@ export default function SpecializedModulesView({
                   : tpl === 'cattle' || tpl === 'goat'
                   ? (bn ? `নতুন ${tpl === 'cattle' ? 'গরু' : 'ছাগল'} রেজিস্ট্রেশন করুন` : `Register New ${tpl === 'cattle' ? 'Cattle' : 'Goat'}`)
                   : tpl === 'fish'
-                  ? (bn ? 'নতুন পুকুর বা মাছ চাষ চক্র শুরু করুন' : 'Start New Pond Fish Cycle')
+                  ? 'Start New Pond Fish Cycle'
                   : tpl === 'transport'
-                  ? (bn ? 'নতুন ট্রাক ট্রিপের হিসাব লিখুন' : 'Record New Transport Trip')
+                  ? 'Record New Transport Trip'
                   : (bn ? `${activeBusiness.name}-এ নতুন হিসাব লিখুন` : `Add New Record to ${activeBusiness.name}`)}
               </h3>
               <button
@@ -2650,7 +2646,7 @@ export default function SpecializedModulesView({
               <form onSubmit={handleAddFishCycle} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'পুকুরের নাম (Pond Name)' : 'Pond Name'}</label>
+                    <label className="block mb-1 font-medium">Pond Name</label>
                     <input
                       type="text"
                       value={fPondName}
@@ -2659,7 +2655,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'আয়তন (শতক / Decimals)' : 'Surface Area (Decimals)'}</label>
+                    <label className="block mb-1 font-medium">Surface Area (Decimals)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2671,7 +2667,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'মাছের নাম (Fish Species)' : 'Fish Species'}</label>
+                    <label className="block mb-1 font-medium">Fish Species</label>
                     <input
                       type="text"
                       value={fSpecies}
@@ -2680,7 +2676,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'পোনা সংখ্যা (Quantity)' : 'Fingerling Quantity'}</label>
+                    <label className="block mb-1 font-medium">Fingerling Quantity</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2692,7 +2688,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'পোনা খরচ (BDT)' : 'Fingerling Cost (BDT)'}</label>
+                    <label className="block mb-1 font-medium">Fingerling Cost (BDT)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2702,7 +2698,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'খাবার খরচ (BDT)' : 'Feed Cost (BDT)'}</label>
+                    <label className="block mb-1 font-medium">Feed Cost (BDT)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2712,7 +2708,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'বিক্রয় মূল্য (BDT)' : 'Harvest Sales Revenue (BDT)'}</label>
+                    <label className="block mb-1 font-medium">Harvest Sales Revenue (BDT)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2734,7 +2730,7 @@ export default function SpecializedModulesView({
                         <span>{bn ? 'চক্র চালু হচ্ছে...' : 'Saving...'}</span>
                       </>
                     ) : (
-                      <span>{bn ? 'পুকুরের হিসাব সেভ করুন' : 'Save Pond Record'}</span>
+                      <span>Save Pond Record</span>
                     )}
                   </button>
                 </div>
@@ -2745,7 +2741,7 @@ export default function SpecializedModulesView({
               <form onSubmit={handleAddTransportOp} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'ট্রিপ নাম্বার' : 'Trip Number'}</label>
+                    <label className="block mb-1 font-medium">Trip Number</label>
                     <input
                       type="text"
                       value={tCode}
@@ -2754,7 +2750,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'গাড়ির নাম্বার প্লেট' : 'Vehicle Reg Plate'}</label>
+                    <label className="block mb-1 font-medium">Vehicle Reg Plate</label>
                     <input
                       type="text"
                       value={tRegNo}
@@ -2765,7 +2761,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'কোথা থেকে (Origin)' : 'Origin'}</label>
+                    <label className="block mb-1 font-medium">Origin</label>
                     <input
                       type="text"
                       value={tOrigin}
@@ -2774,7 +2770,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'কোথায় যাবে (Destination)' : 'Destination'}</label>
+                    <label className="block mb-1 font-medium">Destination</label>
                     <input
                       type="text"
                       value={tDest}
@@ -2785,7 +2781,7 @@ export default function SpecializedModulesView({
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'ডিজেল খরচ (BDT)' : 'Diesel Fuel Cost (BDT)'}</label>
+                    <label className="block mb-1 font-medium">Diesel Fuel Cost (BDT)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2795,7 +2791,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'ব্রিজ টোল (BDT)' : 'Bridge & Toll Cost (BDT)'}</label>
+                    <label className="block mb-1 font-medium">Bridge & Toll Cost (BDT)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2805,7 +2801,7 @@ export default function SpecializedModulesView({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">{bn ? 'ট্রিপ ভাড়া (Revenue BDT)' : 'Trip Freight Revenue (BDT)'}</label>
+                    <label className="block mb-1 font-medium">Trip Freight Revenue (BDT)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2824,10 +2820,10 @@ export default function SpecializedModulesView({
                     {isSavingTrip ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                        <span>{bn ? 'ট্রিপ সেভ হচ্ছে...' : 'Saving...'}</span>
+                        <span>Saving...</span>
                       </>
                     ) : (
-                      <span>{bn ? 'ট্রিপ সেভ করুন' : 'Save Fleet Trip'}</span>
+                      <span>Save Fleet Trip</span>
                     )}
                   </button>
                 </div>

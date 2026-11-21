@@ -87,18 +87,18 @@ type TransportTab =
   | 'reports';
 
 const MONTH_NAMES = [
-  { code: '01', nameEn: 'January', nameBn: 'জানুয়ারি' },
-  { code: '02', nameEn: 'February', nameBn: 'ফেব্রুয়ারি' },
-  { code: '03', nameEn: 'March', nameBn: 'মার্চ' },
-  { code: '04', nameEn: 'April', nameBn: 'এপ্রিল' },
-  { code: '05', nameEn: 'May', nameBn: 'মে' },
-  { code: '06', nameEn: 'June', nameBn: 'জুন' },
-  { code: '07', nameEn: 'July', nameBn: 'জুলাই' },
-  { code: '08', nameEn: 'August', nameBn: 'আগস্ট' },
-  { code: '09', nameEn: 'September', nameBn: 'সেপ্টেম্বর' },
-  { code: '10', nameEn: 'October', nameBn: 'অক্টোবর' },
-  { code: '11', nameEn: 'November', nameBn: 'নভেম্বর' },
-  { code: '12', nameEn: 'December', nameBn: 'ডিসেম্বর' },
+  { code: '01', nameEn: 'January', nameBn: 'January' },
+  { code: '02', nameEn: 'February', nameBn: 'February' },
+  { code: '03', nameEn: 'March', nameBn: 'March' },
+  { code: '04', nameEn: 'April', nameBn: 'April' },
+  { code: '05', nameEn: 'May', nameBn: 'May' },
+  { code: '06', nameEn: 'June', nameBn: 'June' },
+  { code: '07', nameEn: 'July', nameBn: 'July' },
+  { code: '08', nameEn: 'August', nameBn: 'August' },
+  { code: '09', nameEn: 'September', nameBn: 'September' },
+  { code: '10', nameEn: 'October', nameBn: 'October' },
+  { code: '11', nameEn: 'November', nameBn: 'November' },
+  { code: '12', nameEn: 'December', nameBn: 'December' },
 ];
 
 export default function TransportManagementModule({
@@ -192,7 +192,7 @@ export default function TransportManagementModule({
     for (const stk of stakeholders) {
       if (
         stk.businessId === activeBusiness.id &&
-        (stk.stakeholderType === 'employee' || stk.designationOrCategory?.includes('ড্রাইভার') || stk.designationOrCategory?.includes('Driver'))
+        (stk.stakeholderType === 'employee' || stk.designationOrCategory?.toLowerCase().includes('driver')  || stk.designationOrCategory?.includes('Driver'))
       ) {
         if (!driverMap.has(stk.name)) {
           driverMap.set(stk.name, {
@@ -249,37 +249,37 @@ export default function TransportManagementModule({
     for (const v of allVehicles) {
       if (v.fitnessExpiry) {
         if (v.fitnessExpiry < today) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'ফিটনেস সার্টিফিকেট' : 'Fitness Certificate', expiryDate: v.fitnessExpiry, isExpired: true });
+          alerts.push({ reg: v.registrationNumber, docType: 'Fitness Certificate', expiryDate: v.fitnessExpiry, isExpired: true });
         } else if (v.fitnessExpiry <= thirtyDaysFromNow) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'ফিটনেস সার্টিফিকেট' : 'Fitness Certificate', expiryDate: v.fitnessExpiry, isExpired: false });
+          alerts.push({ reg: v.registrationNumber, docType: 'Fitness Certificate', expiryDate: v.fitnessExpiry, isExpired: false });
         }
       }
       if (v.taxTokenExpiry) {
         if (v.taxTokenExpiry < today) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'ট্যাক্স টোকেন' : 'Tax Token', expiryDate: v.taxTokenExpiry, isExpired: true });
+          alerts.push({ reg: v.registrationNumber, docType: 'Tax Token', expiryDate: v.taxTokenExpiry, isExpired: true });
         } else if (v.taxTokenExpiry <= thirtyDaysFromNow) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'ট্যাক্স টোকেন' : 'Tax Token', expiryDate: v.taxTokenExpiry, isExpired: false });
+          alerts.push({ reg: v.registrationNumber, docType: 'Tax Token', expiryDate: v.taxTokenExpiry, isExpired: false });
         }
       }
       if (v.insuranceExpiry) {
         if (v.insuranceExpiry < today) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'ইন্স্যুরেন্স' : 'Insurance', expiryDate: v.insuranceExpiry, isExpired: true });
+          alerts.push({ reg: v.registrationNumber, docType: 'Insurance', expiryDate: v.insuranceExpiry, isExpired: true });
         } else if (v.insuranceExpiry <= thirtyDaysFromNow) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'ইন্স্যুরেন্স' : 'Insurance', expiryDate: v.insuranceExpiry, isExpired: false });
+          alerts.push({ reg: v.registrationNumber, docType: 'Insurance', expiryDate: v.insuranceExpiry, isExpired: false });
         }
       }
       if (v.routePermitExpiry) {
         if (v.routePermitExpiry < today) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'রুট পারমিট' : 'Route Permit', expiryDate: v.routePermitExpiry, isExpired: true });
+          alerts.push({ reg: v.registrationNumber, docType: 'Route Permit', expiryDate: v.routePermitExpiry, isExpired: true });
         } else if (v.routePermitExpiry <= thirtyDaysFromNow) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'রুট পারমিট' : 'Route Permit', expiryDate: v.routePermitExpiry, isExpired: false });
+          alerts.push({ reg: v.registrationNumber, docType: 'Route Permit', expiryDate: v.routePermitExpiry, isExpired: false });
         }
       }
       if (v.nextServiceDate) {
         if (v.nextServiceDate < today) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'শিডিউল সার্ভিসিং' : 'Scheduled Service', expiryDate: v.nextServiceDate, isExpired: true });
+          alerts.push({ reg: v.registrationNumber, docType: 'Scheduled Service', expiryDate: v.nextServiceDate, isExpired: true });
         } else if (v.nextServiceDate <= thirtyDaysFromNow) {
-          alerts.push({ reg: v.registrationNumber, docType: bn ? 'শিডিউল সার্ভিসিং' : 'Scheduled Service', expiryDate: v.nextServiceDate, isExpired: false });
+          alerts.push({ reg: v.registrationNumber, docType: 'Scheduled Service', expiryDate: v.nextServiceDate, isExpired: false });
         }
       }
     }
@@ -414,7 +414,7 @@ export default function TransportManagementModule({
   const handleSaveVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVehReg.trim()) {
-      triggerGlobalToast(bn ? 'গাড়ির রেজিস্ট্রেশন নম্বর লিখুন' : 'Enter registration number', 'info');
+      triggerGlobalToast('Enter registration number', 'info');
       return;
     }
     setIsSubmitting(true);
@@ -460,7 +460,7 @@ export default function TransportManagementModule({
       );
       setShowAddVehicleModal(false);
       triggerGlobalToast(
-        bn ? `নতুন গাড়ি ${newVehReg} সফলভাবে ফ্লিটে যুক্ত হয়েছে!` : `Vehicle ${newVehReg} registered!`,
+        `Vehicle ${newVehReg} registered successfully!`,
         'success'
       );
       onNotify('Vehicle registered');
@@ -475,11 +475,11 @@ export default function TransportManagementModule({
   const handleSaveTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripTruckReg) {
-      triggerGlobalToast(bn ? 'গাড়ি নির্বাচন করুন' : 'Select vehicle', 'info');
+      triggerGlobalToast('Select vehicle', 'info');
       return;
     }
     if (tripFare <= 0) {
-      triggerGlobalToast(bn ? 'ট্রিপের ভাড়া দিন' : 'Enter trip fare', 'info');
+      triggerGlobalToast('Enter trip fare', 'info');
       return;
     }
 
@@ -489,9 +489,7 @@ export default function TransportManagementModule({
     );
     if (activeTripOnSameTruck) {
       triggerGlobalToast(
-        bn
-          ? `সতর্কতা: গাড়ি ${tripTruckReg} বর্তমানে ইতিমধ্যে একটি সক্রিয় ট্রিপে (${activeTripOnSameTruck.origin} ➔ ${activeTripOnSameTruck.destination}) চলমান রয়েছে! একই সাথে দুটি ট্রিপে গাড়ি বরাদ্দ করা যাবে না।`
-          : `Vehicle ${tripTruckReg} is already on an active trip! Complete that trip first.`,
+`Vehicle ${tripTruckReg} is currently on an active trip (${activeTripOnSameTruck.origin} ➔ ${activeTripOnSameTruck.destination})! Complete that trip first.`,
         'info'
       );
       return;
@@ -527,7 +525,7 @@ export default function TransportManagementModule({
           commission: Number(tripCommission || 0),
           tripExpense: calculatedTripExpense,
           maintenanceCost: Number(tripOtherCost || 0),
-          maintenanceDetails: `টোল: ৳${tripTollCost} | রোড খরচ: ৳${tripOtherCost} | কমিশন: ৳${tripCommission}`,
+          maintenanceDetails: `Toll: ৳${tripTollCost} | Road: ৳${tripOtherCost} | Commission: ৳${tripCommission}`,
           tripRevenue: Number(tripFare || 0),
           advanceReceived: Number(tripAdvance || 0),
           remainingDue: calculatedRemainingDue,
@@ -560,8 +558,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'sale',
-            category: `ট্রিপ অগ্রিম ভাড়া গ্রহণ (${tripTruckReg})`,
-            description: `${tripTruckReg} (${routeStr}) — ট্রিপ অগ্রিম গৃহীত: ৳${tripAdvance} (মোট ভাড়া: ৳${tripFare})`,
+            category: `Trip Advance Received (${tripTruckReg})`,
+            description: `${tripTruckReg} (${routeStr}) — Advance received: ৳${tripAdvance} (Total Fare: ৳${tripFare})`,
             debitAccountId: targetWallet.id,
             debitAccountName: targetWallet.name,
             creditAccountId: revAcc.id,
@@ -586,8 +584,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'expense',
-            category: `ট্রিপের খরচ ও ডিজেল (${tripTruckReg})`,
-            description: `${tripTruckReg} (${routeStr}) — ডিজেল: ৳${tripDieselCost}, টোল: ৳${tripTollCost}, রোড: ৳${tripOtherCost}`,
+            category: `Trip Direct Outflow & Fuel (${tripTruckReg})`,
+            description: `${tripTruckReg} (${routeStr}) — Diesel: ৳${tripDieselCost}, Toll: ৳${tripTollCost}, Road: ৳${tripOtherCost}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: targetWallet.id,
@@ -605,9 +603,7 @@ export default function TransportManagementModule({
 
       setShowAddTripModal(false);
       triggerGlobalToast(
-        bn
-          ? `ট্রিপ ${tripCode} সফলভাবে শুরু হয়েছে! রুট: ${routeStr}, গাড়ি: ${tripTruckReg}`
-          : `Trip ${tripCode} started on ${tripTruckReg}!`,
+`Trip ${tripCode} started on ${tripTruckReg} (${routeStr})!`,
         'success'
       );
       onNotify('Trip started');
@@ -630,7 +626,7 @@ export default function TransportManagementModule({
         actorEmail
       );
       triggerGlobalToast(
-        bn ? `ট্রিপ ${trip.tripOrVehicleCode} সম্পন্ন চিহ্নিত করা হয়েছে!` : `Trip ${trip.tripOrVehicleCode} completed!`,
+        `Trip ${trip.tripOrVehicleCode} marked as completed!`,
         'success'
       );
       onNotify('Trip completed');
@@ -665,8 +661,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'sale',
-            category: `বাকি ভাড়া পরিশোধ (${targetTripForPayment.registrationNumber})`,
-            description: `${targetTripForPayment.customerName} থেকে বাকি ভাড়া বাবদ ৳${custPayAmount} গৃহীত`,
+            category: `Customer Due Collection (${targetTripForPayment.registrationNumber})`,
+            description: `Collected ৳${custPayAmount} remaining fare from ${targetTripForPayment.customerName}`,
             debitAccountId: targetWallet.id,
             debitAccountName: targetWallet.name,
             creditAccountId: revAcc.id,
@@ -685,9 +681,7 @@ export default function TransportManagementModule({
       setShowSettlePaymentModal(false);
       setTargetTripForPayment(null);
       triggerGlobalToast(
-        bn
-          ? `বাকি ভাড়া ৳${custPayAmount} সফলভাবে আদায় হয়েছে!`
-          : `Collected payment of ৳${custPayAmount}!`,
+`Collected payment of ৳${custPayAmount} successfully!`,
         'success'
       );
       onNotify('Payment collected');
@@ -756,8 +750,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'expense',
-            category: `ট্রাকের জ্বালানি / ডিজেল ক্রয় (${fuelTruckReg})`,
-            description: `${fuelTruckReg} — ${fuelLitres} লিটার ডিজেল (${fuelPump}) বাবদ খরচ ৳${fuelTotal}`,
+            category: `Fleet Fuel & Diesel Log (${fuelTruckReg})`,
+            description: `${fuelTruckReg} — ${fuelLitres}L Diesel (${fuelPump}) Cost ৳${fuelTotal}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: targetWallet.id,
@@ -775,9 +769,7 @@ export default function TransportManagementModule({
 
       setShowAddFuelModal(false);
       triggerGlobalToast(
-        bn
-          ? `${fuelTruckReg}-এর জন্য ${fuelLitres} লিটার ডিজেল (৳${fuelTotal}) এন্ট্রি হয়েছে!`
-          : `Fuel logged: ${fuelLitres}L for ${fuelTruckReg}!`,
+`Fuel logged: ${fuelLitres}L (৳${fuelTotal}) for ${fuelTruckReg}!`,
         'success'
       );
       onNotify('Fuel logged');
@@ -818,7 +810,7 @@ export default function TransportManagementModule({
           labourCost: Number(srvLabourCost || 0),
           otherCosts: Number(srvOtherCost || 0),
           partsReplaced: srvParts.trim(),
-          maintenanceDetails: `${srvProblem} | পার্টস: ${srvParts} | লেবার: ৳${srvLabourCost}`,
+          maintenanceDetails: `${srvProblem} | Parts: ${srvParts} | Labor: ৳${srvLabourCost}`,
           tripRevenue: 0,
           outstandingDue: 0,
           insuranceExpiry: '2027-12-31',
@@ -845,8 +837,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'expense',
-            category: `গাড়ি মেরামত ও সার্ভিসিং (${srvTruckReg})`,
-            description: `${srvTruckReg} — ${srvProblem} (${srvGarage}) বাবদ মোট খরচ ৳${srvTotal}`,
+            category: `Vehicle Repair & Maintenance (${srvTruckReg})`,
+            description: `${srvTruckReg} — ${srvProblem} (${srvGarage}) Total Cost ৳${srvTotal}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: targetWallet.id,
@@ -865,7 +857,7 @@ export default function TransportManagementModule({
       setShowAddServiceModal(false);
       triggerGlobalToast(
         bn
-          ? `${srvTruckReg}-এর সার্ভিসিং রেকর্ড (৳${srvTotal}) সেভ হয়েছে!`
+          ? `Service record for ${srvTruckReg} (BDT ${srvTotal}) saved successfully!`
           : `Maintenance logged: ৳${srvTotal} for ${srvTruckReg}!`,
         'success'
       );
@@ -895,8 +887,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'payroll',
-            category: `চালক বেতন ও ভাতা (${drvPayName})`,
-            description: `${drvPayName} — ${drvPayType === 'salary' ? 'মাসিক বেতন' : drvPayType === 'advance' ? 'অগ্রিম বেতন' : 'ট্রিপ ভাতা'} বাবদ ৳${drvPayAmount} পরিশোধ`,
+            category: `Driver Salary & Allowance (${drvPayName})`,
+            description: `${drvPayName} — ${drvPayType === 'salary' ? 'Monthly Salary' : drvPayType === 'advance' ? 'Salary Advance' : 'Trip Allowance'} payment of BDT ${drvPayAmount}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: targetWallet.id,
@@ -915,7 +907,7 @@ export default function TransportManagementModule({
       setShowAddDriverModal(false);
       triggerGlobalToast(
         bn
-          ? `${drvPayName}-কে ৳${drvPayAmount} সফলভাবে পরিশোধ করা হয়েছে!`
+          ? `BDT ${drvPayAmount} paid successfully to ${drvPayName}!`
           : `Paid ৳${drvPayAmount} to driver ${drvPayName}!`,
         'success'
       );
@@ -953,15 +945,15 @@ export default function TransportManagementModule({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                  {bn ? 'ট্রাক ও পরিবহন ফ্লিট ব্যবস্থাপনা' : 'Fleet & Transport Management System'}
+                  Fleet & Transport Management System
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  {allVehicles.length} {bn ? 'টি গাড়ি' : 'Trucks'}
+                  {allVehicles.length} Trucks
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {bn
-                  ? 'গাড়ির প্রোফাইল, ট্রিপ ট্র্যাকিং, জ্বালানি, ড্রাইভার বেতন ও লাভ-ক্ষতি হিসাব'
+                  ? 'Fleet profiles, trip dispatch, fuel logs, driver payroll & P&L ledger'
                   : 'Fleet operations, trips, fuel efficiency, driver payroll, and vehicle profit/loss'}
               </p>
             </div>
@@ -972,7 +964,7 @@ export default function TransportManagementModule({
             <button
               type="button"
               onClick={() => {
-                setTripTruckReg(allVehicles[0]?.registrationNumber || 'ঢাকা মেট্রো-ট-১২-৩৪৫৬');
+                setTripTruckReg(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-TA-12-3456');
                 setTripFare(25000);
                 setTripAdvance(15000);
                 setShowAddTripModal(true);
@@ -980,7 +972,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>{bn ? '+ নতুন ট্রিপ' : '+ New Trip'}</span>
+              <span>+ New Trip</span>
             </button>
 
             <button
@@ -989,7 +981,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
             >
               <Truck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>{bn ? '+ গাড়ি যোগ' : '+ Add Truck'}</span>
+              <span>+ Add Truck</span>
             </button>
 
             <button
@@ -998,7 +990,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
             >
               <Fuel className="h-3.5 w-3.5 text-sky-600" />
-              <span>{bn ? '+ জ্বালানি' : '+ Fuel'}</span>
+              <span>+ Fuel</span>
             </button>
 
             <button
@@ -1007,7 +999,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
             >
               <Wrench className="h-3.5 w-3.5 text-amber-600" />
-              <span>{bn ? '+ সার্ভিসিং' : '+ Service'}</span>
+              <span>+ Service</span>
             </button>
           </div>
         </div>
@@ -1015,13 +1007,13 @@ export default function TransportManagementModule({
         {/* Sub-tabs Navigation */}
         <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 dark:border-slate-800 pt-2.5 text-xs font-bold">
           {[
-            { id: 'dashboard', labelBn: 'ড্যাশবোর্ড', labelEn: 'Dashboard', icon: Gauge },
-            { id: 'vehicles', labelBn: 'সকল গাড়ি (Fleet)', labelEn: 'All Trucks', icon: Truck },
-            { id: 'trips', labelBn: 'ট্রিপ খতিয়ান', labelEn: 'Trip Ledger', icon: Navigation },
-            { id: 'fuel', labelBn: 'জ্বালানি হিসাব', labelEn: 'Fuel Logs', icon: Fuel },
-            { id: 'drivers', labelBn: 'ড্রাইভার ও বেতন', labelEn: 'Drivers & Staff', icon: Users },
-            { id: 'maintenance', labelBn: 'সার্ভিসিং ও মেরামত', labelEn: 'Maintenance', icon: Wrench },
-            { id: 'reports', labelBn: '১২টি অডিট রিপোর্ট', labelEn: '12 Reports', icon: FileSpreadsheet },
+            { id: 'dashboard', labelBn: 'Dashboard', labelEn: 'Dashboard', icon: Gauge },
+            { id: 'vehicles', labelBn: 'All Trucks', labelEn: 'All Trucks', icon: Truck },
+            { id: 'trips', labelBn: 'Trip Ledger', labelEn: 'Trip Ledger', icon: Navigation },
+            { id: 'fuel', labelBn: 'Fuel Logs', labelEn: 'Fuel Logs', icon: Fuel },
+            { id: 'drivers', labelBn: 'Drivers & Staff', labelEn: 'Drivers & Staff', icon: Users },
+            { id: 'maintenance', labelBn: 'Maintenance', labelEn: 'Maintenance', icon: Wrench },
+            { id: 'reports', labelBn: '12 Reports', labelEn: '12 Reports', icon: FileSpreadsheet },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -1051,68 +1043,68 @@ export default function TransportManagementModule({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 text-xs">
             {/* 1. Total Trucks */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'মোট গাড়ি' : 'Total Trucks'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Total Trucks</div>
               <div className="text-xl font-black font-mono text-slate-900 dark:text-white">{dashboardKpis.totalTrucks}</div>
-              <div className="text-[10px] text-slate-400">{allVehicles.length} {bn ? 'টি নিবন্ধিত' : 'registered'}</div>
+              <div className="text-[10px] text-slate-400">{allVehicles.length} registered</div>
             </div>
 
             {/* 2. Running Trips */}
             <div className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-2xs space-y-1">
               <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                {bn ? 'চলমান ট্রিপ' : 'Running Trips'}
+                Running Trips
               </div>
               <div className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-400">{dashboardKpis.runningCount}</div>
-              <div className="text-[10px] text-emerald-600">{bn ? 'রাস্তায় সচল' : 'on the road'}</div>
+              <div className="text-[10px] text-emerald-600">on the road</div>
             </div>
 
             {/* 3. Available Trucks */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'উপলব্ধ গাড়ি' : 'Available Trucks'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Available Trucks</div>
               <div className="text-xl font-black font-mono text-sky-600">{dashboardKpis.availableCount}</div>
-              <div className="text-[10px] text-slate-400">{bn ? 'ট্রিপের জন্য প্রস্তুত' : 'ready for trip'}</div>
+              <div className="text-[10px] text-slate-400">ready for trip</div>
             </div>
 
             {/* 4. Trucks Under Maintenance */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'গ্যারেজে / মেরামত' : 'Under Maintenance'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Under Maintenance</div>
               <div className="text-xl font-black font-mono text-amber-600">{dashboardKpis.maintenanceCount}</div>
-              <div className="text-[10px] text-slate-400">{bn ? 'সার্ভিসিং চলছে' : 'in garage'}</div>
+              <div className="text-[10px] text-slate-400">in garage</div>
             </div>
 
             {/* 5. Total Drivers */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'মোট চালক' : 'Total Drivers'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Total Drivers</div>
               <div className="text-xl font-black font-mono text-purple-600">{dashboardKpis.totalDrivers}</div>
-              <div className="text-[10px] text-slate-400">{bn ? 'ড্রাইভার ও সহকারী' : 'drivers & staff'}</div>
+              <div className="text-[10px] text-slate-400">drivers & staff</div>
             </div>
 
             {/* 6. Total Distance Travelled */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'মোট দূরত্ব' : 'Total Distance'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Total Distance</div>
               <div className="text-xl font-black font-mono text-slate-900 dark:text-white">
                 {dashboardKpis.totalDistance.toLocaleString()} <span className="text-xs font-normal">KM</span>
               </div>
-              <div className="text-[10px] text-slate-400">{allTrips.length} {bn ? 'টি ট্রিপে' : 'trips'}</div>
+              <div className="text-[10px] text-slate-400">{allTrips.length} trips</div>
             </div>
 
             {/* 7. Monthly Revenue */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'চলতি মাসের ভাড়া' : 'Monthly Revenue'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Monthly Revenue</div>
               <div className="text-xl font-black font-mono text-emerald-600">{formatBDT(dashboardKpis.monthlyRevenue)}</div>
-              <div className="text-[10px] text-slate-400">{bn ? 'মোট অর্জিত ভাড়া' : 'gross freight'}</div>
+              <div className="text-[10px] text-slate-400">gross freight</div>
             </div>
 
             {/* 8. Monthly Expenses */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'চলতি মাসের খরচ' : 'Monthly Expenses'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Monthly Expenses</div>
               <div className="text-xl font-black font-mono text-rose-600">{formatBDT(dashboardKpis.monthlyExpenses)}</div>
-              <div className="text-[10px] text-slate-400">{bn ? 'ডিজেল, টোল ও মেরামত' : 'fuel, toll & repair'}</div>
+              <div className="text-[10px] text-slate-400">fuel, toll & repair</div>
             </div>
 
             {/* 9. Monthly Net Profit */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 col-span-2">
-              <div className="text-[11px] text-slate-500 font-medium">{bn ? 'চলতি মাসের নিট লাভ' : 'Monthly Net Profit'}</div>
+              <div className="text-[11px] text-slate-500 font-medium">Monthly Net Profit</div>
               <div
                 className={`text-2xl font-black font-mono ${
                   dashboardKpis.monthlyNetProfit >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-rose-600'
@@ -1121,7 +1113,7 @@ export default function TransportManagementModule({
                 {formatBDT(dashboardKpis.monthlyNetProfit)}
               </div>
               <div className="text-[10px] text-slate-400">
-                {bn ? 'ভাড়া মাইনাস সমস্ত খরচ ও কমিশন' : 'Revenue - All Expenses'}
+                Revenue - All Expenses
               </div>
             </div>
           </div>
@@ -1132,7 +1124,7 @@ export default function TransportManagementModule({
               <div className="flex items-center gap-2">
                 <Navigation className="h-4 w-4 text-emerald-600" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {bn ? 'বর্তমানে চলমান ৪টি গাড়ি (Running Trucks — On Road)' : 'Running Trucks — Currently On Trip (4 Units)'}
+                  'Running Trucks — Currently On Trip (4 Units)'
                 </h2>
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
@@ -1145,7 +1137,7 @@ export default function TransportManagementModule({
                 }}
                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>{bn ? 'সকল চলমান ট্রিপ দেখুন →' : 'View All Running Trips →'}</span>
+                <span>View All Running Trips →</span>
               </button>
             </div>
 
@@ -1174,34 +1166,34 @@ export default function TransportManagementModule({
                                 : 'bg-slate-200 text-slate-700'
                             }`}
                           >
-                            {isActuallyRunning ? (bn ? '● রানিং' : '● On Trip') : trip.status}
+                            {isActuallyRunning ? '● On Trip' : trip.status}
                           </span>
                         </div>
 
                         {/* Driver & Route */}
                         <div className="mt-2 space-y-1 text-xs">
                           <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                            <span className="text-[10px] text-slate-400">{bn ? 'চালক:' : 'Driver:'}</span>
+                            <span className="text-[10px] text-slate-400">Driver:</span>
                             <span className="font-semibold">{trip.driverName}</span>
                           </div>
 
                           <div className="flex items-center justify-between text-slate-700 dark:text-slate-200">
-                            <span className="text-[10px] text-slate-400">{bn ? 'যাত্রা শুরু:' : 'From:'}</span>
+                            <span className="text-[10px] text-slate-400">From:</span>
                             <span className="font-medium text-emerald-700 dark:text-emerald-400">{trip.origin}</span>
                           </div>
 
                           <div className="flex items-center justify-between text-slate-700 dark:text-slate-200">
-                            <span className="text-[10px] text-slate-400">{bn ? 'গন্তব্য:' : 'To:'}</span>
+                            <span className="text-[10px] text-slate-400">To:</span>
                             <span className="font-medium text-sky-700 dark:text-sky-400">{trip.destination}</span>
                           </div>
 
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-[10px] text-slate-400">{bn ? 'শুরুর তারিখ:' : 'Start Date:'}</span>
+                            <span className="text-[10px] text-slate-400">Start Date:</span>
                             <span className="font-mono">{trip.date}</span>
                           </div>
 
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-[10px] text-slate-400">{bn ? 'শুরুর KM:' : 'Start KM:'}</span>
+                            <span className="text-[10px] text-slate-400">Start KM:</span>
                             <span className="font-mono font-bold">{trip.startOdometer || 0} KM</span>
                           </div>
                         </div>
@@ -1214,7 +1206,7 @@ export default function TransportManagementModule({
                         className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 text-center inline-flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Eye className="h-3 w-3" />
-                        <span>{bn ? 'ট্রিপের বিস্তারিত দেখুন' : 'View Trip Details'}</span>
+                        <span>View Trip Details</span>
                       </button>
                     </div>
                   );
@@ -1222,7 +1214,7 @@ export default function TransportManagementModule({
               </div>
             ) : (
               <div className="py-8 text-center text-xs text-slate-400">
-                {bn ? 'বর্তমানে কোনো গাড়ি রানিং নেই। নতুন ট্রিপ শুরু করুন।' : 'No running trucks on trip currently.'}
+                No running trucks on trip currently.
               </div>
             )}
           </div>
@@ -1234,7 +1226,7 @@ export default function TransportManagementModule({
                 <AlertTriangle className="h-4 w-4" />
                 <span>
                   {bn
-                    ? `সতর্কতা: ${expiryAlerts.length}টি গাড়ির কাগজপত্র বা সার্ভিসিংয়ের মেয়াদ শেষ/নিকটবর্তী!`
+                    ? `Alert: ${expiryAlerts.length} vehicle documents or service schedules are expiring or overdue!`
                     : `Alert: ${expiryAlerts.length} document/maintenance expiries pending!`}
                 </span>
               </div>
@@ -1254,7 +1246,7 @@ export default function TransportManagementModule({
                     </div>
                     <div className="text-right font-mono font-bold text-[11px]">
                       <div>{alt.expiryDate}</div>
-                      <span className="text-[9px] uppercase">{alt.isExpired ? (bn ? 'মেয়াদোত্তীর্ণ' : 'Expired') : (bn ? 'শীঘ্রই শেষ' : 'Upcoming')}</span>
+                      <span className="text-[9px] uppercase">{alt.isExpired ? 'Expired' : 'Upcoming'}</span>
                     </div>
                   </div>
                 ))}
@@ -1271,10 +1263,10 @@ export default function TransportManagementModule({
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Truck className="h-4 w-4 text-emerald-600" />
-                <span>{bn ? `সকল নিবন্ধিত গাড়ি ও ফ্লিট প্রোফাইল (${allVehicles.length}টি)` : `All Registered Fleet Vehicles (${allVehicles.length})`}</span>
+                <span>All Registered Fleet Vehicles ({allVehicles.length})</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {bn ? 'ফিটনেস, ট্যাক্স টোকেন, রুট পারমিট ও অডোমিটার রিডিং ট্র্যাকিং' : 'BRTA documentation, tax tokens, route permits, and odometer readings'}
+                'BRTA documentation, tax tokens, route permits, and odometer readings'
               </p>
             </div>
 
@@ -1284,7 +1276,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>{bn ? '+ নতুন গাড়ি যোগ' : '+ Add Truck'}</span>
+              <span>+ Add Truck</span>
             </button>
           </div>
 
@@ -1292,13 +1284,13 @@ export default function TransportManagementModule({
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
-                  <th className="py-2.5 px-3">{bn ? 'রেজিস্ট্রেশন ও কোড' : 'Registration & Code'}</th>
-                  <th className="py-2.5 px-3">{bn ? 'মডেল ও দাম' : 'Model & Price'}</th>
-                  <th className="py-2.5 px-3">{bn ? 'চালক ও ওডোমিটার' : 'Driver & Odometer'}</th>
-                  <th className="py-2.5 px-3">{bn ? 'ট্যাক্স টোকেন মেয়াদ' : 'Tax Token'}</th>
-                  <th className="py-2.5 px-3">{bn ? 'ফিটনেস মেয়াদ' : 'Fitness Expiry'}</th>
-                  <th className="py-2.5 px-3 text-center">{bn ? 'স্টেটাস' : 'Status'}</th>
-                  <th className="py-2.5 px-3 text-center">{bn ? 'অ্যাকশন' : 'Action'}</th>
+                  <th className="py-2.5 px-3">Registration & Code</th>
+                  <th className="py-2.5 px-3">Model & Price</th>
+                  <th className="py-2.5 px-3">Driver & Odometer</th>
+                  <th className="py-2.5 px-3">Tax Token</th>
+                  <th className="py-2.5 px-3">Fitness Expiry</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1333,10 +1325,10 @@ export default function TransportManagementModule({
                         }`}
                       >
                         {v.status === 'active' || v.status === 'running'
-                          ? bn ? 'রানিং' : 'On Trip'
+                          ? 'On Trip'
                           : v.status === 'available'
-                          ? bn ? 'প্রস্তুত' : 'Available'
-                          : bn ? 'গ্যারেজে' : 'Maintenance'}
+                          ? 'Available'
+                          : 'Maintenance'}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
@@ -1344,8 +1336,8 @@ export default function TransportManagementModule({
                         type="button"
                         onClick={() => {
                           triggerConfirmDelete({
-                            title: bn ? 'গাড়ি ডিলিট নিশ্চিতকরণ' : 'Confirm Delete Truck',
-                            message: bn ? `আপনি কি নিশ্চিতভাবে এই গাড়িটি (${v.registrationNumber}) মুছতে চান?` : `Delete vehicle ${v.registrationNumber}?`,
+                            title: 'Confirm Delete Truck',
+                            message: `Are you sure you want to delete vehicle ${v.registrationNumber}?`,
                             itemName: v.registrationNumber,
                             onConfirm: async () => {
                               await deleteTransportOp(v.id);
@@ -1375,10 +1367,10 @@ export default function TransportManagementModule({
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Navigation className="h-4 w-4 text-emerald-600" />
-                <span>{bn ? `ট্রিপ খতিয়ান ও অর্ডার ট্র্যাকিং (${allTrips.length}টি)` : `Trip Management & Orders (${allTrips.length})`}</span>
+                <span>Trip Management & Orders ({allTrips.length})</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {bn ? 'শুরুর ও শেষের KM, অতিক্রান্ত দূরত্ব, ভাড়া, বকেয়া এবং চালান প্রিন্ট' : 'Odometer distance, fare, customer dues, and challan vouchers'}
+                'Odometer distance, fare, customer dues, and challan vouchers'
               </p>
             </div>
 
@@ -1388,9 +1380,9 @@ export default function TransportManagementModule({
                 onChange={(e) => setSelectedTripStatusFilter(e.target.value)}
                 className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1 text-xs font-semibold"
               >
-                <option value="ALL">{bn ? 'সকল ট্রিপ' : 'All Trips'}</option>
-                <option value="active">{bn ? 'চলমান (Running)' : 'Running'}</option>
-                <option value="completed">{bn ? 'সম্পন্ন (Completed)' : 'Completed'}</option>
+                <option value="ALL">All Trips</option>
+                <option value="active">Running</option>
+                <option value="completed">Completed</option>
               </select>
 
               <button
@@ -1399,7 +1391,7 @@ export default function TransportManagementModule({
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>{bn ? '+ নতুন ট্রিপ শুরু' : '+ Start Trip'}</span>
+                <span>+ Start Trip</span>
               </button>
             </div>
           </div>
@@ -1408,14 +1400,14 @@ export default function TransportManagementModule({
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
-                  <th className="py-2.5 px-3">{bn ? 'ট্রিপ কোড ও তারিখ' : 'Trip & Date'}</th>
-                  <th className="py-2.5 px-3">{bn ? 'গাড়ি ও চালক' : 'Truck & Driver'}</th>
-                  <th className="py-2.5 px-3">{bn ? 'রুট (কোথা থেকে কোথায়)' : 'Route'}</th>
-                  <th className="py-2.5 px-3 text-right">{bn ? 'দূরত্ব (KM)' : 'Distance'}</th>
-                  <th className="py-2.5 px-3 text-right">{bn ? 'ভাড়া (Fare)' : 'Fare'}</th>
-                  <th className="py-2.5 px-3 text-right">{bn ? 'বাকি (Due)' : 'Due'}</th>
-                  <th className="py-2.5 px-3 text-center">{bn ? 'স্টেটাস' : 'Status'}</th>
-                  <th className="py-2.5 px-3 text-center">{bn ? 'অ্যাকশন' : 'Action'}</th>
+                  <th className="py-2.5 px-3">Trip & Date</th>
+                  <th className="py-2.5 px-3">Truck & Driver</th>
+                  <th className="py-2.5 px-3">Route</th>
+                  <th className="py-2.5 px-3 text-right">Distance (KM)</th>
+                  <th className="py-2.5 px-3 text-right">Fare</th>
+                  <th className="py-2.5 px-3 text-right">Due</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1475,7 +1467,7 @@ export default function TransportManagementModule({
                                 : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                             }`}
                           >
-                            {isRunning ? (bn ? 'চলমান' : 'Running') : (bn ? 'সম্পন্ন' : 'Completed')}
+                            {isRunning ? 'Running' : 'Completed'}
                           </span>
                         </td>
                         <td className="py-2 px-3 text-center whitespace-nowrap">
@@ -1487,7 +1479,7 @@ export default function TransportManagementModule({
                                 className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 hover:bg-emerald-600 hover:text-white cursor-pointer"
                                 title="Mark Completed"
                               >
-                                {bn ? 'সম্পন্ন' : 'Complete'}
+                                Complete
                               </button>
                             )}
 
@@ -1504,8 +1496,8 @@ export default function TransportManagementModule({
                               type="button"
                               onClick={() => {
                                 triggerConfirmDelete({
-                                  title: bn ? 'ট্রিপ ডিলিট' : 'Delete Trip',
-                                  message: bn ? `এই ট্রিপটি (${t.tripOrVehicleCode}) মুছতে চান?` : `Delete trip ${t.tripOrVehicleCode}?`,
+                                  title: 'Delete Trip',
+                                  message: `Are you sure you want to delete trip ${t.tripOrVehicleCode}?`,
                                   itemName: t.tripOrVehicleCode,
                                   onConfirm: async () => {
                                     await deleteTransportOp(t.id);
@@ -1537,10 +1529,10 @@ export default function TransportManagementModule({
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Fuel className="h-4 w-4 text-sky-600" />
-                <span>{bn ? `জ্বালানি খরচ ও মাইলেজ খতিয়ান (${allFuelLogs.length}টি)` : `Fuel Consumption & Efficiency Logs (${allFuelLogs.length})`}</span>
+                <span>Fuel Consumption & Efficiency Logs ({allFuelLogs.length})</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {bn ? 'ডিজেলের পরিমাণ, প্রতি লিটার দর, মোট খরচ ও প্রতি কিলোমিটারে মাইলেজ হিসাব' : 'Fuel litres, rate, total cost, and calculated KM/L fuel economy'}
+                'Fuel litres, rate, total cost, and calculated KM/L fuel economy'
               </p>
             </div>
 
@@ -1550,7 +1542,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>{bn ? '+ নতুন জ্বালানি এন্ট্রি' : '+ Log Fuel'}</span>
+              <span>+ Log Fuel</span>
             </button>
           </div>
 
@@ -1558,14 +1550,14 @@ export default function TransportManagementModule({
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
-                  <th className="py-2 px-3">{bn ? 'তারিখ ও কোড' : 'Date & Code'}</th>
-                  <th className="py-2 px-3">{bn ? 'গাড়ি ও চালক' : 'Truck & Driver'}</th>
-                  <th className="py-2 px-3">{bn ? 'ফিলিং স্টেশন' : 'Fuel Pump'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'লিটার (Litres)' : 'Litres'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'দর (Rate)' : 'Price/L'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'মোট খরচ' : 'Total Cost'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'ওডোমিটার (KM)' : 'Odometer'}</th>
-                  <th className="py-2 px-3 text-center">{bn ? 'রসিদ' : 'Receipt'}</th>
+                  <th className="py-2 px-3">Date & Code</th>
+                  <th className="py-2 px-3">Truck & Driver</th>
+                  <th className="py-2 px-3">Fuel Pump</th>
+                  <th className="py-2 px-3 text-right">Litres</th>
+                  <th className="py-2 px-3 text-right">Price/L</th>
+                  <th className="py-2 px-3 text-right">Total Cost</th>
+                  <th className="py-2 px-3 text-right">Odometer (KM)</th>
+                  <th className="py-2 px-3 text-center">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1623,10 +1615,10 @@ export default function TransportManagementModule({
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Users className="h-4 w-4 text-purple-600" />
-                <span>{bn ? `চালক ও সহকারী ব্যবস্থাপনা (${allDrivers.length}জন)` : `Driver & Staff Management (${allDrivers.length})`}</span>
+                <span>Driver & Staff Management ({allDrivers.length})</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {bn ? 'ড্রাইভারদের লাইসেন্স, বরাদ্দকৃত গাড়ি, মাসিক বেতন ও অগ্রিম হিসাব' : 'Driver license validity, assigned truck, monthly salary, and advance ledger'}
+                'Driver license validity, assigned truck, monthly salary, and advance ledger'
               </p>
             </div>
 
@@ -1636,7 +1628,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 shadow-xs cursor-pointer"
             >
               <CreditCard className="h-3.5 w-3.5" />
-              <span>{bn ? '+ বেতন / অগ্রিম পরিশোধ' : '+ Pay Driver'}</span>
+              <span>+ Pay Driver</span>
             </button>
           </div>
 
@@ -1658,11 +1650,11 @@ export default function TransportManagementModule({
 
                 <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200 dark:border-slate-700">
                   <div>
-                    <span className="text-[10px] text-slate-400">{bn ? 'বরাদ্দ গাড়ি:' : 'Assigned Truck:'}</span>
+                    <span className="text-[10px] text-slate-400">Assigned Truck:</span>
                     <div className="font-semibold text-emerald-700 dark:text-emerald-400 truncate">{d.truck || 'Float'}</div>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400">{bn ? 'মাসিক বেতন:' : 'Monthly Salary:'}</span>
+                    <span className="text-[10px] text-slate-400">Monthly Salary:</span>
                     <div className="font-mono font-bold text-slate-900 dark:text-white">{formatBDT(d.salary || 22000)}</div>
                   </div>
                 </div>
@@ -1676,7 +1668,7 @@ export default function TransportManagementModule({
                   }}
                   className="w-full py-1 text-xs font-bold rounded-lg border border-purple-200 text-purple-700 dark:text-purple-300 hover:bg-purple-50 text-center cursor-pointer"
                 >
-                  {bn ? 'বেতন বা অগ্রিম দিন' : 'Pay Salary / Advance'}
+                  Pay Salary / Advance
                 </button>
               </div>
             ))}
@@ -1691,10 +1683,10 @@ export default function TransportManagementModule({
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Wrench className="h-4 w-4 text-amber-600" />
-                <span>{bn ? `গাড়ি সার্ভিসিং ও মেরামত খতিয়ান (${allMaintenanceLogs.length}টি)` : `Vehicle Service & Maintenance Records (${allMaintenanceLogs.length})`}</span>
+                <span>Vehicle Service & Maintenance Records ({allMaintenanceLogs.length})</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {bn ? 'পার্টস বদল, লেবার খরচ ও পরবর্তী শিডিউল সার্ভিসিং হিসাব' : 'Parts replacement, mechanic labour charges, and scheduled servicing'}
+                'Parts replacement, mechanic labour charges, and scheduled servicing'
               </p>
             </div>
 
@@ -1704,7 +1696,7 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>{bn ? '+ নতুন সার্ভিস রেকর্ড' : '+ Log Service'}</span>
+              <span>+ Log Service</span>
             </button>
           </div>
 
@@ -1712,14 +1704,14 @@ export default function TransportManagementModule({
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
-                  <th className="py-2 px-3">{bn ? 'তারিখ ও কোড' : 'Date & Code'}</th>
-                  <th className="py-2 px-3">{bn ? 'গাড়ি ও ওডোমিটার' : 'Truck & Odometer'}</th>
-                  <th className="py-2 px-3">{bn ? 'গ্যারেজ ও মেকানিক' : 'Garage & Mechanic'}</th>
-                  <th className="py-2 px-3">{bn ? 'কাজের বিবরণ ও পার্টস' : 'Repair & Parts'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'পার্টস খরচ' : 'Parts Cost'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'লেবার খরচ' : 'Labour'}</th>
-                  <th className="py-2 px-3 text-right">{bn ? 'মোট খরচ' : 'Total Cost'}</th>
-                  <th className="py-2 px-3">{bn ? 'পরবর্তী সার্ভিস' : 'Next Service'}</th>
+                  <th className="py-2 px-3">Date & Code</th>
+                  <th className="py-2 px-3">Truck & Odometer</th>
+                  <th className="py-2 px-3">Garage & Mechanic</th>
+                  <th className="py-2 px-3">Repair & Parts</th>
+                  <th className="py-2 px-3 text-right">Parts Cost</th>
+                  <th className="py-2 px-3 text-right">Labour</th>
+                  <th className="py-2 px-3 text-right">Total Cost</th>
+                  <th className="py-2 px-3">Next Service</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1764,10 +1756,10 @@ export default function TransportManagementModule({
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                <span>{bn ? '১২টি অডিটেড ট্রান্সপোর্ট রিপোর্ট (12 Transport Reports)' : '12 Audited Transport Reports'}</span>
+                <span>12 Audited Transport Reports</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {bn ? 'গাড়ি, ট্রিপ, জ্বালানি, ড্রাইভার বেতন ও লাভ-ক্ষতির বিশদ রিপোর্ট' : 'Standard audited transport reports with print and CSV download'}
+                'Standard audited transport reports with print and CSV download'
               </p>
             </div>
 
@@ -1777,24 +1769,24 @@ export default function TransportManagementModule({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span>{bn ? 'প্রিন্ট' : 'Print'}</span>
+              <span>Print</span>
             </button>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
             {[
-              { id: 'all_trucks', title: '1. All Truck Report', desc: 'সকল গাড়ির পূর্ণাঙ্গ তালিকা ও কাগজপত্র' },
-              { id: 'running_trips', title: '2. Running Trip Report', desc: 'বর্তমানে রাস্তায় সচল ট্রিপসমূহ' },
-              { id: 'completed_trips', title: '3. Completed Trip Report', desc: 'সম্পন্ন হওয়া সকল ট্রিপের হিসাব' },
-              { id: 'truck_history', title: '4. Truck-wise Trip History', desc: 'গাড়িভিত্তিক অতীত সকল ট্রিপ রেকর্ড' },
-              { id: 'driver_perf', title: '5. Driver Performance Report', desc: 'চালকদের ট্রিপ সংখ্যা ও মাইলেজ' },
-              { id: 'fuel_report', title: '6. Fuel Consumption Report', desc: 'জ্বালানি ব্যবহার ও প্রতি লিটার খরচ' },
-              { id: 'maint_report', title: '7. Maintenance History Report', desc: 'গাড়ি মেরামতের পূর্ণাঙ্গ ইতিহাস' },
-              { id: 'service_exp', title: '8. Service Expense Report', desc: 'পার্টস ও লেবার খরচের বিশদ রিপোর্ট' },
-              { id: 'monthly_rev', title: '9. Monthly Revenue Report', desc: 'মাসভিত্তিক মোট ভাড়া আয় ও প্রবৃদ্ধি' },
-              { id: 'truck_pnl', title: '10. Truck-wise Profit & Loss', desc: 'প্রতিটি গাড়ির পৃথক নিট লাভ-ক্ষতি' },
-              { id: 'driver_salary', title: '11. Driver Salary Report', desc: 'চালকদের মাসিক বেতন ও অগ্রিম হিসাব' },
-              { id: 'customer_due', title: '12. Customer Due Report', desc: 'গ্রাহকদের কাছে বাকি থাকা ভাড়ার তালিকা' },
+              { id: 'all_trucks', title: '1. All Truck Report', desc: 'Complete vehicle registry, documentation & road fitness' },
+              { id: 'running_trips', title: '2. Running Trip Report', desc: 'Currently dispatched on-road trips and drivers' },
+              { id: 'completed_trips', title: '3. Completed Trip Report', desc: 'Concluded voyages with freight and collections' },
+              { id: 'truck_history', title: '4. Truck-wise Trip History', desc: 'Historical trips logged per registration plate' },
+              { id: 'driver_perf', title: '5. Driver Performance Report', desc: 'Driver efficiency, distance driven and safety' },
+              { id: 'fuel_report', title: '6. Fuel Consumption Report', desc: 'Total fuel consumption, refueling and cost/KM' },
+              { id: 'maint_report', title: '7. Maintenance History Report', desc: 'Workshop repairs and maintenance timeline' },
+              { id: 'service_exp', title: '8. Service Expense Report', desc: 'Parts replacement bills and garage labor fees' },
+              { id: 'monthly_rev', title: '9. Monthly Revenue Report', desc: 'Monthly gross freight earnings and revenue' },
+              { id: 'truck_pnl', title: '10. Truck-wise Profit & Loss', desc: 'Net profitability per vehicle after all direct costs' },
+              { id: 'driver_salary', title: '11. Driver Salary Report', desc: 'Driver salaries, trip allowances and advances' },
+              { id: 'customer_due', title: '12. Customer Due Report', desc: 'Outstanding customer receivables and dues' },
             ].map((rep, idx) => (
               <div
                 key={idx}
@@ -1815,7 +1807,7 @@ export default function TransportManagementModule({
                   }}
                   className="w-full py-1 text-center rounded border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer"
                 >
-                  {bn ? 'CSV ডাউনলোড' : 'Download CSV'}
+                  Download CSV
                 </button>
               </div>
             ))}
@@ -1836,7 +1828,7 @@ export default function TransportManagementModule({
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Navigation className="h-4 w-4 text-emerald-600" />
-                <span>{bn ? 'নতুন ট্রিপ শুরু ও অর্ডার এন্ট্রি' : 'Dispatch New Transport Trip'}</span>
+                <span>Dispatch New Transport Trip</span>
               </h3>
               <button type="button" onClick={() => setShowAddTripModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -1846,7 +1838,7 @@ export default function TransportManagementModule({
             <form onSubmit={handleSaveTrip} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'গাড়ি নির্বাচন (Truck) *' : 'Select Truck *'}</label>
+                  <label className="block mb-1 font-semibold">Select Truck *</label>
                   <select
                     value={tripTruckReg}
                     onChange={(e) => setTripTruckReg(e.target.value)}
@@ -1860,7 +1852,7 @@ export default function TransportManagementModule({
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'চালক (Driver Name) *' : 'Driver Name *'}</label>
+                  <label className="block mb-1 font-semibold">Driver Name *</label>
                   <input
                     type="text"
                     required
@@ -1873,7 +1865,7 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'যাত্রা শুরুর স্থান *' : 'Start Location *'}</label>
+                  <label className="block mb-1 font-semibold">Start Location *</label>
                   <input
                     type="text"
                     required
@@ -1883,7 +1875,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'গন্তব্য (Destination) *' : 'Destination *'}</label>
+                  <label className="block mb-1 font-semibold">Destination *</label>
                   <input
                     type="text"
                     required
@@ -1896,7 +1888,7 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'শুরুর তারিখ *' : 'Start Date *'}</label>
+                  <label className="block mb-1 font-semibold">Start Date *</label>
                   <input
                     type="date"
                     required
@@ -1906,7 +1898,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'সম্ভাব্য ফেরার তারিখ' : 'Expected Return Date'}</label>
+                  <label className="block mb-1 font-semibold">Expected Return Date</label>
                   <input
                     type="date"
                     value={tripExpectedReturn}
@@ -1919,7 +1911,7 @@ export default function TransportManagementModule({
               {/* Odometer KM auto calculation */}
               <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'শুরুর KM *' : 'Start KM *'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Start KM *</label>
                   <input
                     type="number"
                     min={0}
@@ -1929,7 +1921,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'শেষের KM *' : 'End KM *'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">End KM *</label>
                   <input
                     type="number"
                     min={0}
@@ -1939,7 +1931,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'মোট দূরত্ব (Auto)' : 'Total Distance'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Total Distance</label>
                   <div className="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 font-mono font-black text-emerald-600">
                     {calculatedDistanceKm} KM
                   </div>
@@ -1949,7 +1941,7 @@ export default function TransportManagementModule({
               {/* Financials: Fare, Advance, Due */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block font-bold text-emerald-700 dark:text-emerald-400 mb-0.5">{bn ? 'মোট ভাড়া (Fare) *' : 'Fare *'}</label>
+                  <label className="block font-bold text-emerald-700 dark:text-emerald-400 mb-0.5">Fare (BDT) *</label>
                   <input
                     type="number"
                     required
@@ -1960,7 +1952,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-0.5">{bn ? 'অগ্রিম গ্রহণ (Advance)' : 'Advance'}</label>
+                  <label className="block font-semibold mb-0.5">Advance</label>
                   <input
                     type="number"
                     min={0}
@@ -1970,7 +1962,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-0.5">{bn ? 'বাকি (Due Auto)' : 'Due'}</label>
+                  <label className="block font-semibold mb-0.5">Due</label>
                   <div className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono font-bold text-amber-600">
                     {formatBDT(calculatedRemainingDue)}
                   </div>
@@ -1980,7 +1972,7 @@ export default function TransportManagementModule({
               {/* Expenses: Diesel, Toll, Comm */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'ডিজেল খরচ' : 'Diesel'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Diesel</label>
                   <input
                     type="number"
                     min={0}
@@ -1990,7 +1982,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'টোল খরচ' : 'Toll'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Toll</label>
                   <input
                     type="number"
                     min={0}
@@ -2000,7 +1992,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'কমিশন' : 'Commission'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Commission</label>
                   <input
                     type="number"
                     min={0}
@@ -2013,7 +2005,7 @@ export default function TransportManagementModule({
 
               {/* Net Profit Bar */}
               <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-between font-mono text-xs">
-                <span>{bn ? 'নিট লাভ (Net Profit):' : 'Net Profit:'}</span>
+                <span>Net Profit:</span>
                 <span className={`font-black text-sm ${calculatedNetIncome >= 0 ? 'text-sky-600' : 'text-rose-600'}`}>
                   {formatBDT(calculatedNetIncome)}
                 </span>
@@ -2021,10 +2013,10 @@ export default function TransportManagementModule({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setShowAddTripModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
-                  {bn ? 'বাতিল' : 'Cancel'}
+                  Cancel
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
-                  {isSubmitting ? 'Saving...' : bn ? 'ট্রিপ নিশ্চিত করুন' : 'Start Trip'}
+                  {isSubmitting ? 'Saving...' : 'Start Trip'}
                 </button>
               </div>
             </form>
@@ -2045,7 +2037,7 @@ export default function TransportManagementModule({
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Truck className="h-4 w-4 text-emerald-600" />
-                <span>{bn ? 'নতুন গাড়ি নিবন্ধন (Register Vehicle)' : 'Add New Vehicle'}</span>
+                <span>Add New Vehicle</span>
               </h3>
               <button type="button" onClick={() => setShowAddVehicleModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -2054,20 +2046,20 @@ export default function TransportManagementModule({
 
             <form onSubmit={handleSaveVehicle} className="space-y-3 text-xs">
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'গাড়ির রেজিস্ট্রেশন নম্বর *' : 'Registration Number *'}</label>
+                <label className="block mb-1 font-semibold">Registration Number *</label>
                 <input
                   type="text"
                   required
                   value={newVehReg}
                   onChange={(e) => setNewVehReg(e.target.value)}
-                  placeholder="যেমন: ঢাকা মেট্রো-ট-১২-৩৪৫৬"
+                  placeholder="e.g. DHAKA-METRO-TA-12-3456"
                   className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'ব্র্যান্ড / কোম্পানি' : 'Brand'}</label>
+                  <label className="block mb-1 font-semibold">Brand</label>
                   <input
                     type="text"
                     value={newVehBrand}
@@ -2077,7 +2069,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'মডেল' : 'Model'}</label>
+                  <label className="block mb-1 font-semibold">Model</label>
                   <input
                     type="text"
                     value={newVehModel}
@@ -2090,7 +2082,7 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'ট্যাক্স টোকেন মেয়াদ' : 'Tax Token Expiry'}</label>
+                  <label className="block mb-1 font-semibold">Tax Token Expiry</label>
                   <input
                     type="date"
                     value={newVehTaxTokenExp}
@@ -2099,7 +2091,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'ফিটনেস মেয়াদ' : 'Fitness Expiry'}</label>
+                  <label className="block mb-1 font-semibold">Fitness Expiry</label>
                   <input
                     type="date"
                     value={newVehFitnessExp}
@@ -2111,7 +2103,7 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'ইন্স্যুরেন্স মেয়াদ' : 'Insurance Expiry'}</label>
+                  <label className="block mb-1 font-semibold">Insurance Expiry</label>
                   <input
                     type="date"
                     value={newVehInsuranceExp}
@@ -2120,7 +2112,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'রুট পারমিট মেয়াদ' : 'Route Permit'}</label>
+                  <label className="block mb-1 font-semibold">Route Permit</label>
                   <input
                     type="date"
                     value={newVehRoutePermitExp}
@@ -2132,10 +2124,10 @@ export default function TransportManagementModule({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setShowAddVehicleModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
-                  {bn ? 'বাতিল' : 'Cancel'}
+                  Cancel
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
-                  {bn ? 'গাড়ি যোগ করুন' : 'Register Truck'}
+                  Register Truck
                 </button>
               </div>
             </form>
@@ -2156,7 +2148,7 @@ export default function TransportManagementModule({
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Fuel className="h-4 w-4 text-sky-600" />
-                <span>{bn ? 'জ্বালানি খরচ এন্ট্রি (Log Fuel)' : 'Log Fuel Consumption'}</span>
+                <span>Log Fuel Consumption</span>
               </h3>
               <button type="button" onClick={() => setShowAddFuelModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -2166,7 +2158,7 @@ export default function TransportManagementModule({
             <form onSubmit={handleSaveFuel} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'গাড়ি *' : 'Truck *'}</label>
+                  <label className="block mb-1 font-semibold">Truck *</label>
                   <select
                     value={fuelTruckReg}
                     onChange={(e) => setFuelTruckReg(e.target.value)}
@@ -2180,7 +2172,7 @@ export default function TransportManagementModule({
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'তারিখ *' : 'Date *'}</label>
+                  <label className="block mb-1 font-semibold">Date *</label>
                   <input
                     type="date"
                     required
@@ -2192,20 +2184,20 @@ export default function TransportManagementModule({
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'পাম্পের নাম (Filling Station) *' : 'Fuel Pump *'}</label>
+                <label className="block mb-1 font-semibold">Fuel Pump *</label>
                 <input
                   type="text"
                   required
                   value={fuelPump}
                   onChange={(e) => setFuelPump(e.target.value)}
-                  placeholder="মেঘনা পেট্রোলিয়াম, সাভার"
+                  placeholder="Meghna Petroleum, Savar"
                   className="w-full rounded-lg border px-2.5 py-1.5"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'লিটার *' : 'Litres *'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Litres *</label>
                   <input
                     type="number"
                     min={1}
@@ -2216,7 +2208,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'দর / লিটার *' : 'Rate *'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Rate *</label>
                   <input
                     type="number"
                     min={1}
@@ -2227,7 +2219,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'মোট খরচ (Auto)' : 'Total Cost'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Total Cost</label>
                   <div className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono font-black text-rose-600">
                     {formatBDT(calculatedFuelTotal)}
                   </div>
@@ -2235,7 +2227,7 @@ export default function TransportManagementModule({
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'পরিশোধের উৎস (Payment Account) *' : 'Payment Account *'}</label>
+                <label className="block mb-1 font-semibold">Payment Account *</label>
                 <select
                   value={fuelWalletId}
                   onChange={(e) => setFuelWalletId(e.target.value)}
@@ -2251,10 +2243,10 @@ export default function TransportManagementModule({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setShowAddFuelModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
-                  {bn ? 'বাতিল' : 'Cancel'}
+                  Cancel
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-bold hover:bg-sky-700">
-                  {bn ? 'জ্বালানি সেভ করুন' : 'Save Fuel'}
+                  Save Fuel
                 </button>
               </div>
             </form>
@@ -2275,7 +2267,7 @@ export default function TransportManagementModule({
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Wrench className="h-4 w-4 text-amber-600" />
-                <span>{bn ? 'সার্ভিসিং ও মেরামত খরচ এন্ট্রি' : 'Log Maintenance & Service'}</span>
+                <span>Log Maintenance & Service</span>
               </h3>
               <button type="button" onClick={() => setShowAddServiceModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -2285,7 +2277,7 @@ export default function TransportManagementModule({
             <form onSubmit={handleSaveService} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'গাড়ি *' : 'Truck *'}</label>
+                  <label className="block mb-1 font-semibold">Truck *</label>
                   <select
                     value={srvTruckReg}
                     onChange={(e) => setSrvTruckReg(e.target.value)}
@@ -2299,7 +2291,7 @@ export default function TransportManagementModule({
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'তারিখ *' : 'Date *'}</label>
+                  <label className="block mb-1 font-semibold">Date *</label>
                   <input
                     type="date"
                     required
@@ -2311,32 +2303,32 @@ export default function TransportManagementModule({
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'গ্যারেজ / ওয়ার্কশপ *' : 'Garage / Workshop *'}</label>
+                <label className="block mb-1 font-semibold">Garage / Workshop *</label>
                 <input
                   type="text"
                   required
                   value={srvGarage}
                   onChange={(e) => setSrvGarage(e.target.value)}
-                  placeholder="ভাই ভাই অটোমোবাইলস"
+                  placeholder="Bhai Bhai Workshop & Garage"
                   className="w-full rounded-lg border px-2.5 py-1.5"
                 />
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'মেরামতের সমস্যা ও বিবরণ *' : 'Problem Description *'}</label>
+                <label className="block mb-1 font-semibold">Problem Description *</label>
                 <input
                   type="text"
                   required
                   value={srvProblem}
                   onChange={(e) => setSrvProblem(e.target.value)}
-                  placeholder="ব্রেক শু ও ইঞ্জিন অয়েল পরিবর্তন"
+                  placeholder="Brake shoe replacement & engine oil change"
                   className="w-full rounded-lg border px-2.5 py-1.5"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'পার্টস খরচ' : 'Parts Cost'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Parts Cost</label>
                   <input
                     type="number"
                     min={0}
@@ -2346,7 +2338,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'লেবার চার্জ' : 'Labour'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Labour</label>
                   <input
                     type="number"
                     min={0}
@@ -2356,7 +2348,7 @@ export default function TransportManagementModule({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">{bn ? 'মোট খরচ (Auto)' : 'Total Cost'}</label>
+                  <label className="block text-[10px] text-slate-500 mb-0.5">Total Cost</label>
                   <div className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono font-black text-rose-600">
                     {formatBDT(calculatedServiceTotal)}
                   </div>
@@ -2364,7 +2356,7 @@ export default function TransportManagementModule({
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'টাকা প্রদানের উৎস *' : 'Payment Account *'}</label>
+                <label className="block mb-1 font-semibold">Payment Account *</label>
                 <select
                   value={srvWalletId}
                   onChange={(e) => setSrvWalletId(e.target.value)}
@@ -2380,10 +2372,10 @@ export default function TransportManagementModule({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setShowAddServiceModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
-                  {bn ? 'বাতিল' : 'Cancel'}
+                  Cancel
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700">
-                  {bn ? 'সার্ভিস সেভ করুন' : 'Save Service'}
+                  Save Service
                 </button>
               </div>
             </form>
@@ -2404,7 +2396,7 @@ export default function TransportManagementModule({
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-purple-600" />
-                <span>{bn ? 'চালক বেতন ও ভাতা প্রদান' : 'Pay Driver Salary / Advance'}</span>
+                <span>Pay Driver Salary / Advance</span>
               </h3>
               <button type="button" onClick={() => setShowAddDriverModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -2413,7 +2405,7 @@ export default function TransportManagementModule({
 
             <form onSubmit={handlePayDriver} className="space-y-3 text-xs">
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'চালকের নাম *' : 'Driver Name *'}</label>
+                <label className="block mb-1 font-semibold">Driver Name *</label>
                 <input
                   type="text"
                   required
@@ -2425,19 +2417,19 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'প্রদানের ধরণ' : 'Payment Type'}</label>
+                  <label className="block mb-1 font-semibold">Payment Type</label>
                   <select
                     value={drvPayType}
                     onChange={(e) => setDrvPayType(e.target.value as any)}
                     className="w-full rounded-lg border px-2.5 py-1.5 font-semibold"
                   >
-                    <option value="salary">{bn ? 'মাসিক বেতন (Salary)' : 'Monthly Salary'}</option>
-                    <option value="advance">{bn ? 'অগ্রিম বেতন (Advance)' : 'Advance'}</option>
-                    <option value="allowance">{bn ? 'ট্রিপ ভাতা (Allowance)' : 'Trip Allowance'}</option>
+                    <option value="salary">Monthly Salary</option>
+                    <option value="advance">Advance</option>
+                    <option value="allowance">Trip Allowance</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold">{bn ? 'টাকার পরিমাণ (BDT) *' : 'Amount *'}</label>
+                  <label className="block mb-1 font-semibold">Amount *</label>
                   <input
                     type="number"
                     min={1}
@@ -2450,7 +2442,7 @@ export default function TransportManagementModule({
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'টাকা প্রদানের উৎস *' : 'Payment Account *'}</label>
+                <label className="block mb-1 font-semibold">Payment Account *</label>
                 <select
                   value={drvPayWalletId}
                   onChange={(e) => setDrvPayWalletId(e.target.value)}
@@ -2466,10 +2458,10 @@ export default function TransportManagementModule({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setShowAddDriverModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
-                  {bn ? 'বাতিল' : 'Cancel'}
+                  Cancel
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700">
-                  {bn ? 'বেতন পরিশোধ সম্পন্ন' : 'Confirm Payment'}
+                  Confirm Payment
                 </button>
               </div>
             </form>
@@ -2489,7 +2481,7 @@ export default function TransportManagementModule({
           >
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                {bn ? 'বাকি ভাড়া আদায় এন্ট্রি' : 'Collect Customer Due'}
+                Collect Customer Due
               </h3>
               <button type="button" onClick={() => setShowSettlePaymentModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -2503,12 +2495,12 @@ export default function TransportManagementModule({
                   {targetTripForPayment.registrationNumber} ({targetTripForPayment.route || `${targetTripForPayment.origin} ➔ ${targetTripForPayment.destination}`})
                 </div>
                 <div className="text-xs font-mono font-bold text-amber-600">
-                  {bn ? 'বর্তমান বাকি: ' : 'Remaining Due: '}{formatBDT(targetTripForPayment.outstandingDue)}
+                  'Remaining Due: ' + formatBDT(targetTripForPayment.outstandingDue)
                 </div>
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'আদায়কৃত টাকা *' : 'Amount Received *'}</label>
+                <label className="block mb-1 font-semibold">Amount Received *</label>
                 <input
                   type="number"
                   min={1}
@@ -2521,7 +2513,7 @@ export default function TransportManagementModule({
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">{bn ? 'জমা হবে কোন অ্যাকাউন্টে? *' : 'Deposit Into Account *'}</label>
+                <label className="block mb-1 font-semibold">Deposit Into Account *</label>
                 <select
                   value={custPayWalletId}
                   onChange={(e) => setCustPayWalletId(e.target.value)}
@@ -2537,10 +2529,10 @@ export default function TransportManagementModule({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setShowSettlePaymentModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
-                  {bn ? 'বাতিল' : 'Cancel'}
+                  Cancel
                 </button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
-                  {bn ? 'আদায় সম্পন্ন' : 'Confirm Collection'}
+                  Confirm Collection
                 </button>
               </div>
             </form>
@@ -2560,7 +2552,7 @@ export default function TransportManagementModule({
           >
             <div className="flex items-center justify-between border-b pb-2">
               <div className="font-bold text-xs text-slate-900 dark:text-white">
-                {viewImageTrip.registrationNumber} — {bn ? 'রসিদের ছবি' : 'Receipt / Memo'}
+                {viewImageTrip.registrationNumber} — Receipt / Memo
               </div>
               <button type="button" onClick={() => setViewImageTrip(null)} className="p-1 rounded text-slate-400">
                 <X className="h-4 w-4" />

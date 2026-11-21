@@ -97,21 +97,21 @@ export default function TripChallanModal({
   const handleCopySummary = async () => {
     const textSummary = `
 ========================================
-RegardsAgro Enterprise - কাজের অর্ডার ও চালান
+RegardsAgro Enterprise - Work Order & Trip Consignment Challan
 ========================================
-কাজের অর্ডার নং: ${trip.tripOrVehicleCode}
-গাড়ি নং: ${trip.registrationNumber} (${trip.vehicleType || 'ট্রাক'})
-চালক: ${trip.driverName}
-উৎস (কার থেকে আনছে): RegardsAgro Agro Complex (${trip.origin})
-গন্তব্য (কার কাছে যাচ্ছে): ${trip.customerName || 'চট্টগ্রাম পাইকারি আড়ত'} (${trip.destination})
-দূরত্ব: ${trip.distanceKm} কি.মি.
-পণ্য: ${trip.cargoDetails || 'খামারের পণ্যবাহী লোড'}
-ট্রিপ ভাড়া: ৳ ${trip.tripRevenue.toLocaleString()}
-মোট ট্রিপ খরচ: ৳ ${totalTripCost.toLocaleString()} (ডিজেল: ৳${(trip.fuelCost || 0).toLocaleString()}, টোল: ৳${(trip.tollCost || 0).toLocaleString()}, চালকের ভাতা: ৳${(trip.driverAllowance || 0).toLocaleString()})
-নিট লাভ: ৳ ${netTripProfit.toLocaleString()}
-বকেয়া: ৳ ${trip.outstandingDue.toLocaleString()}
-স্ট্যাটাস: ${trip.status === 'completed' ? 'সম্পন্ন (Delivered)' : 'চলমান (On Highway)'}
-তারিখ: ${trip.date}
+Work Order No: ${trip.tripOrVehicleCode}
+Vehicle No: ${trip.registrationNumber} (${trip.vehicleType || 'Heavy Truck'})
+Driver: ${trip.driverName}
+Consignor (Origin): RegardsAgro Agro Complex (${trip.origin})
+Consignee (Destination): ${trip.customerName || 'Chittagong Wholesale Terminal'} (${trip.destination})
+Distance: ${trip.distanceKm} KM
+Cargo: ${trip.cargoDetails || 'Farm Livestock & Feed Consignment'}
+Trip Fare: ৳ ${trip.tripRevenue.toLocaleString()}
+Trip Expenses: ৳ ${totalTripCost.toLocaleString()} (Diesel: ৳${(trip.fuelCost || 0).toLocaleString()}, Toll: ৳${(trip.tollCost || 0).toLocaleString()}, Allowance: ৳${(trip.driverAllowance || 0).toLocaleString()})
+Net Profit: ৳ ${netTripProfit.toLocaleString()}
+Remaining Due: ৳ ${trip.outstandingDue.toLocaleString()}
+Status: ${trip.status === 'completed' ? 'Delivered' : 'On Highway'}
+Date: ${trip.date}
 ========================================
 `.trim();
 
@@ -144,12 +144,10 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
             </div>
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                {bn ? 'কাজের অর্ডার ও পরিবহন চালান (Work Order & Trip Challan)' : 'Work Order & Trip Consignment Challan'}
+                Work Order & Trip Consignment Challan
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {bn
-                  ? 'গাড়ির ট্রিপ চালান, মাল কার কাছে যাচ্ছে এবং কার থেকে আনা হচ্ছে তার পূর্ণ বিবরণী'
-                  : 'Trip consignment, consignor/consignee party, route, expenses and profit summary'}
+'Trip consignment, consignor/consignee party, route, expenses and profit summary'
               </p>
             </div>
           </div>
@@ -161,7 +159,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 transition-colors shadow-2xs"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-              <span>{copied ? (bn ? 'কপি হয়েছে' : 'Copied') : bn ? 'তথ্য কপি' : 'Copy Text'}</span>
+              <span>{copied ? 'Copied' : 'Copy Text'}</span>
             </button>
 
             <button
@@ -170,7 +168,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span>{bn ? 'প্রিন্ট / PDF ডাউনলোড' : 'Print / Download'}</span>
+              <span>Print / Download</span>
             </button>
 
             <button
@@ -198,9 +196,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
               Style Wise PO Summary Report & Consignment Challan
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium print:text-slate-700">
-              {bn
-                ? 'ঠিকানা: কর্পোরেট অফিস ও এগ্রো হাব, ঢাকা-চট্টগ্রাম মহাসড়ক, বাংলাদেশ | ফোন: +880 1711-000000 | ইমেইল: logistics@regardsagro.com'
-                : 'Address: Central Agro Logistics Hub, Dhaka-Chattogram Highway, Bangladesh | Phone: +880 1711-000000'}
+'Address: Central Agro Logistics Hub, Dhaka-Chattogram Highway, Bangladesh | Phone: +880 1711-000000'
             </p>
           </div>
 
@@ -210,7 +206,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
           {/* ============================================================== */}
           <div className="border-2 border-slate-900 dark:border-slate-700 print:border-black rounded-lg overflow-hidden text-xs">
             <div className="bg-slate-100 dark:bg-slate-800 print:bg-slate-200 py-2 px-4 text-center font-bold uppercase tracking-wider border-b-2 border-slate-900 dark:border-slate-700 print:border-black text-slate-900 dark:text-slate-100 print:text-black">
-              {bn ? 'কাজের অর্ডার ও পরিবহন বিবরণী (Work Order)' : 'Work Order & Consignment Note'}
+              Work Order & Consignment Note
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x-2 divide-slate-900 dark:divide-slate-700 print:divide-black">
@@ -245,7 +241,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                     CONTACT PERSON
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.driverName} ({bn ? 'চালক ও প্রতিনিধি' : 'Driver & In-Charge'})
+                    : {trip.driverName} (Driver & In-Charge)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
@@ -266,22 +262,22 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 </div>
               </div>
 
-              {/* Right Column: Buyer (কার কাছে যাচ্ছে) & Supplier (কার থেকে আনছে) */}
+              {/* Right Column: Buyer (Consignee) & Supplier (Consignor) */}
               <div className="p-4 space-y-2 bg-emerald-50/30 dark:bg-slate-900/50 print:bg-white">
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
-                    {bn ? 'BUYER NAME (কার কাছে যাচ্ছে)' : 'BUYER / CONSIGNEE'}
+                    BUYER / CONSIGNEE
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.customerName || (bn ? 'চট্টগ্রাম পাইকারি আড়ত ও ডেলিভারি হাব' : 'Chittagong Wholesale Terminal')}
+                    : {trip.customerName || 'Chittagong Wholesale Terminal'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    {bn ? 'SUPPLIER (কার থেকে আনছে)' : 'SUPPLIER / CONSIGNOR'}
+                    SUPPLIER / CONSIGNOR
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {businessName} (ফিড মিল ও কেন্দ্রীয় খামার কমপ্লেক্স)
+                    : {businessName} (Feed Mill & Central Agro Complex)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -289,7 +285,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                     ATTENTION
                   </span>
                   <span className="font-medium text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
-                    : {bn ? 'বিভাগীয় ইনচার্জ / ডিপো রিসিভার' : 'Depot Incharge & Receiver'}
+                    : Depot Incharge & Receiver
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -302,10 +298,10 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    ORIGIN ADDRESS (উৎস)
+                    ORIGIN ADDRESS (CONSIGNOR)
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100 print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.origin} ({bn ? 'মাল তোলার স্থান' : 'Loading Point'})
+                    : {trip.origin} (Loading Point)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5">
@@ -313,7 +309,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                     DELIVERY DESTINATION
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.destination} ({trip.distanceKm} {bn ? 'কি.মি. দূরত্ব' : 'KM'})
+                    : {trip.destination} ({trip.distanceKm} KM)
                   </span>
                 </div>
               </div>
@@ -333,13 +329,13 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                       JOB
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
-                      {bn ? 'মালের বিবরণ (Cargo / Style)' : 'Cargo / Style Details'}
+                      Cargo / Style Details
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
                       PO / Ref No
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
-                      {bn ? 'রুট ও গাড়ি' : 'Route & Vehicle'}
+                      Route & Vehicle
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
                       WO QTY
@@ -348,13 +344,13 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                       UOM
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right">
-                      {bn ? 'ভাড়া / রেট' : 'Freight Fare'}
+                      Freight Fare
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right">
-                      {bn ? 'খরচ (ডিজেল+টোল+ভাতা)' : 'Trip Cost'}
+                      Trip Cost
                     </th>
                     <th className="py-2.5 px-3 text-right">
-                      {bn ? 'নিট লাভ (Profit)' : 'Net Profit'}
+                      Net Profit
                     </th>
                   </tr>
                 </thead>
@@ -365,10 +361,10 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
                       <div className="font-bold text-slate-900 dark:text-white print:text-black">
-                        {trip.cargoDetails || (bn ? 'খামারের মুরগি, মাছ ও পশুখাদ্য পরিবহন' : 'Farm Livestock & Feed Consignment')}
+                        {trip.cargoDetails || 'Farm Livestock & Feed Consignment'}
                       </div>
                       <div className="text-[11px] text-slate-500 print:text-slate-600">
-                        {bn ? 'নিরাপদ পরিবহন ও সঠিক তাপমাত্রায় রক্ষিত' : 'Safe commercial transport load'}
+                        Safe commercial transport load
                       </div>
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black font-mono">
@@ -394,7 +390,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono text-slate-700 dark:text-slate-300 print:text-black">
                       {formatBDT(totalTripCost)}
                       <div className="text-[10px] text-slate-400 print:text-slate-500">
-                        ডিজেল: {formatBDT(trip.fuelCost)} | টোল: {formatBDT(trip.tollCost)}
+                        Diesel: {formatBDT(trip.fuelCost)} | Toll: {formatBDT(trip.tollCost)}
                       </div>
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-bold">
@@ -449,7 +445,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 IN WORD:
               </span>
               <span className="font-semibold text-slate-700 dark:text-slate-300 print:text-black italic">
-                {numberToWords(trip.tripRevenue)} ({trip.tripRevenue.toLocaleString()} টাকা মাত্র)
+                {numberToWords(trip.tripRevenue)} ({trip.tripRevenue.toLocaleString()} BDT Only)
               </span>
             </div>
 
@@ -458,9 +454,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 NOTE:
               </span>
               <span className="text-slate-600 dark:text-slate-400 print:text-slate-700">
-                {bn
-                  ? 'উৎস স্থল থেকে মাল বোঝাই করে সিলগালা অবস্থায় ডেলিভারি গ্রহীতার নিকট পৌঁছে দিতে হবে। ডেলিভারি পয়েন্টে চালানের মূল কপিতে স্বাক্ষর ও সিল ব্যতীত পণ্য খালাস করা যাবে না।'
-                  : 'Consignment must be delivered safely in sealed condition. Receiver signature and company stamp required upon discharge.'}
+'Consignment must be delivered safely in sealed condition. Receiver signature and company stamp required upon discharge.'
               </span>
             </div>
 
@@ -469,9 +463,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 REMARKS:
               </span>
               <span className="text-slate-600 dark:text-slate-400 print:text-slate-700 font-mono">
-                {bn
-                  ? `ট্রিপ স্ট্যাটাস: ${trip.status === 'completed' ? 'সম্পন্ন (Completed & Received)' : 'হাইওয়েতে চলমান (On Highway)'} | বকেয়া ভাড়া: ${formatBDT(trip.outstandingDue)} | গেটপাস নং: GP-${trip.tripOrVehicleCode}`
-                  : `Trip Status: ${trip.status} | Outstanding Fare: ${formatBDT(trip.outstandingDue)}`}
+`Trip Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'} | Outstanding Fare: ${formatBDT(trip.outstandingDue)}`
               </span>
             </div>
           </div>
@@ -487,7 +479,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 PREPARED BY
               </div>
               <div className="text-[10px] text-slate-500 print:text-slate-600">
-                {trip.driverName} (ড্রাইভার / স্টাফ)
+                {trip.driverName} (Driver / In-Charge)
               </div>
             </div>
 
@@ -496,7 +488,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 CHECKED BY
               </div>
               <div className="text-[10px] text-slate-500 print:text-slate-600">
-                {bn ? 'ট্রিপ সুপারভাইজার' : 'Trip Supervisor'}
+                Trip Supervisor
               </div>
             </div>
 
@@ -505,7 +497,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 ASST. / MANAGER
               </div>
               <div className="text-[10px] text-slate-500 print:text-slate-600">
-                Md. Sahin Miah (ম্যানেজার)
+                Md. Sahin Miah (Manager)
               </div>
             </div>
 
@@ -514,7 +506,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 HOD LOGISTICS
               </div>
               <div className="text-[10px] text-slate-500 print:text-slate-600">
-                {bn ? 'বিভাগীয় প্রধান (লজিস্টিকস)' : 'Head of Fleet Ops'}
+                Head of Fleet Ops
               </div>
             </div>
 
@@ -523,7 +515,7 @@ RegardsAgro Enterprise - কাজের অর্ডার ও চালান
                 ED / SUPER ADMIN
               </div>
               <div className="text-[10px] text-slate-500 print:text-slate-600">
-                {bn ? 'ব্যবস্থাপনা পরিচালক / চেয়ারম্যান' : 'Executive Director'}
+                Executive Director
               </div>
             </div>
           </div>
