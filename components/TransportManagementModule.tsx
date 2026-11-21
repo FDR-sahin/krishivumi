@@ -322,6 +322,10 @@ export default function TransportManagementModule({
   const [newVehReg, setNewVehReg] = useState('DHAKA-METRO-T-12-3456');
   const [newVehName, setNewVehName] = useState('Hino 500 Heavy Freight');
   const [newVehCode, setNewVehCode] = useState(`TRK-${Date.now().toString().slice(-4)}`);
+  const [newVehBodyType, setNewVehBodyType] = useState<string>('covered');
+  const [newVehCapacityTons, setNewVehCapacityTons] = useState<number>(15);
+  const [newVehEngineNo, setNewVehEngineNo] = useState('ENG-HINO-883921');
+  const [newVehChassisNo, setNewVehChassisNo] = useState('CHS-500-772910');
   const [newVehBrand, setNewVehBrand] = useState('Hino');
   const [newVehModel, setNewVehModel] = useState('500 Series');
   const [newVehYear, setNewVehYear] = useState('2022');
@@ -336,7 +340,7 @@ export default function TransportManagementModule({
   const [newVehNextServiceDate, setNewVehNextServiceDate] = useState('2027-02-28');
   const [newVehNextServiceKm, setNewVehNextServiceKm] = useState<number>(50000);
 
-  // 7. Form State: + Add New Trip
+  // 7. Form State: + Add New Trip (Outgoing + Return + Expenses + Auto Calculation)
   const [tripTruckReg, setTripTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
   const [tripDriverName, setTripDriverName] = useState('Abdul Karim');
   const [tripHelperName, setTripHelperName] = useState('');
@@ -345,6 +349,7 @@ export default function TransportManagementModule({
   const [tripLoadLoc, setTripLoadLoc] = useState('Tejgaon Central Depot');
   const [tripDeliverLoc, setTripDeliverLoc] = useState('Agrabad Wholesale Yard');
   const [tripCustomer, setTripCustomer] = useState('Chittagong Agro Traders');
+  const [tripBrokerName, setTripBrokerName] = useState('Al-Amin Transport Broker');
   const [tripCargo, setTripCargo] = useState('Farm feed and livestock freight');
   const [tripStartDate, setTripStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [tripExpectedReturn, setTripExpectedReturn] = useState(new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]);
@@ -353,18 +358,50 @@ export default function TransportManagementModule({
   const [tripFare, setTripFare] = useState<number>(26000);
   const [tripAdvance, setTripAdvance] = useState<number>(15000);
   const [tripCommission, setTripCommission] = useState<number>(1000);
+
+  // Return Load (Round Trip / Back Load)
+  const [tripHasReturn, setTripHasReturn] = useState(false);
+  const [tripReturnLoadLoc, setTripReturnLoadLoc] = useState('Chittagong Port Yard');
+  const [tripReturnUnloadLoc, setTripReturnUnloadLoc] = useState('Dhaka Tejgaon Depot');
+  const [tripReturnFare, setTripReturnFare] = useState<number>(18000);
+  const [tripReturnDriverCash, setTripReturnDriverCash] = useState<number>(18000);
+
+  // Trip Expenses Breakdown
   const [tripDieselCost, setTripDieselCost] = useState<number>(7500);
+  const [tripFuelLitres, setTripFuelLitres] = useState<number>(70);
   const [tripTollCost, setTripTollCost] = useState<number>(1000);
+  const [tripFerryCost, setTripFerryCost] = useState<number>(0);
+  const [tripDriverKhoraki, setTripDriverKhoraki] = useState<number>(1500);
+  const [tripPoliceCost, setTripPoliceCost] = useState<number>(300);
+  const [tripLabourCost, setTripLabourCost] = useState<number>(800);
   const [tripOtherCost, setTripOtherCost] = useState<number>(500);
   const [tripWalletId, setTripWalletId] = useState(treasuryWallets[0]?.id || '');
   const [tripRemarks, setTripRemarks] = useState('');
   const [tripImageUrl, setTripImageUrl] = useState('');
 
-  // Auto Distance calculation
+  // Auto Distance & Financial Calculations
   const calculatedDistanceKm = Math.max(0, Number(tripEndKm || 0) - Number(tripStartKm || 0));
+  const calculatedTotalIncome = Number(tripFare || 0) + (tripHasReturn ? Number(tripReturnFare || 0) : 0);
   const calculatedRemainingDue = Math.max(0, Number(tripFare || 0) - Number(tripAdvance || 0));
-  const calculatedTripExpense = Number(tripDieselCost || 0) + Number(tripTollCost || 0) + Number(tripOtherCost || 0);
-  const calculatedNetIncome = Number(tripFare || 0) - (calculatedTripExpense + Number(tripCommission || 0));
+  const calculatedTripExpense =
+    Number(tripDieselCost || 0) +
+    Number(tripTollCost || 0) +
+    Number(tripFerryCost || 0) +
+    Number(tripDriverKhoraki || 0) +
+    Number(tripPoliceCost || 0) +
+    Number(tripLabourCost || 0) +
+    Number(tripCommission || 0) +
+    Number(tripOtherCost || 0);
+  const calculatedNetIncome = calculatedTotalIncome - calculatedTripExpense;
+  const calculatedDriverCashInHand =
+    Number(tripAdvance || 0) +
+    (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0) -
+    (Number(tripTollCost || 0) +
+      Number(tripFerryCost || 0) +
+      Number(tripDriverKhoraki || 0) +
+      Number(tripPoliceCost || 0) +
+      Number(tripLabourCost || 0) +
+      Number(tripOtherCost || 0));
 
   // 8. Form State: + Log Fuel
   const [fuelTruckReg, setFuelTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
@@ -388,6 +425,8 @@ export default function TransportManagementModule({
   const [srvMechanic, setSrvMechanic] = useState('Ustad Zahirul Islam');
   const [srvProblem, setSrvProblem] = useState('Brake pad wear and engine oil change');
   const [srvParts, setSrvParts] = useState('15W-40 Engine oil, oil filter, front brake shoes');
+  const [srvTyreBatterySerial, setSrvTyreBatterySerial] = useState('TYRE-BRIDGE-295-80R');
+  const [srvWarrantyExpiry, setSrvWarrantyExpiry] = useState('2027-11-30');
   const [srvPartsCost, setSrvPartsCost] = useState<number>(5500);
   const [srvLabourCost, setSrvLabourCost] = useState<number>(1500);
   const [srvOtherCost, setSrvOtherCost] = useState<number>(500);
@@ -427,6 +466,10 @@ export default function TransportManagementModule({
           registrationNumber: newVehReg.trim(),
           truckName: newVehName.trim(),
           vehicleType: `${newVehBrand} ${newVehModel}`,
+          truckBodyType: newVehBodyType,
+          capacityTons: Number(newVehCapacityTons || 0),
+          engineNumber: newVehEngineNo.trim(),
+          chassisNumber: newVehChassisNo.trim(),
           brand: newVehBrand.trim(),
           model: newVehModel.trim(),
           manufacturingYear: newVehYear,
@@ -516,17 +559,27 @@ export default function TransportManagementModule({
           route: routeStr,
           cargoDetails: tripCargo.trim(),
           customerName: tripCustomer.trim(),
+          brokerName: tripBrokerName.trim(),
+          returnLoadingPoint: tripHasReturn ? tripReturnLoadLoc.trim() : '',
+          returnUnloadingPoint: tripHasReturn ? tripReturnUnloadLoc.trim() : '',
+          returnFare: tripHasReturn ? Number(tripReturnFare || 0) : 0,
+          returnDriverCash: tripHasReturn ? Number(tripReturnDriverCash || 0) : 0,
           distanceKm: calculatedDistanceKm,
           startOdometer: Number(tripStartKm || 0),
           endOdometer: Number(tripEndKm || 0),
+          fuelLitres: Number(tripFuelLitres || 0),
           fuelCost: Number(tripDieselCost || 0),
           tollCost: Number(tripTollCost || 0),
-          driverAllowance: 0,
+          ferryCost: Number(tripFerryCost || 0),
+          driverKhoraki: Number(tripDriverKhoraki || 0),
+          policeRoadCost: Number(tripPoliceCost || 0),
+          labourLoadingCost: Number(tripLabourCost || 0),
+          driverAllowance: Number(tripDriverKhoraki || 0),
           commission: Number(tripCommission || 0),
           tripExpense: calculatedTripExpense,
           maintenanceCost: Number(tripOtherCost || 0),
-          maintenanceDetails: `Toll: ৳${tripTollCost} | Road: ৳${tripOtherCost} | Commission: ৳${tripCommission}`,
-          tripRevenue: Number(tripFare || 0),
+          maintenanceDetails: `Toll: ৳${tripTollCost} | Ferry: ৳${tripFerryCost} | Khoraki: ৳${tripDriverKhoraki} | Police: ৳${tripPoliceCost} | Labour: ৳${tripLabourCost} | Commission: ৳${tripCommission}`,
+          tripRevenue: calculatedTotalIncome,
           advanceReceived: Number(tripAdvance || 0),
           remainingDue: calculatedRemainingDue,
           outstandingDue: calculatedRemainingDue,
@@ -810,7 +863,9 @@ export default function TransportManagementModule({
           labourCost: Number(srvLabourCost || 0),
           otherCosts: Number(srvOtherCost || 0),
           partsReplaced: srvParts.trim(),
-          maintenanceDetails: `${srvProblem} | Parts: ${srvParts} | Labor: ৳${srvLabourCost}`,
+          tyreOrBatterySerial: srvTyreBatterySerial.trim(),
+          warrantyExpiryDate: srvWarrantyExpiry,
+          maintenanceDetails: `${srvProblem} | Parts: ${srvParts} (SN: ${srvTyreBatterySerial}) | Labor: ৳${srvLabourCost} | Warranty: ${srvWarrantyExpiry}`,
           tripRevenue: 0,
           outstandingDue: 0,
           insuranceExpiry: '2027-12-31',
@@ -1285,7 +1340,7 @@ export default function TransportManagementModule({
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
                   <th className="py-2.5 px-3">Registration & Code</th>
-                  <th className="py-2.5 px-3">Model & Price</th>
+                  <th className="py-2.5 px-3">Type & Capacity</th>
                   <th className="py-2.5 px-3">Driver & Odometer</th>
                   <th className="py-2.5 px-3">Tax Token</th>
                   <th className="py-2.5 px-3">Fitness Expiry</th>
@@ -1298,11 +1353,19 @@ export default function TransportManagementModule({
                   <tr key={v.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-bold text-slate-900 dark:text-white font-mono">{v.registrationNumber}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{v.tripOrVehicleCode}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        {v.tripOrVehicleCode}
+                        {v.chassisNumber ? ` • Chassis: ${v.chassisNumber}` : ''}
+                      </div>
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="font-medium text-slate-800 dark:text-slate-200">{v.vehicleType}</div>
-                      <div className="text-[10px] text-slate-400">{v.purchasePrice ? formatBDT(v.purchasePrice) : '—'}</div>
+                      <div className="font-medium text-slate-800 dark:text-slate-200">
+                        {v.vehicleType} {v.truckBodyType ? `(${v.truckBodyType})` : ''}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-semibold text-emerald-600">
+                        {v.capacityTons ? `${v.capacityTons} Ton Capacity` : ''}
+                        {v.purchasePrice ? ` • ${formatBDT(v.purchasePrice)}` : ''}
+                      </div>
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-semibold text-slate-900 dark:text-slate-100">{v.driverName}</div>
@@ -1729,9 +1792,13 @@ export default function TransportManagementModule({
                       <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{m.garageName || m.origin}</div>
                       <div className="text-[10px] text-slate-400 truncate">{m.mechanicName || m.driverName}</div>
                     </td>
-                    <td className="py-2 px-3 max-w-[220px] truncate">
+                    <td className="py-2 px-3 max-w-[240px]">
                       <div className="font-semibold text-slate-900 dark:text-white truncate">{m.cargoDetails || m.maintenanceDetails}</div>
-                      <div className="text-[10px] text-slate-400 truncate">{m.partsReplaced}</div>
+                      <div className="text-[10px] text-slate-400 space-y-0.5">
+                        {m.partsReplaced && <div className="truncate">Parts: {m.partsReplaced}</div>}
+                        {m.tyreOrBatterySerial && <div className="text-amber-600 dark:text-amber-400 truncate">S/N: {m.tyreOrBatterySerial}</div>}
+                        {m.warrantyExpiryDate && <div className="text-emerald-600 dark:text-emerald-400">Warranty: {m.warrantyExpiryDate}</div>}
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-right font-mono">{formatBDT(m.partsCost || 0)}</td>
                     <td className="py-2 px-3 text-right font-mono">{formatBDT(m.labourCost || 0)}</td>
@@ -1815,208 +1882,364 @@ export default function TransportManagementModule({
         </div>
       )}
 
-      {/* ── MODAL 1: + NEW TRIP (COMPACT & COMPLETE) ──────────────── */}
+      {/* ── MODAL 1: + NEW TRIP (OUTGOING + RETURN + DETAILED EXPENSES) ─── */}
       {showAddTripModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto"
           onClick={() => setShowAddTripModal(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3.5"
+            className="w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b pb-2.5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Navigation className="h-4 w-4 text-emerald-600" />
-                <span>Dispatch New Transport Trip</span>
+                <span>Create & Dispatch Transport Trip</span>
               </h3>
               <button type="button" onClick={() => setShowAddTripModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveTrip} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block mb-1 font-semibold">Select Truck *</label>
-                  <select
-                    value={tripTruckReg}
-                    onChange={(e) => setTripTruckReg(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 font-bold"
-                  >
-                    {allVehicles.map((v) => (
-                      <option key={v.id} value={v.registrationNumber}>
-                        {v.registrationNumber} ({v.vehicleType})
-                      </option>
-                    ))}
-                  </select>
+            <form onSubmit={handleSaveTrip} className="space-y-4 text-xs">
+              {/* SECTION 1: VEHICLE & DRIVER ASSIGNMENT */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2.5">
+                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Truck className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>1. Vehicle & Crew</span>
                 </div>
-                <div>
-                  <label className="block mb-1 font-semibold">Driver Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={tripDriverName}
-                    onChange={(e) => setTripDriverName(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block mb-1 font-semibold">Start Location *</label>
-                  <input
-                    type="text"
-                    required
-                    value={tripStartLoc}
-                    onChange={(e) => setTripStartLoc(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold">Destination *</label>
-                  <input
-                    type="text"
-                    required
-                    value={tripDestLoc}
-                    onChange={(e) => setTripDestLoc(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block mb-1 font-semibold">Start Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={tripStartDate}
-                    onChange={(e) => setTripStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold">Expected Return Date</label>
-                  <input
-                    type="date"
-                    value={tripExpectedReturn}
-                    onChange={(e) => setTripExpectedReturn(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Odometer KM auto calculation */}
-              <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Start KM *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={tripStartKm}
-                    onChange={(e) => setTripStartKm(Number(e.target.value) || 0)}
-                    className="w-full rounded border px-2 py-1 font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">End KM *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={tripEndKm}
-                    onChange={(e) => setTripEndKm(Number(e.target.value) || 0)}
-                    className="w-full rounded border px-2 py-1 font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Total Distance</label>
-                  <div className="px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 font-mono font-black text-emerald-600">
-                    {calculatedDistanceKm} KM
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block mb-1 font-semibold">Select Truck *</label>
+                    <select
+                      value={tripTruckReg}
+                      onChange={(e) => setTripTruckReg(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold"
+                    >
+                      {allVehicles.map((v) => (
+                        <option key={v.id} value={v.registrationNumber}>
+                          {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Assigned Driver *</label>
+                    <input
+                      type="text"
+                      required
+                      value={tripDriverName}
+                      onChange={(e) => setTripDriverName(e.target.value)}
+                      placeholder="Driver Name"
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Helper / Assistant</label>
+                    <input
+                      type="text"
+                      value={tripHelperName}
+                      onChange={(e) => setTripHelperName(e.target.value)}
+                      placeholder="Optional Helper"
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Financials: Fare, Advance, Due */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block font-bold text-emerald-700 dark:text-emerald-400 mb-0.5">Fare (BDT) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    value={tripFare === 0 ? '' : tripFare}
-                    onChange={(e) => setTripFare(Number(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-emerald-300 px-2 py-1 font-mono font-bold"
-                  />
+              {/* SECTION 2: OUTGOING TRIP (যাওয়া) */}
+              <div className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20 space-y-2.5">
+                <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <ArrowRight className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>2. Outgoing Route & Freight (যাওয়া)</span>
+                  </span>
+                  <span className="text-[10px] font-normal text-slate-500">Party, Broker, Load & Unload</span>
                 </div>
-                <div>
-                  <label className="block font-semibold mb-0.5">Advance</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={tripAdvance === 0 ? '' : tripAdvance}
-                    onChange={(e) => setTripAdvance(Number(e.target.value) || 0)}
-                    className="w-full rounded-lg border px-2 py-1 font-mono"
-                  />
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block mb-1 font-semibold">Start Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={tripStartDate}
+                      onChange={(e) => setTripStartDate(e.target.value)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Expected Return</label>
+                    <input
+                      type="date"
+                      value={tripExpectedReturn}
+                      onChange={(e) => setTripExpectedReturn(e.target.value)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Loading Point *</label>
+                    <input
+                      type="text"
+                      required
+                      value={tripLoadLoc}
+                      onChange={(e) => setTripLoadLoc(e.target.value)}
+                      placeholder="e.g. Dhaka Tejgaon"
+                      className="w-full rounded border px-2 py-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Delivery Point *</label>
+                    <input
+                      type="text"
+                      required
+                      value={tripDeliverLoc}
+                      onChange={(e) => setTripDeliverLoc(e.target.value)}
+                      placeholder="e.g. Chittagong Agrabad"
+                      className="w-full rounded border px-2 py-1"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-semibold mb-0.5">Due</label>
-                  <div className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono font-bold text-amber-600">
-                    {formatBDT(calculatedRemainingDue)}
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block mb-1 font-semibold">Party / Customer *</label>
+                    <input
+                      type="text"
+                      required
+                      value={tripCustomer}
+                      onChange={(e) => setTripCustomer(e.target.value)}
+                      placeholder="Company Name"
+                      className="w-full rounded border px-2 py-1 font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Broker Name</label>
+                    <input
+                      type="text"
+                      value={tripBrokerName}
+                      onChange={(e) => setTripBrokerName(e.target.value)}
+                      placeholder="Broker / Agent"
+                      className="w-full rounded border px-2 py-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-emerald-700 dark:text-emerald-400 mb-1">Outgoing Fare (BDT) *</label>
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      value={tripFare === 0 ? '' : tripFare}
+                      onChange={(e) => setTripFare(Number(e.target.value) || 0)}
+                      className="w-full rounded border border-emerald-400 px-2 py-1 font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">Advance Received</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripAdvance === 0 ? '' : tripAdvance}
+                      onChange={(e) => setTripAdvance(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Expenses: Diesel, Toll, Comm */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Diesel</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={tripDieselCost}
-                    onChange={(e) => setTripDieselCost(Number(e.target.value) || 0)}
-                    className="w-full rounded border px-2 py-1 font-mono"
-                  />
+              {/* SECTION 3: RETURN TRIP / BACK LOAD (ফিরে আসা) */}
+              <div className="p-3 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/30 dark:bg-sky-950/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold text-sky-800 dark:text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <RotateCcw className="h-3.5 w-3.5 text-sky-600" />
+                    <span>3. Return Trip / Back Load (ফিরে আসা)</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-sky-700 dark:text-sky-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={tripHasReturn}
+                      onChange={(e) => setTripHasReturn(e.target.checked)}
+                      className="h-4 w-4 rounded text-sky-600"
+                    />
+                    <span>Has Return Freight Load?</span>
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Toll</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={tripTollCost}
-                    onChange={(e) => setTripTollCost(Number(e.target.value) || 0)}
-                    className="w-full rounded border px-2 py-1 font-mono"
-                  />
+
+                {tripHasReturn && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-sky-200 dark:border-sky-800">
+                    <div>
+                      <label className="block mb-1 font-semibold">Return Loading Point</label>
+                      <input
+                        type="text"
+                        value={tripReturnLoadLoc}
+                        onChange={(e) => setTripReturnLoadLoc(e.target.value)}
+                        placeholder="Port / Depot"
+                        className="w-full rounded border px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-semibold">Return Unload Point</label>
+                      <input
+                        type="text"
+                        value={tripReturnUnloadLoc}
+                        onChange={(e) => setTripReturnUnloadLoc(e.target.value)}
+                        placeholder="Destination"
+                        className="w-full rounded border px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-sky-700 dark:text-sky-400 mb-1">Return Fare (BDT)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={tripReturnFare === 0 ? '' : tripReturnFare}
+                        onChange={(e) => setTripReturnFare(Number(e.target.value) || 0)}
+                        className="w-full rounded border border-sky-400 px-2 py-1 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Cash In Hand (Driver)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={tripReturnDriverCash === 0 ? '' : tripReturnDriverCash}
+                        onChange={(e) => setTripReturnDriverCash(Number(e.target.value) || 0)}
+                        placeholder="Cash Collected"
+                        className="w-full rounded border px-2 py-1 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 4: TRIP EXPENSES (তেল, টোল, ফেরি, খোরাকি, পুলিশ, লেবার) */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2">
+                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Fuel className="h-3.5 w-3.5 text-amber-600" />
+                    <span>4. Trip Expenses Breakdown (তেল, টোল, খোরাকি, লেবার)</span>
+                  </span>
+                  <span className="font-mono font-bold text-rose-600">Total: {formatBDT(calculatedTripExpense)}</span>
                 </div>
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Commission</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={tripCommission}
-                    onChange={(e) => setTripCommission(Number(e.target.value) || 0)}
-                    className="w-full rounded border px-2 py-1 font-mono text-amber-600"
-                  />
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Diesel Cost (BDT)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripDieselCost}
+                      onChange={(e) => setTripDieselCost(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Toll & Bridge</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripTollCost}
+                      onChange={(e) => setTripTollCost(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Ferry Expense</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripFerryCost}
+                      onChange={(e) => setTripFerryCost(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Driver Khoraki / Allowance</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripDriverKhoraki}
+                      onChange={(e) => setTripDriverKhoraki(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Police & Road Expense</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripPoliceCost}
+                      onChange={(e) => setTripPoliceCost(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Labour / Loading</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripLabourCost}
+                      onChange={(e) => setTripLabourCost(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Broker Commission</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripCommission}
+                      onChange={(e) => setTripCommission(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono text-amber-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 mb-0.5">Other Expenses</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tripOtherCost}
+                      onChange={(e) => setTripOtherCost(Number(e.target.value) || 0)}
+                      className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Net Profit Bar */}
-              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-between font-mono text-xs">
-                <span>Net Profit:</span>
-                <span className={`font-black text-sm ${calculatedNetIncome >= 0 ? 'text-sky-600' : 'text-rose-600'}`}>
-                  {formatBDT(calculatedNetIncome)}
-                </span>
+              {/* SECTION 5: AUTOMATIC CALCULATION BAR */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-xl bg-slate-900 text-white font-mono text-xs">
+                <div>
+                  <div className="text-[10px] text-slate-400">Total Income (যাওয়া+রিটার্ন)</div>
+                  <div className="text-sm font-bold text-emerald-400">{formatBDT(calculatedTotalIncome)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400">Total Trip Expense</div>
+                  <div className="text-sm font-bold text-rose-400">{formatBDT(calculatedTripExpense)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400">Trip Net Profit (নিট লাভ)</div>
+                  <div className={`text-base font-black ${calculatedNetIncome >= 0 ? 'text-sky-400' : 'text-rose-500'}`}>
+                    {formatBDT(calculatedNetIncome)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400">Party Due / Driver Cash</div>
+                  <div className="text-xs font-bold text-amber-300">
+                    Due: {formatBDT(calculatedRemainingDue)}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onClick={() => setShowAddTripModal(false)} className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold">
+                <button type="button" onClick={() => setShowAddTripModal(false)} className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
                   Cancel
                 </button>
-                <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
-                  {isSubmitting ? 'Saving...' : 'Start Trip'}
+                <button type="submit" disabled={isSubmitting} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-600/30">
+                  {isSubmitting ? 'Saving...' : 'Start Trip & Post Accounting'}
                 </button>
               </div>
             </form>
@@ -2055,6 +2278,56 @@ export default function TransportManagementModule({
                   placeholder="e.g. DHAKA-METRO-TA-12-3456"
                   className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold">Truck Type (খোলা / কাভার্ড) *</label>
+                  <select
+                    value={newVehBodyType}
+                    onChange={(e) => setNewVehBodyType(e.target.value)}
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-semibold"
+                  >
+                    <option value="covered">Covered Van (কাভার্ড ভ্যান)</option>
+                    <option value="open">Open Truck (খোলা ট্রাক)</option>
+                    <option value="trailer">Trailer (ট্রেইলার)</option>
+                    <option value="pickup">Pickup (পিকআপ)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">Capacity (Ton / টন) *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newVehCapacityTons}
+                    onChange={(e) => setNewVehCapacityTons(Number(e.target.value) || 0)}
+                    placeholder="e.g. 15"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-bold font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold">Engine Number</label>
+                  <input
+                    type="text"
+                    value={newVehEngineNo}
+                    onChange={(e) => setNewVehEngineNo(e.target.value)}
+                    placeholder="e.g. ENG-883921"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">Chassis Number</label>
+                  <input
+                    type="text"
+                    value={newVehChassisNo}
+                    onChange={(e) => setNewVehChassisNo(e.target.value)}
+                    placeholder="e.g. CHS-772910"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -2302,20 +2575,32 @@ export default function TransportManagementModule({
                 </div>
               </div>
 
-              <div>
-                <label className="block mb-1 font-semibold">Garage / Workshop *</label>
-                <input
-                  type="text"
-                  required
-                  value={srvGarage}
-                  onChange={(e) => setSrvGarage(e.target.value)}
-                  placeholder="Bhai Bhai Workshop & Garage"
-                  className="w-full rounded-lg border px-2.5 py-1.5"
-                />
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold">Garage / Workshop *</label>
+                  <input
+                    type="text"
+                    required
+                    value={srvGarage}
+                    onChange={(e) => setSrvGarage(e.target.value)}
+                    placeholder="Bhai Bhai Workshop & Garage"
+                    className="w-full rounded-lg border px-2.5 py-1.5"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">Mechanic / Ustad</label>
+                  <input
+                    type="text"
+                    value={srvMechanic}
+                    onChange={(e) => setSrvMechanic(e.target.value)}
+                    placeholder="Ustad Zahirul"
+                    className="w-full rounded-lg border px-2.5 py-1.5"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block mb-1 font-semibold">Problem Description *</label>
+                <label className="block mb-1 font-semibold">Problem & Work Description *</label>
                 <input
                   type="text"
                   required
@@ -2324,6 +2609,39 @@ export default function TransportManagementModule({
                   placeholder="Brake shoe replacement & engine oil change"
                   className="w-full rounded-lg border px-2.5 py-1.5"
                 />
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold">Replaced Parts (বদলানো পার্টস)</label>
+                <input
+                  type="text"
+                  value={srvParts}
+                  onChange={(e) => setSrvParts(e.target.value)}
+                  placeholder="e.g. 2 Front Tyres, Exide Battery, Brake Shoe"
+                  className="w-full rounded-lg border px-2.5 py-1.5"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold">Tyre / Battery Serial No. (সিরিয়াল নম্বর)</label>
+                  <input
+                    type="text"
+                    value={srvTyreBatterySerial}
+                    onChange={(e) => setSrvTyreBatterySerial(e.target.value)}
+                    placeholder="e.g. TYR-BRIDGE-9921, BAT-HAMKO-881"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">Warranty Expiry Date (ওয়ারেন্টি মেয়াদ)</label>
+                  <input
+                    type="date"
+                    value={srvWarrantyExpiry}
+                    onChange={(e) => setSrvWarrantyExpiry(e.target.value)}
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono text-[11px]"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
@@ -2352,6 +2670,28 @@ export default function TransportManagementModule({
                   <div className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 font-mono font-black text-rose-600">
                     {formatBDT(calculatedServiceTotal)}
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold">Next Scheduled Service</label>
+                  <input
+                    type="date"
+                    value={srvNextDate}
+                    onChange={(e) => setSrvNextDate(e.target.value)}
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">Next Service Odometer (KM)</label>
+                  <input
+                    type="number"
+                    value={srvNextKm}
+                    onChange={(e) => setSrvNextKm(Number(e.target.value) || 0)}
+                    placeholder="e.g. 50000"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono text-[11px]"
+                  />
                 </div>
               </div>
 
