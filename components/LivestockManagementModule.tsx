@@ -53,6 +53,23 @@ const parseNum = (val: string): number => {
   return clean === '' ? 0 : Number(clean);
 };
 
+const cleanAnimalText = (str?: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন \(FMD\/BQ Scheduled\)/gi, 'Initial health checkup completed (FMD/BQ Scheduled)')
+    .replace(/প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন/gi, 'Initial health checkup completed')
+    .replace(/ধরন:\s*Breeding Doe\s*\(প্রজননক্ষম মা ছাগল\)/gi, 'Category: Breeding Doe')
+    .replace(/প্রজননক্ষম মা ছাগল/gi, 'Breeding Doe')
+    .replace(/জন্ম সাল:/gi, 'Birth Year:')
+    .replace(/কেনা:/gi, 'Acquired:')
+    .replace(/কুষ্টিয়া ব্ল্যাক পার্ল/gi, 'Kushtia Black Pearl')
+    .replace(/কুষ্টিয়া ব্ল্যাক বেঙ্গল/gi, 'Kushtia Black Bengal')
+    .replace(/কুষ্টিয়া/gi, 'Kushtia')
+    .replace(/ব্ল্যাক বেঙ্গল/gi, 'Black Bengal')
+    .replace(/\(ব্ল্যাক বেঙ্গল\)/gi, '')
+    .trim();
+};
+
 interface LivestockManagementModuleProps {
   activeBusiness: ErpBusiness;
   species: 'cattle' | 'goat';
@@ -970,7 +987,7 @@ export default function LivestockManagementModule({
                 ) : (
                   filteredAnimals.map((a) => (
                     <option key={a.id} value={a.id}>
-                      [{a.animalTag}] {a.name} · {a.breed} · {a.currentWeightKg} KG ({a.healthStatus || 'Healthy'})
+                      [{a.animalTag}] {cleanAnimalText(a.name)} · {cleanAnimalText(a.breed)} · {a.currentWeightKg} KG ({a.healthStatus || 'Healthy'})
                     </option>
                   ))
                 )}
@@ -978,7 +995,7 @@ export default function LivestockManagementModule({
             </div>
 
             <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shrink-0">
-              `Total ${animals.length} ${isCattle ? 'Cattle' : 'Goats'}`
+              {`Total ${animals.length} ${isCattle ? 'Cattle' : 'Goats'}`}
             </span>
           </div>
 
@@ -988,7 +1005,7 @@ export default function LivestockManagementModule({
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-2xs">
                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{selectedAnimal.animalTag}</span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="text-slate-700 dark:text-slate-300 font-medium">{selectedAnimal.name}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{cleanAnimalText(selectedAnimal.name)}</span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
                 <span className="font-semibold text-emerald-700 dark:text-emerald-300">{selectedAnimal.currentWeightKg} KG</span>
               </div>
@@ -1200,7 +1217,7 @@ export default function LivestockManagementModule({
                         Animal Name
                       </td>
                       <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">
-                        {selectedAnimal.name}
+                        {cleanAnimalText(selectedAnimal.name)}
                       </td>
                     </tr>
                     <tr>
@@ -1222,7 +1239,7 @@ export default function LivestockManagementModule({
                         Breed & Age
                       </td>
                       <td className="py-2.5 px-4 font-semibold">
-                        {selectedAnimal.breed} ({selectedAnimal.ageMonths} Months)
+                        {cleanAnimalText(selectedAnimal.breed)} ({selectedAnimal.ageMonths} Months)
                       </td>
                     </tr>
                     <tr>
@@ -1268,20 +1285,20 @@ export default function LivestockManagementModule({
                         Pedigree & Lineage
                       </td>
                       <td className="py-2.5 px-4 font-mono text-[11px]">
-                        {selectedAnimal.parentTag}
+                        {cleanAnimalText(selectedAnimal.parentTag)}
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
                         Vaccination & Medical History
                       </td>
-                      <td className="py-2.5 px-4">{selectedAnimal.vaccinationHistory}</td>
+                      <td className="py-2.5 px-4">{cleanAnimalText(selectedAnimal.vaccinationHistory)}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">
                         Breeding & Offspring History
                       </td>
-                      <td className="py-2.5 px-4">{selectedAnimal.breedingAndOffspringNotes}</td>
+                      <td className="py-2.5 px-4">{cleanAnimalText(selectedAnimal.breedingAndOffspringNotes)}</td>
                     </tr>
                     <tr>
                       <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-slate-400">

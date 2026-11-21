@@ -111,6 +111,23 @@ function numberToWords(amount: number): string {
   return convert(Math.abs(amount)) + ' Taka Only';
 }
 
+function cleanAnimalText(str?: string): string {
+  if (!str) return '';
+  return str
+    .replace(/প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন \(FMD\/BQ Scheduled\)/gi, 'Initial health checkup completed (FMD/BQ Scheduled)')
+    .replace(/প্রাথমিক স্বাস্থ্য পরীক্ষা সম্পন্ন/gi, 'Initial health checkup completed')
+    .replace(/ধরন:\s*Breeding Doe\s*\(প্রজননক্ষম মা ছাগল\)/gi, 'Category: Breeding Doe')
+    .replace(/প্রজননক্ষম মা ছাগল/gi, 'Breeding Doe')
+    .replace(/জন্ম সাল:/gi, 'Birth Year:')
+    .replace(/কেনা:/gi, 'Acquired:')
+    .replace(/কুষ্টিয়া ব্ল্যাক পার্ল/gi, 'Kushtia Black Pearl')
+    .replace(/কুষ্টিয়া ব্ল্যাক বেঙ্গল/gi, 'Kushtia Black Bengal')
+    .replace(/কুষ্টিয়া/gi, 'Kushtia')
+    .replace(/ব্ল্যাক বেঙ্গল/gi, 'Black Bengal')
+    .replace(/\(ব্ল্যাক বেঙ্গল\)/gi, '')
+    .trim();
+}
+
 interface SpecializedModulesViewProps {
   activeBusiness: ErpBusiness;
   poultryBatches: ErpPoultryBatch[];
@@ -1872,32 +1889,32 @@ export default function SpecializedModulesView({
                           {animal.animalTag}
                         </div>
                         <div className="text-slate-700 dark:text-slate-300 font-semibold">
-                          {animal.name}
+                          {cleanAnimalText(animal.name)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="font-medium text-slate-900 dark:text-slate-100">
-                          {animal.breed}
+                          {cleanAnimalText(animal.breed)}
                         </div>
                         <div className="text-slate-500">
-                          {animal.gender === 'Female' ? (bn ? 'মাদি (Female)' : 'Female') : (bn ? 'মর্দা (Male)' : 'Male')} · {bn ? `বয়স: ${animal.ageMonths} মাস` : `Age: ${animal.ageMonths} mos`}
+                          {animal.gender === 'Female' ? 'Female' : 'Male'} · Age: {animal.ageMonths} mos
                         </div>
                         <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                          {bn ? 'বংশ: ' : 'Lineage: '}{animal.parentTag}
+                          Lineage: {cleanAnimalText(animal.parentTag)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
                         <div className="font-bold text-slate-900 dark:text-slate-100">
-                          {animal.currentWeightKg} {bn ? 'কেজি' : 'kg'}
+                          {animal.currentWeightKg} kg
                         </div>
                         <div className="text-slate-500">{animal.healthStatus}</div>
                       </td>
                       <td className="py-3.5 px-4 max-w-xs">
                         <div className="text-slate-800 dark:text-slate-200">
-                          {animal.vaccinationHistory}
+                          {cleanAnimalText(animal.vaccinationHistory)}
                         </div>
                         <div className="text-slate-500 mt-0.5">
-                          {animal.breedingAndOffspringNotes}
+                          {cleanAnimalText(animal.breedingAndOffspringNotes)}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums">
