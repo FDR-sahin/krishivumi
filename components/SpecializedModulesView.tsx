@@ -782,6 +782,39 @@ export default function SpecializedModulesView({
     }
   };
 
+  // Dedicated full-workspace view for Truck & Transport Business
+  if (tpl === 'transport') {
+    return (
+      <div className="space-y-6 relative">
+        {/* Thematic Agribusiness Watermark (Jolchap) Background */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 -z-10 opacity-[0.055] dark:opacity-[0.035] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50"
+          style={{
+            backgroundImage: 'url(/images/agro_enterprise_hero.jpg)',
+          }}
+        />
+
+        <TransportManagementModule
+          activeBusiness={activeBusiness}
+          ops={bizTransport}
+          journalEntries={bizJournals}
+          accounts={accounts}
+          auditLogs={auditLogs}
+          stakeholders={stakeholders}
+          erpUsers={erpUsers}
+          currentUser={currentUser}
+          userRole={userRole}
+          ownerId={ownerId}
+          actorEmail={actorEmail}
+          onNotify={notify}
+          onBackToDashboard={onBackToDashboard}
+          lang={lang}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 relative">
       {/* Thematic Agribusiness Watermark (Jolchap) Background */}
@@ -792,7 +825,7 @@ export default function SpecializedModulesView({
           backgroundImage: `url(${
             tpl === 'cattle' || tpl === 'goat'
               ? '/images/agro_precision_livestock.jpg'
-              : tpl === 'poultry' || tpl === 'transport'
+              : tpl === 'poultry'
               ? '/images/agro_enterprise_hero.jpg'
               : '/images/agro_dashboard_watermark.webp'
           })`,
@@ -837,8 +870,7 @@ export default function SpecializedModulesView({
                     ? (bn ? 'ছাগল বিক্রি' : 'Goat Sales')
                     : tpl === 'fish'
                     ? 'Fish Sales'
-                    : tpl === 'transport'
-                    ? 'Truck Freight Revenue'
+                    
                     : (bn ? 'পণ্য বিক্রি (Sales)' : 'Product Sales')
                 );
                 setShowQuickTxModal('sale');
@@ -861,8 +893,7 @@ export default function SpecializedModulesView({
                     ? (bn ? 'ছাগলের খাবার ও পরিচর্যা খরচ' : 'Goat Feed & Care Expense')
                     : tpl === 'fish'
                     ? 'Fish Feed & Pond Maintenance'
-                    : tpl === 'transport'
-                    ? 'Diesel Fuel, Toll & Maintenance'
+                    
                     : (bn ? 'ব্যবসায়িক খরচ (Expense)' : 'Operating Expense')
                 );
                 setShowQuickTxModal('expense');
@@ -887,8 +918,7 @@ export default function SpecializedModulesView({
                 ? (bn ? '+ নতুন ছাগল যুক্ত করুন (Add Goat)' : '+ Register Goat')
                 : tpl === 'fish'
                 ? '+ New Pond Cycle'
-                : tpl === 'transport'
-                ? '+ Record Fleet Trip'
+                
                 : (bn ? '+ নতুন এন্ট্রি (New Record)' : '+ New Record')}
             </button>
           </div>
@@ -915,8 +945,7 @@ export default function SpecializedModulesView({
                 : 'Manage individual goats by Tag ID, sire/dam pedigree family trees, kid births, health logs, and cumulative profitability.')}
             {tpl === 'fish' &&
               'Log pond water surface area, fingerling stocking density, water quality (pH, DO), feed consumption, multi-species harvest sales, and net profit per pond.'}
-            {tpl === 'transport' &&
-              'Track fleet commercial vehicles, inter-district freight routes, diesel fuel & toll deductions, driver allowances, net margins per trip, and BRTA document expiry dates.'}
+            
             {tpl === 'custom' &&
               (bn
                 ? 'এটি আপনার তৈরি করা কাস্টম ব্যবসা। উপরের "+ বিক্রি / আয় লিখুন" এবং "+ খরচ লিখুন" বাটনে ক্লিক করে প্রতিদিনের লেনদেন লিখলে নিচে স্বয়ংক্রিয়ভাবে লাভ-ক্ষতি ও খতিয়ান তৈরি হবে।'
@@ -1530,12 +1559,7 @@ export default function SpecializedModulesView({
                         'Pond & Feed Lead',
                         'Netting & Fish Harvest Assistant',
                       ]
-                    : tpl === 'transport'
-                    ? [
-                        'Heavy Truck Driver',
-                        'Truck Helper',
-                        bn ? 'ফ্লিট সুপারভাইজার' : 'Fleet Supervisor',
-                      ]
+                    
                     : [bn ? 'খামার সহকারী' : 'Farm Assistant', bn ? 'সুপারভাইজার' : 'Supervisor']
                   ).map((preset) => (
                     <button
@@ -2106,25 +2130,6 @@ export default function SpecializedModulesView({
         </div>
       )}
 
-      {/* E. TRUCK & TRANSPORT WORKSPACE */}
-      {tpl === 'transport' && (
-        <TransportManagementModule
-          activeBusiness={activeBusiness}
-          ops={bizTransport}
-          journalEntries={bizJournals}
-          accounts={accounts}
-          auditLogs={auditLogs}
-          stakeholders={stakeholders}
-          erpUsers={erpUsers}
-          currentUser={currentUser}
-          userRole={userRole}
-          ownerId={ownerId}
-          actorEmail={actorEmail}
-          onNotify={notify}
-          lang={lang}
-        />
-      )}
-
       {/* THIS BUSINESS'S RECENT TRANSACTIONS LEDGER (Always visible so client sees their sales/expenses right here!) */}
       <div id="business-ledger-section" className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 bg-slate-50/70 dark:bg-slate-800/40">
@@ -2427,8 +2432,7 @@ export default function SpecializedModulesView({
                   ? (bn ? `নতুন ${tpl === 'cattle' ? 'গরু' : 'ছাগল'} রেজিস্ট্রেশন করুন` : `Register New ${tpl === 'cattle' ? 'Cattle' : 'Goat'}`)
                   : tpl === 'fish'
                   ? 'Start New Pond Fish Cycle'
-                  : tpl === 'transport'
-                  ? 'Record New Transport Trip'
+                  
                   : (bn ? `${activeBusiness.name}-এ নতুন হিসাব লিখুন` : `Add New Record to ${activeBusiness.name}`)}
               </h3>
               <button
@@ -2754,98 +2758,7 @@ export default function SpecializedModulesView({
               </form>
             )}
 
-            {tpl === 'transport' && (
-              <form onSubmit={handleAddTransportOp} className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block mb-1 font-medium">Trip Number</label>
-                    <input
-                      type="text"
-                      value={tCode}
-                      onChange={(e) => setTCode(e.target.value)}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 font-medium">Vehicle Reg Plate</label>
-                    <input
-                      type="text"
-                      value={tRegNo}
-                      onChange={(e) => setTRegNo(e.target.value)}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block mb-1 font-medium">Origin</label>
-                    <input
-                      type="text"
-                      value={tOrigin}
-                      onChange={(e) => setTOrigin(e.target.value)}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 font-medium">Destination</label>
-                    <input
-                      type="text"
-                      value={tDest}
-                      onChange={(e) => setTDest(e.target.value)}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block mb-1 font-medium">Diesel Fuel Cost (BDT)</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={tFuel === 0 ? '' : tFuel}
-                      onChange={(e) => setTFuel(parseNum(e.target.value))}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 font-medium">Bridge & Toll Cost (BDT)</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={tToll === 0 ? '' : tToll}
-                      onChange={(e) => setTToll(parseNum(e.target.value))}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 font-medium">Trip Freight Revenue (BDT)</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={tRev === 0 ? '' : tRev}
-                      onChange={(e) => setTRev(parseNum(e.target.value))}
-                      className="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-3">
-                  <button
-                    type="submit"
-                    disabled={isSavingTrip}
-                    className="px-5 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-2 cursor-pointer"
-                  >
-                    {isSavingTrip ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <span>Save Fleet Trip</span>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
+            
 
             {tpl === 'custom' && (
               <div className="space-y-3 text-xs">

@@ -15,6 +15,7 @@ import {
   X,
   Upload,
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   DollarSign,
   AlertTriangle,
@@ -73,6 +74,7 @@ interface TransportManagementModuleProps {
   ownerId: string;
   actorEmail: string;
   onNotify: (msg: string) => void;
+  onBackToDashboard?: () => void;
   lang?: 'en' | 'bn';
 }
 
@@ -114,6 +116,7 @@ export default function TransportManagementModule({
   ownerId,
   actorEmail,
   onNotify,
+  onBackToDashboard,
   lang = 'en',
 }: TransportManagementModuleProps) {
   const bn = false;
@@ -992,6 +995,23 @@ export default function TransportManagementModule({
     <div className="space-y-4">
       {/* ── TOP HEADER & SUB-TABS NAVIGATION ────────────────────────── */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+        {onBackToDashboard && (
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+            <button
+              type="button"
+              onClick={onBackToDashboard}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to Dashboard</span>
+            </button>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {activeBusiness.location ? `Location: ${activeBusiness.location}` : ''}
+              {activeBusiness.managerName ? ` · In-Charge: ${activeBusiness.managerName}` : ''}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -1000,7 +1020,7 @@ export default function TransportManagementModule({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                  Fleet & Transport Management System
+                  {activeBusiness.name} — Fleet & Transport Management
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                   {allVehicles.length} Trucks
