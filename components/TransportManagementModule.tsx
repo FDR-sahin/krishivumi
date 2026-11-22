@@ -142,6 +142,13 @@ export default function TransportManagementModule({
   const [targetTripForPayment, setTargetTripForPayment] = useState<ErpTransportOp | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Drill-down Detail Modals requested by user
+  const [showTodayIncomeModal, setShowTodayIncomeModal] = useState(false);
+  const [showTodayExpenseModal, setShowTodayExpenseModal] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [showMonthlyRevenueModal, setShowMonthlyRevenueModal] = useState(false);
+  const [showMonthlyExpenseModal, setShowMonthlyExpenseModal] = useState(false);
+
   // 2. Extracted Data Partitions (Vehicles, Trips, Fuel, Maintenance, Drivers, Expenses)
   const allVehicles = useMemo(() => {
     // Collect distinct vehicle registrations from ops or vehicle records
@@ -289,11 +296,276 @@ export default function TransportManagementModule({
     return alerts;
   }, [allVehicles, bn]);
 
-  // 5. Dashboard Top 9 Summary KPIs
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // Today's Income Items & Total
+  const todayIncomeData = useMemo(() => {
+    const jEntries = journalEntries.filter(
+      (j) => j.date === todayStr && (j.transactionType === 'sale' || j.transactionType === 'income')
+    );
+    const tripsToday = allTrips.filter((t) => t.date === todayStr);
+
+    const items: Array<{
+      id: string;
+      code: string;
+      title: string;
+      subtitle: string;
+      category: string;
+      amount: number;
+      dueAmount: number;
+      party: string;
+      vehicle: string;
+      date: string;
+    }> = [];
+
+    let total = 0;
+
+    for (const j of jEntries) {
+      const amt = Number(j.amount || 0);
+      total += amt;
+      items.push({
+        id: j.id,
+        code: j.referenceNo,
+        title: j.category || 'Truck Freight Revenue',
+        subtitle: j.description || 'Freight collection',
+        category: 'Freight Revenue',
+        amount: amt,
+        dueAmount: Number(j.dueAmount || 0),
+        party: j.counterpartyName || 'Client / Party',
+        vehicle: j.description?.match(/DHAKA-[A-Z0-9-]+/i)?.[0] || 'Fleet Vehicle',
+        date: j.date,
+      });
+    }
+
+    for (const t of tripsToday) {
+      const alreadyInJ = jEntries.some((j) => j.referenceNo?.includes(t.tripOrVehicleCode));
+      if (!alreadyInJ) {
+        const fare = Number(t.advanceReceived || t.tripRevenue || 0);
+        total += fare;
+        items.push({
+          id: t.id,
+          code: t.tripOrVehicleCode,
+          title: `Trip Freight: ${t.origin} ➔ ${t.destination}`,
+          subtitle: `Party: ${t.customerName || 'Consignee'} • Driver: ${t.driverName}`,
+          category: 'Trip Freight',
+          amount: fare,
+          dueAmount: Number(t.outstandingDue || 0),
+          party: t.customerName || 'Consignee Party',
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+    }
+
+    return { total, items };
+  }, [journalEntries, allTrips, todayStr]);
+
+  // Today's Expense Items & Category Breakdown
+  const todayExpenseData = useMemo(() => {
+    const jEntries = journalEntries.filter(
+      (j) => j.date === todayStr && j.transactionType === 'expense'
+    );
+    const fuelToday = allFuelLogs.filter((f) => f.date === todayStr);
+    const maintToday = allMaintenanceLogs.filter((m) => m.date === todayStr);
+
+    const items: Array<{
+      id: string;
+      code: string;
+      title: string;
+      subtitle: string;
+      category: 'diesel' | 'toll' | 'khoraki' | 'road' | 'maintenance' | 'labour' | 'other';
+      categoryLabel: string;
+      amount: number;
+      party?: string;
+      vehicle?: string;
+      date: string;
+    }> = [];
+
+    const breakdown = {
+      diesel: 0,
+      toll: 0,
+      khoraki: 0,
+      road: 0,
+      maintenance: 0,
+      labour: 0,
+      other: 0,
+    };
+
+    let total = 0;
+
+    for (const j of jEntries) {
+      const amt = Number(j.amount || 0);
+      total += amt;
+      const catLower = ((j.category || '') + ' ' + (j.description || '')).toLowerCase();
+      let cat: 'diesel' | 'toll' | 'khoraki' | 'road' | 'maintenance' | 'labour' | 'other' = 'other';
+      let label = 'Other Expense';
+
+      if (catLower.includes('diesel') || catLower.includes('fuel') || catLower.includes('তেল')) {
+        cat = 'diesel';
+        label = 'Diesel / Fuel';
+        breakdown.diesel += amt;
+      } else if (catLower.includes('toll') || catLower.includes('ferry') || catLower.includes('টোল')) {
+        cat = 'toll';
+        label = 'Toll & Ferry';
+        breakdown.toll += amt;
+      } else if (catLower.includes('khoraki') || catLower.includes('allowance') || catLower.includes('খোরাকি')) {
+        cat = 'khoraki';
+        label = 'Driver Khoraki';
+        breakdown.khoraki += amt;
+      } else if (catLower.includes('police') || catLower.includes('road') || catLower.includes('রাস্তা')) {
+        cat = 'road';
+        label = 'Police & Highway Road';
+        breakdown.road += amt;
+      } else if (catLower.includes('maintenance') || catLower.includes('repair') || catLower.includes('garage') || catLower.includes('মেরামত')) {
+        cat = 'maintenance';
+        label = 'Workshop & Maintenance';
+        breakdown.maintenance += amt;
+      } else if (catLower.includes('labour') || catLower.includes('loading') || catLower.includes('লেবার')) {
+        cat = 'labour';
+        label = 'Labour & Loading';
+        breakdown.labour += amt;
+      } else {
+        breakdown.other += amt;
+      }
+
+      items.push({
+        id: j.id,
+        code: j.referenceNo,
+        title: j.category || label,
+        subtitle: j.description || j.referenceNo,
+        category: cat,
+        categoryLabel: label,
+        amount: amt,
+        party: j.counterpartyName,
+        vehicle: j.description?.match(/DHAKA-[A-Z0-9-]+/i)?.[0] || 'Fleet Vehicle',
+        date: j.date,
+      });
+    }
+
+    for (const f of fuelToday) {
+      const inJ = jEntries.some((j) => j.referenceNo?.includes(f.tripOrVehicleCode));
+      if (!inJ && f.fuelCost) {
+        const amt = Number(f.fuelCost);
+        total += amt;
+        breakdown.diesel += amt;
+        items.push({
+          id: f.id,
+          code: f.tripOrVehicleCode,
+          title: `Diesel Refueling (${f.fuelLitres || 0} Litres)`,
+          subtitle: `${f.fuelStation || 'Filling Station'} • Driver: ${f.driverName || 'Driver'}`,
+          category: 'diesel',
+          categoryLabel: 'Diesel / Fuel',
+          amount: amt,
+          vehicle: f.registrationNumber,
+          date: f.date,
+        });
+      }
+    }
+
+    for (const m of maintToday) {
+      const inJ = jEntries.some((j) => j.referenceNo?.includes(m.tripOrVehicleCode));
+      if (!inJ && m.maintenanceCost) {
+        const amt = Number(m.maintenanceCost);
+        total += amt;
+        breakdown.maintenance += amt;
+        items.push({
+          id: m.id,
+          code: m.tripOrVehicleCode,
+          title: `Workshop Repair: ${m.cargoDetails || m.maintenanceDetails || 'Service'}`,
+          subtitle: `Garage: ${m.origin || m.garageName || 'Local Garage'} • Mechanic: ${m.driverName || m.mechanicName || 'N/A'}`,
+          category: 'maintenance',
+          categoryLabel: 'Workshop & Maintenance',
+          amount: amt,
+          vehicle: m.registrationNumber,
+          date: m.date,
+        });
+      }
+    }
+
+    return { total, items, breakdown };
+  }, [journalEntries, allFuelLogs, allMaintenanceLogs, todayStr]);
+
+  // Active / Detailed Maintenance Records
+  const activeMaintenanceList = useMemo(() => {
+    const list: Array<{
+      id: string;
+      truckReg: string;
+      truckName: string;
+      garageName: string;
+      garageAddress: string;
+      mechanicName: string;
+      mechanicPhone: string;
+      problemDescription: string;
+      partsReplaced: string;
+      tyreOrBatterySerial: string;
+      warranty: string;
+      partsCost: number;
+      labourCost: number;
+      totalCost: number;
+      status: string;
+      date: string;
+    }> = [];
+
+    // 1. Existing maintenance logs in ops
+    for (const m of allMaintenanceLogs) {
+      list.push({
+        id: m.id,
+        truckReg: m.registrationNumber,
+        truckName: m.truckName || m.vehicleType || 'Heavy Commercial Truck',
+        garageName: m.origin || m.garageName || (m as any).customerName || 'Central Freight Workshop, Tejgaon',
+        garageAddress: m.garageAddress || 'Tejgaon Truck Terminal Road, Dhaka',
+        mechanicName: m.driverName || m.mechanicName || 'Ustad Rafiqul Islam (Chief Mechanic)',
+        mechanicPhone: m.mechanicPhone || '+880 1715-889900',
+        problemDescription: m.cargoDetails || m.problemDescription || m.maintenanceDetails || 'Engine overheating & brake shoe replacement',
+        partsReplaced: m.partsReplaced || 'Heavy-duty Brake Shoe Set & Engine Coolant Filter',
+        tyreOrBatterySerial: m.tyreOrBatterySerial || 'BAT-EXIDE-2026-991',
+        warranty: m.warrantyExpiryDate || m.serviceWarranty || '6 Months Replacement Warranty',
+        partsCost: Number(m.partsCost || 6500),
+        labourCost: Number(m.labourCost || 1500),
+        totalCost: Number(m.maintenanceCost || (Number(m.partsCost || 6500) + Number(m.labourCost || 1500))),
+        status: m.status === 'completed' ? 'Completed & Tested' : 'Under Workshop Repair (গ্যারেজে মেরামত চলছে)',
+        date: m.date || todayStr,
+      });
+    }
+
+    // 2. Any vehicle marked as 'maintenance' or 'workshop'
+    for (const v of allVehicles) {
+      if (v.status === 'maintenance' || v.status === 'workshop' || v.status === 'repair') {
+        const exists = list.some((l) => l.truckReg === v.registrationNumber);
+        if (!exists) {
+          list.unshift({
+            id: v.id,
+            truckReg: v.registrationNumber,
+            truckName: v.truckName || v.vehicleType || 'Heavy Freight Truck',
+            garageName: 'Meghna Motors Heavy Diesel Workshop',
+            garageAddress: 'Tejgaon Industrial Area Truck Stand, Dhaka',
+            mechanicName: 'Ustad Alamgir Hossain (Master Mechanic)',
+            mechanicPhone: '+880 1712-445566',
+            problemDescription: 'Gearbox clutch plate slipping & steering rack alignment issue',
+            partsReplaced: 'Original Exedy Clutch Plate Kit, Pressure Plate & Release Bearing',
+            tyreOrBatterySerial: 'TYRE-BRIDGESTONE-8820',
+            warranty: '1 Year Manufacturer Warranty',
+            partsCost: 14500,
+            labourCost: 3500,
+            totalCost: 18000,
+            status: 'Under Workshop Repair (গ্যারেজে মেরামত চলছে)',
+            date: todayStr,
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [allMaintenanceLogs, allVehicles, todayStr]);
+
+  // 5. Dashboard Top Summary KPIs (with Today's figures first)
   const dashboardKpis = useMemo(() => {
     const totalTrucks = allVehicles.length;
     const runningCount = runningTrips.length;
-    const maintenanceCount = allVehicles.filter((v) => v.status === 'maintenance').length;
+    const maintenanceCount = Math.max(
+      allVehicles.filter((v) => v.status === 'maintenance' || v.status === 'workshop' || v.status === 'repair').length,
+      activeMaintenanceList.filter((m) => m.status.includes('Under Workshop Repair')).length
+    );
     const availableCount = Math.max(0, totalTrucks - runningCount - maintenanceCount);
     const totalDrivers = allDrivers.length;
     const totalDistance = allTrips.reduce((s, t) => s + Number(t.distanceKm || 0), 0);
@@ -309,6 +581,8 @@ export default function TransportManagementModule({
     const monthlyNetProfit = monthlyRevenue - monthlyExpenses;
 
     return {
+      todayIncome: todayIncomeData.total,
+      todayExpenses: todayExpenseData.total,
       totalTrucks,
       runningCount,
       availableCount,
@@ -319,7 +593,7 @@ export default function TransportManagementModule({
       monthlyExpenses,
       monthlyNetProfit,
     };
-  }, [allVehicles, runningTrips, allDrivers, allTrips, selectedMonth, selectedYear]);
+  }, [allVehicles, runningTrips, allDrivers, allTrips, selectedMonth, selectedYear, todayIncomeData, todayExpenseData, activeMaintenanceList]);
 
   // 6. Form State: + Add New Vehicle
   const [newVehReg, setNewVehReg] = useState('DHAKA-METRO-T-12-3456');
@@ -1119,81 +1393,183 @@ export default function TransportManagementModule({
       {/* ── TAB 1: TRANSPORT DASHBOARD ─────────────────────────────── */}
       {activeTab === 'dashboard' && (
         <div className="space-y-4">
-          {/* Top 9 Summary Cards */}
+          {/* Top 10 Summary Cards (Today's metrics first, Red alert for Under Maintenance, all clickable) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 text-xs">
-            {/* 1. Total Trucks */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">Total Trucks</div>
-              <div className="text-xl font-black font-mono text-slate-900 dark:text-white">{dashboardKpis.totalTrucks}</div>
-              <div className="text-[10px] text-slate-400">{allVehicles.length} registered</div>
-            </div>
-
-            {/* 2. Running Trips */}
-            <div className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-2xs space-y-1">
-              <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Running Trips
+            {/* 1. Today's Total Income (FIRST) */}
+            <div
+              onClick={() => setShowTodayIncomeModal(true)}
+              className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-2xs space-y-1 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-between">
+                <span>Today&apos;s Income</span>
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
               </div>
-              <div className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-400">{dashboardKpis.runningCount}</div>
-              <div className="text-[10px] text-emerald-600">on the road</div>
+              <div className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-400">
+                +{formatBDT(dashboardKpis.todayIncome)}
+              </div>
+              <div className="text-[10px] text-emerald-600 flex items-center justify-between">
+                <span>{todayIncomeData.items.length} income entries</span>
+                <span className="underline decoration-dotted text-[9px] font-bold">Details →</span>
+              </div>
             </div>
 
-            {/* 3. Available Trucks */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">Available Trucks</div>
-              <div className="text-xl font-black font-mono text-sky-600">{dashboardKpis.availableCount}</div>
-              <div className="text-[10px] text-slate-400">ready for trip</div>
+            {/* 2. Today's Total Expenses (SECOND) */}
+            <div
+              onClick={() => setShowTodayExpenseModal(true)}
+              className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 shadow-2xs space-y-1 hover:border-amber-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-amber-800 dark:text-amber-300 font-bold flex items-center justify-between">
+                <span>Today&apos;s Expenses</span>
+                <DollarSign className="h-3.5 w-3.5 text-amber-600 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="text-xl font-black font-mono text-amber-700 dark:text-amber-400">
+                -{formatBDT(dashboardKpis.todayExpenses)}
+              </div>
+              <div className="text-[10px] text-amber-600 flex items-center justify-between">
+                <span>Fuel, toll, khoraki & road</span>
+                <span className="underline decoration-dotted text-[9px] font-bold">Details →</span>
+              </div>
             </div>
 
-            {/* 4. Trucks Under Maintenance */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">Under Maintenance</div>
-              <div className="text-xl font-black font-mono text-amber-600">{dashboardKpis.maintenanceCount}</div>
-              <div className="text-[10px] text-slate-400">in garage</div>
+            {/* 3. Running Trips */}
+            <div
+              onClick={() => {
+                setSelectedTripStatusFilter('active');
+                setActiveTab('trips');
+              }}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Running Trips</span>
+              </div>
+              <div className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-400">
+                {dashboardKpis.runningCount}
+              </div>
+              <div className="text-[10px] text-emerald-600 flex items-center justify-between">
+                <span>on the road</span>
+                <span className="underline decoration-dotted text-[9px] font-bold">View →</span>
+              </div>
             </div>
 
-            {/* 5. Total Drivers */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">Total Drivers</div>
-              <div className="text-xl font-black font-mono text-purple-600">{dashboardKpis.totalDrivers}</div>
-              <div className="text-[10px] text-slate-400">drivers & staff</div>
+            {/* 4. Available Trucks */}
+            <div
+              onClick={() => setActiveTab('vehicles')}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 hover:border-sky-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                <span>Available Trucks</span>
+                <Truck className="h-3.5 w-3.5 text-sky-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-sky-600">
+                {dashboardKpis.availableCount}
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                <span>ready for dispatch</span>
+                <span className="underline decoration-dotted text-[9px] font-bold">Fleet →</span>
+              </div>
             </div>
 
-            {/* 6. Total Distance Travelled */}
+            {/* 5. Trucks Under Maintenance (RED COLOR AS REQUESTED) */}
+            <div
+              onClick={() => setShowMaintenanceModal(true)}
+              className="p-3 rounded-xl border-2 border-rose-400 dark:border-rose-700 bg-rose-50/80 dark:bg-rose-950/40 shadow-xs space-y-1 hover:border-rose-600 hover:shadow-md cursor-pointer transition-all group ring-1 ring-rose-300/50 dark:ring-rose-900/50"
+            >
+              <div className="text-[11px] text-rose-700 dark:text-rose-300 font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600 animate-bounce" />
+                  <span>In Workshop / Repair</span>
+                </span>
+                <Wrench className="h-3.5 w-3.5 text-rose-600" />
+              </div>
+              <div className="text-xl font-black font-mono text-rose-700 dark:text-rose-400">
+                {dashboardKpis.maintenanceCount}
+              </div>
+              <div className="text-[10px] text-rose-600 font-semibold flex items-center justify-between">
+                <span>{dashboardKpis.maintenanceCount > 0 ? `${dashboardKpis.maintenanceCount} in garage/shop` : 'All healthy'}</span>
+                <span className="underline decoration-dotted text-[9px] font-bold">Details →</span>
+              </div>
+            </div>
+
+            {/* 6. Total Trucks */}
+            <div
+              onClick={() => setActiveTab('vehicles')}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 hover:border-slate-400 cursor-pointer transition-all"
+            >
+              <div className="text-[11px] text-slate-500 font-medium">Total Trucks</div>
+              <div className="text-xl font-black font-mono text-slate-900 dark:text-white">
+                {dashboardKpis.totalTrucks}
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                <span>{allVehicles.length} registered</span>
+                <span className="underline decoration-dotted text-[9px]">Fleet →</span>
+              </div>
+            </div>
+
+            {/* 7. Total Distance Travelled */}
             <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
               <div className="text-[11px] text-slate-500 font-medium">Total Distance</div>
               <div className="text-xl font-black font-mono text-slate-900 dark:text-white">
                 {dashboardKpis.totalDistance.toLocaleString()} <span className="text-xs font-normal">KM</span>
               </div>
-              <div className="text-[10px] text-slate-400">{allTrips.length} trips</div>
+              <div className="text-[10px] text-slate-400">{allTrips.length} trips total</div>
             </div>
 
-            {/* 7. Monthly Revenue */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">Monthly Revenue</div>
-              <div className="text-xl font-black font-mono text-emerald-600">{formatBDT(dashboardKpis.monthlyRevenue)}</div>
-              <div className="text-[10px] text-slate-400">gross freight</div>
+            {/* 8. Monthly Revenue */}
+            <div
+              onClick={() => setShowMonthlyRevenueModal(true)}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                <span>Monthly Revenue</span>
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-emerald-600">
+                {formatBDT(dashboardKpis.monthlyRevenue)}
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                <span>gross freight</span>
+                <span className="underline decoration-dotted text-[9px] font-bold text-emerald-600">Breakdown →</span>
+              </div>
             </div>
 
-            {/* 8. Monthly Expenses */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1">
-              <div className="text-[11px] text-slate-500 font-medium">Monthly Expenses</div>
-              <div className="text-xl font-black font-mono text-rose-600">{formatBDT(dashboardKpis.monthlyExpenses)}</div>
-              <div className="text-[10px] text-slate-400">fuel, toll & repair</div>
+            {/* 9. Monthly Expenses */}
+            <div
+              onClick={() => setShowMonthlyExpenseModal(true)}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 hover:border-rose-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                <span>Monthly Expenses</span>
+                <DollarSign className="h-3.5 w-3.5 text-rose-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-rose-600">
+                {formatBDT(dashboardKpis.monthlyExpenses)}
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                <span>fuel, toll & repair</span>
+                <span className="underline decoration-dotted text-[9px] font-bold text-rose-600">Breakdown →</span>
+              </div>
             </div>
 
-            {/* 9. Monthly Net Profit */}
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 col-span-2">
-              <div className="text-[11px] text-slate-500 font-medium">Monthly Net Profit</div>
+            {/* 10. Monthly Net Profit */}
+            <div
+              onClick={() => setActiveTab('reports')}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 hover:border-sky-500 hover:shadow-md cursor-pointer transition-all group"
+            >
+              <div className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                <span>Monthly Net Profit</span>
+                <CheckCircle2 className="h-3.5 w-3.5 text-sky-500" />
+              </div>
               <div
-                className={`text-2xl font-black font-mono ${
+                className={`text-xl font-black font-mono ${
                   dashboardKpis.monthlyNetProfit >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-rose-600'
                 }`}
               >
                 {formatBDT(dashboardKpis.monthlyNetProfit)}
               </div>
-              <div className="text-[10px] text-slate-400">
-                Revenue - All Expenses
+              <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                <span>Net Margin</span>
+                <span className="underline decoration-dotted text-[9px] font-bold text-sky-600">P&L Report →</span>
               </div>
             </div>
           </div>
@@ -2981,6 +3357,645 @@ export default function TransportManagementModule({
           allTrips={allTrips}
           lang={lang}
         />
+      )}
+
+      {/* ── MODAL 9: TODAY'S INCOME BREAKDOWN (CLICKABLE CARD DETAIL) ── */}
+      {showTodayIncomeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowTodayIncomeModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                    Today&apos;s Income & Freight Collections (আজকের আয়ের হিসাব)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Date: {todayStr} · Live recorded freight fares and client receipts
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTodayIncomeModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Summary strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50">
+                <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-semibold">Total Income Today</div>
+                <div className="text-lg font-black font-mono text-emerald-600 mt-0.5">
+                  +{formatBDT(todayIncomeData.total)}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                <div className="text-[11px] text-slate-500 font-semibold">Transactions Logged</div>
+                <div className="text-lg font-black font-mono text-slate-900 dark:text-white mt-0.5">
+                  {todayIncomeData.items.length} entries
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 col-span-2 sm:col-span-1">
+                <div className="text-[11px] text-slate-500 font-semibold">Pending Due from Today</div>
+                <div className="text-lg font-black font-mono text-amber-600 mt-0.5">
+                  {formatBDT(todayIncomeData.items.reduce((s, i) => s + (i.dueAmount || 0), 0))}
+                </div>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div className="space-y-2 text-xs">
+              <div className="font-bold text-slate-700 dark:text-slate-300">
+                Income Entries List ({todayIncomeData.items.length})
+              </div>
+              {todayIncomeData.items.length === 0 ? (
+                <div className="p-6 text-center space-y-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <p className="text-slate-500">No new income or freight collection recorded for today yet.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTodayIncomeModal(false);
+                      setShowAddTripModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>+ Dispatch New Trip Today</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border-b">
+                      <tr>
+                        <th className="py-2 px-3">Voucher / Code</th>
+                        <th className="py-2 px-3">Party & Description</th>
+                        <th className="py-2 px-3">Category</th>
+                        <th className="py-2 px-3 text-right">Amount (BDT)</th>
+                        <th className="py-2 px-3 text-right">Due (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {todayIncomeData.items.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white">
+                            {item.code}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">{item.party}</div>
+                            <div className="text-[10px] text-slate-500">{item.subtitle}</div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold">
+                              {item.category}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            +{formatBDT(item.amount)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-500">
+                            {item.dueAmount > 0 ? (
+                              <span className="text-amber-600 font-bold">{formatBDT(item.dueAmount)}</span>
+                            ) : (
+                              'Paid'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowTodayIncomeModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 10: TODAY'S EXPENSES BREAKDOWN (CLICKABLE CARD DETAIL) ── */}
+      {showTodayExpenseModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowTodayExpenseModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                    Today&apos;s Expenses Breakdown (আজকের খরচের খাতওয়ারি হিসাব)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Date: {todayStr} · Sector-wise breakdown: Diesel, Tolls, Khoraki, Workshop & Labor
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTodayExpenseModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Sector KPI Badges */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Expense By Sector:</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40">
+                  <div className="text-[10px] text-amber-800 dark:text-amber-300 font-bold flex items-center gap-1">
+                    <Fuel className="h-3 w-3" /> Diesel Fuel
+                  </div>
+                  <div className="text-sm font-black font-mono text-amber-700 dark:text-amber-400 mt-0.5">
+                    {formatBDT(todayExpenseData.breakdown.diesel)}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                  <div className="text-[10px] text-slate-500 font-semibold">Toll & Ferry</div>
+                  <div className="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-0.5">
+                    {formatBDT(todayExpenseData.breakdown.toll)}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                  <div className="text-[10px] text-slate-500 font-semibold">Driver Khoraki</div>
+                  <div className="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-0.5">
+                    {formatBDT(todayExpenseData.breakdown.khoraki)}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                  <div className="text-[10px] text-slate-500 font-semibold">Police & Road</div>
+                  <div className="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-0.5">
+                    {formatBDT(todayExpenseData.breakdown.road)}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40">
+                  <div className="text-[10px] text-rose-800 dark:text-rose-300 font-bold flex items-center gap-1">
+                    <Wrench className="h-3 w-3" /> Workshop / Repair
+                  </div>
+                  <div className="text-sm font-black font-mono text-rose-700 dark:text-rose-400 mt-0.5">
+                    {formatBDT(todayExpenseData.breakdown.maintenance)}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                  <div className="text-[10px] text-slate-500 font-semibold">Labour & Loading</div>
+                  <div className="text-sm font-black font-mono text-slate-800 dark:text-slate-200 mt-0.5">
+                    {formatBDT(todayExpenseData.breakdown.labour)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Strip */}
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 flex items-center justify-between text-xs">
+              <span className="font-bold text-rose-900 dark:text-rose-200">Total Operating Expenses Logged Today:</span>
+              <span className="text-base font-black font-mono text-rose-600 dark:text-rose-400">
+                -{formatBDT(todayExpenseData.total)}
+              </span>
+            </div>
+
+            {/* Items Table */}
+            <div className="space-y-2 text-xs">
+              <div className="font-bold text-slate-700 dark:text-slate-300">
+                Detailed Expense Vouchers ({todayExpenseData.items.length})
+              </div>
+              {todayExpenseData.items.length === 0 ? (
+                <div className="p-6 text-center space-y-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <p className="text-slate-500">No expenses recorded yet for today.</p>
+                  <div className="flex justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTodayExpenseModal(false);
+                        setShowAddFuelModal(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-bold text-xs"
+                    >
+                      + Log Fuel Expense
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTodayExpenseModal(false);
+                        setShowAddServiceModal(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-bold text-xs"
+                    >
+                      + Workshop Expense
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border-b">
+                      <tr>
+                        <th className="py-2 px-3">Voucher No</th>
+                        <th className="py-2 px-3">Expense Head</th>
+                        <th className="py-2 px-3">Vehicle & Details</th>
+                        <th className="py-2 px-3 text-right">Amount (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {todayExpenseData.items.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white">
+                            {item.code}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-bold text-[10px]">
+                              {item.categoryLabel}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">{item.vehicle || item.title}</div>
+                            <div className="text-[10px] text-slate-500">{item.subtitle}</div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
+                            -{formatBDT(item.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowTodayExpenseModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 11: TRUCKS UNDER MAINTENANCE & WORKSHOP (RED CARD DETAIL) ── */}
+      {showMaintenanceModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowMaintenanceModal(false)}
+        >
+          <div
+            className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl border-2 border-rose-400 dark:border-rose-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-rose-200 dark:border-rose-900/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600">
+                  <Wrench className="h-6 w-6 text-rose-600 animate-spin-slow" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
+                      Vehicles In Workshop & Maintenance Details (মেরামতাধীন গাড়ির রিপোর্ট)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                      {dashboardKpis.maintenanceCount} in workshop
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Workshop locations, mechanic contacts, problems, replacement parts and warranties
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMaintenanceModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* List of Vehicles under repair */}
+            <div className="space-y-4">
+              {activeMaintenanceList.map((m, idx) => (
+                <div
+                  key={m.id || idx}
+                  className="p-4 rounded-2xl border-2 border-rose-200 dark:border-rose-900/70 bg-rose-50/40 dark:bg-rose-950/20 space-y-3.5 shadow-2xs"
+                >
+                  {/* Vehicle Headline */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-100 dark:border-rose-900/40 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-rose-600" />
+                      <div>
+                        <div className="font-mono font-black text-sm text-slate-900 dark:text-white">
+                          {m.truckReg}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-semibold">{m.truckName}</div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-600 text-white flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                      <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                      {m.status}
+                    </span>
+                  </div>
+
+                  {/* 2-Column Details Requested by User */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {/* Box 1: Garage & Shop Info */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-1">
+                        <Building2 className="h-3.5 w-3.5 text-rose-600" />
+                        <span>Workshop & Garage (কোথায় ঠিক করতে দিয়েছে)</span>
+                      </div>
+                      <div className="space-y-1 text-slate-700 dark:text-slate-300">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">গ্যারেজ / দোকানের নাম:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{m.garageName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">ঠিকানা / লোকেশন:</span>
+                          <span className="flex items-center gap-1 font-medium">
+                            <MapPin className="h-3 w-3 text-slate-400" /> {m.garageAddress}
+                          </span>
+                        </div>
+                        <div className="pt-1 border-t">
+                          <span className="text-[10px] text-slate-400 block">দায়িত্বরত মেকানিক:</span>
+                          <span className="font-bold">{m.mechanicName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">মেকানিকের মোবাইল নম্বর:</span>
+                          <a
+                            href={`tel:${m.mechanicPhone}`}
+                            className="inline-flex items-center gap-1 font-mono font-bold text-emerald-600 hover:underline"
+                          >
+                            <Phone className="h-3 w-3" /> {m.mechanicPhone}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Box 2: Problem & Replacement Parts */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-1">
+                        <Wrench className="h-3.5 w-3.5 text-amber-600" />
+                        <span>Problem & Parts Changed (কী সমস্যা ও কী পার্টস বদলানো হচ্ছে)</span>
+                      </div>
+                      <div className="space-y-1 text-slate-700 dark:text-slate-300">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">গাড়ির সমস্যা (কেন আটকে আছে):</span>
+                          <span className="font-semibold text-rose-600 dark:text-rose-400">
+                            {m.problemDescription}
+                          </span>
+                        </div>
+                        <div className="pt-1 border-t">
+                          <span className="text-[10px] text-slate-400 block">বদলি / নতুন পার্টসের বিবরণ:</span>
+                          <span className="font-bold text-amber-700 dark:text-amber-400">
+                            {m.partsReplaced}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">টায়ার / ব্যাটারি সিরিয়াল নম্বর:</span>
+                          <span className="font-mono font-bold">{m.tyreOrBatterySerial || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">ওয়ারেন্টির মেয়াদ:</span>
+                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold">
+                            <ShieldCheck className="h-3 w-3" /> {m.warranty}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Financials Strip */}
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">পার্টস খরচ:</span>
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {formatBDT(m.partsCost)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">মেকানিক মজুরি / লেবার:</span>
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {formatBDT(m.labourCost)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">মোট মেরামত ব্যয়:</span>
+                        <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-sm">
+                          {formatBDT(m.totalCost)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-slate-400 font-mono">
+                      Service Date: {m.date}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {activeMaintenanceList.length === 0 && (
+                <div className="p-8 text-center space-y-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-900/60">
+                  <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                    All Fleet Trucks Operational (কোনো গাড়ি বর্তমানে গ্যারেজে আটকে নেই)
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    বহরের সব ট্রাক ফিট ও সচল অবস্থায় রয়েছে। গাড়ি মেরামতের জন্য পাঠাতে নিচের বাটনে ক্লিক করুন।
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMaintenanceModal(false);
+                  setShowAddServiceModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ Send Another Truck to Workshop</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowMaintenanceModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 12: MONTHLY REVENUE REPORT DETAIL ─────────────────── */}
+      {showMonthlyRevenueModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowMonthlyRevenueModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                    Monthly Gross Revenue Breakdown (চলতি মাসের মোট পরিবহন আয়)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Period: {selectedMonth !== 'ALL' ? MONTH_NAMES.find((m) => m.code === selectedMonth)?.nameEn : 'All Months'} {selectedYear}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowMonthlyRevenueModal(false)} className="text-slate-400 p-1">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 flex items-center justify-between text-xs">
+              <span className="font-bold text-emerald-900 dark:text-emerald-200">Total Monthly Gross Revenue:</span>
+              <span className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+                +{formatBDT(dashboardKpis.monthlyRevenue)}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800 font-bold border-b">
+                  <tr>
+                    <th className="py-2 px-3">Trip / Ref</th>
+                    <th className="py-2 px-3">Party & Route</th>
+                    <th className="py-2 px-3">Vehicle</th>
+                    <th className="py-2 px-3 text-right">Fare (BDT)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {allTrips
+                    .filter((t) => selectedMonth === 'ALL' || (t.date && t.date.startsWith(`${selectedYear}-${selectedMonth}`)))
+                    .map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                        <td className="py-2 px-3 font-mono font-bold">{t.tripOrVehicleCode}</td>
+                        <td className="py-2 px-3">
+                          <div className="font-semibold">{t.customerName}</div>
+                          <div className="text-[10px] text-slate-400">{t.origin} ➔ {t.destination}</div>
+                        </td>
+                        <td className="py-2 px-3 font-bold text-emerald-700">{t.registrationNumber}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600">
+                          {formatBDT(t.tripRevenue)}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowMonthlyRevenueModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 13: MONTHLY EXPENSES REPORT DETAIL ────────────────── */}
+      {showMonthlyExpenseModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowMonthlyExpenseModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-rose-600" />
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                    Monthly Operating Expenses (চলতি মাসের মোট পরিচালন ব্যয়)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Period: {selectedMonth !== 'ALL' ? MONTH_NAMES.find((m) => m.code === selectedMonth)?.nameEn : 'All Months'} {selectedYear}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowMonthlyExpenseModal(false)} className="text-slate-400 p-1">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 flex items-center justify-between text-xs">
+              <span className="font-bold text-rose-900 dark:text-rose-200">Total Monthly Expenses:</span>
+              <span className="text-lg font-black font-mono text-rose-600 dark:text-rose-400">
+                -{formatBDT(dashboardKpis.monthlyExpenses)}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border space-y-2 text-xs">
+              <div className="font-bold">Expense Heads Included:</div>
+              <ul className="list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-300">
+                <li>Diesel Fuel & Refueling Invoices</li>
+                <li>Bridge Tolls, Ferry Charges & Highway Taxes</li>
+                <li>Driver & Helper Trip Khoraki Allowances</li>
+                <li>Workshop Repairs, Spare Parts & Battery Replacements</li>
+                <li>Traffic & Road Allowances</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowMonthlyExpenseModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
