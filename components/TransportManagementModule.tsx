@@ -346,12 +346,14 @@ export default function TransportManagementModule({
   // 7. Form State: + Add New Trip (Outgoing + Return + Expenses + Auto Calculation)
   const [tripTruckReg, setTripTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
   const [tripDriverName, setTripDriverName] = useState('Abdul Karim');
+  const [tripDriverPhone, setTripDriverPhone] = useState('');
   const [tripHelperName, setTripHelperName] = useState('');
   const [tripStartLoc, setTripStartLoc] = useState('Dhaka');
   const [tripDestLoc, setTripDestLoc] = useState('Chittagong');
   const [tripLoadLoc, setTripLoadLoc] = useState('Tejgaon Central Depot');
   const [tripDeliverLoc, setTripDeliverLoc] = useState('Agrabad Wholesale Yard');
   const [tripCustomer, setTripCustomer] = useState('Chittagong Agro Traders');
+  const [tripReceiverPhone, setTripReceiverPhone] = useState('');
   const [tripBrokerName, setTripBrokerName] = useState('Al-Amin Transport Broker');
   const [tripCargo, setTripCargo] = useState('Farm feed and livestock freight');
   const [tripStartDate, setTripStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -549,11 +551,14 @@ export default function TransportManagementModule({
       await createTransportOpRecord(
         {
           tripOrVehicleCode: tripCode,
+          orderNumber: (allTrips.length + 1).toString().padStart(2, '0'),
           recordType: 'trip',
           businessId: activeBusiness.id,
           registrationNumber: tripTruckReg,
           vehicleType: 'Heavy Truck',
           driverName: tripDriverName.trim(),
+          driverPhone: tripDriverPhone.trim() || undefined,
+          receiverPhone: tripReceiverPhone.trim() || undefined,
           helperName: tripHelperName.trim(),
           origin: tripStartLoc.trim(),
           destination: tripDestLoc.trim(),
@@ -1929,12 +1934,21 @@ export default function TransportManagementModule({
                   <Truck className="h-3.5 w-3.5 text-emerald-600" />
                   <span>1. Vehicle & Crew</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                   <div>
                     <label className="block mb-1 font-semibold">Select Truck *</label>
                     <select
                       value={tripTruckReg}
-                      onChange={(e) => setTripTruckReg(e.target.value)}
+                      onChange={(e) => {
+                        const reg = e.target.value;
+                        setTripTruckReg(reg);
+                        const v = allVehicles.find((veh) => veh.registrationNumber === reg);
+                        if (v?.driverName) {
+                          setTripDriverName(v.driverName);
+                          const d = allDrivers.find((dr) => dr.name.toLowerCase() === v.driverName?.toLowerCase());
+                          if (d?.phone) setTripDriverPhone(d.phone);
+                        }
+                      }}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                     >
                       {allVehicles.map((v) => (
@@ -1950,9 +1964,24 @@ export default function TransportManagementModule({
                       type="text"
                       required
                       value={tripDriverName}
-                      onChange={(e) => setTripDriverName(e.target.value)}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setTripDriverName(name);
+                        const d = allDrivers.find((dr) => dr.name.toLowerCase() === name.toLowerCase());
+                        if (d?.phone) setTripDriverPhone(d.phone);
+                      }}
                       placeholder="Driver Name"
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Driver Mobile (Optional)</label>
+                    <input
+                      type="text"
+                      value={tripDriverPhone}
+                      onChange={(e) => setTripDriverPhone(e.target.value)}
+                      placeholder="e.g. +880 17XXXXXXXX"
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono"
                     />
                   </div>
                   <div>
@@ -2022,7 +2051,7 @@ export default function TransportManagementModule({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   <div>
                     <label className="block mb-1 font-semibold">Party / Customer *</label>
                     <input
@@ -2032,6 +2061,16 @@ export default function TransportManagementModule({
                       onChange={(e) => setTripCustomer(e.target.value)}
                       placeholder="Company Name"
                       className="w-full rounded border px-2 py-1 font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-semibold">Receiver Mobile (Optional)</label>
+                    <input
+                      type="text"
+                      value={tripReceiverPhone}
+                      onChange={(e) => setTripReceiverPhone(e.target.value)}
+                      placeholder="e.g. +880 18XXXXXXXX"
+                      className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
                   <div>
@@ -2938,6 +2977,8 @@ export default function TransportManagementModule({
           onClose={() => setSelectedTripChallan(null)}
           trip={selectedTripChallan}
           businessName={activeBusiness.nameBn || activeBusiness.name}
+          businessPhone={activeBusiness.contactPhone}
+          allTrips={allTrips}
           lang={lang}
         />
       )}

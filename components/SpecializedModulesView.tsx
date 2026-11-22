@@ -2777,6 +2777,8 @@ export default function SpecializedModulesView({
         onClose={() => setSelectedTripChallan(null)}
         trip={selectedTripChallan}
         businessName={activeBusiness.nameBn || activeBusiness.name}
+        businessPhone={activeBusiness.contactPhone}
+        allTrips={bizTransport.filter((t) => t.recordType === 'trip' || (!t.recordType && t.tripOrVehicleCode?.startsWith('TRP')))}
         lang={lang}
       />
 

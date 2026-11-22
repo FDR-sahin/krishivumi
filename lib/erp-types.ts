@@ -289,6 +289,8 @@ export interface ErpTransportOp {
   currentOdometer?: number;
   driverName: string;
   driverPhone?: string;
+  receiverPhone?: string;
+  orderNumber?: string;
   driverAddress?: string;
   driverNid?: string;
   driverLicense?: string;

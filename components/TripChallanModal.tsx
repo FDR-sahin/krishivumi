@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Printer,
@@ -23,6 +23,8 @@ interface TripChallanModalProps {
   onClose: () => void;
   trip: ErpTransportOp | null;
   businessName?: string;
+  businessPhone?: string;
+  allTrips?: ErpTransportOp[];
   lang?: 'bn' | 'en';
 }
 
@@ -68,10 +70,37 @@ export default function TripChallanModal({
   onClose,
   trip,
   businessName = 'RegardsAgro Enterprise',
+  businessPhone = '',
+  allTrips = [],
   lang = 'en',
 }: TripChallanModalProps) {
   const bn = false;
   const [copied, setCopied] = useState(false);
+
+  // Compute sequential order index starting from 1 (Order 01, 02, etc.)
+  const orderIndex = useMemo(() => {
+    if (!trip) return 1;
+    if (trip.orderNumber) {
+      const parsed = parseInt(trip.orderNumber, 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    if (allTrips && allTrips.length > 0) {
+      const chronological = [...allTrips].sort((a, b) => {
+        const da = a.date || '';
+        const db = b.date || '';
+        if (da !== db) return da.localeCompare(db);
+        return (a.tripOrVehicleCode || '').localeCompare(b.tripOrVehicleCode || '');
+      });
+      const idx = chronological.findIndex(
+        (t) => t.id === trip.id || t.tripOrVehicleCode === trip.tripOrVehicleCode
+      );
+      if (idx !== -1) return idx + 1;
+    }
+    return 1;
+  }, [trip, allTrips]);
+
+  const orderNumberFormatted = String(orderIndex).padStart(2, '0');
+  const serialNumberFormatted = '01'; // Clean "01" without any "#" symbol
 
   if (!isOpen || !trip) return null;
 
@@ -81,6 +110,13 @@ export default function TripChallanModal({
     (trip.driverAllowance || 0) +
     (trip.maintenanceCost || 0);
   const netTripProfit = (trip.tripRevenue || 0) - totalTripCost;
+
+  // Real phone numbers entered by user (NO fake hardcoded fallback!)
+  const driverPhone = trip.driverPhone?.trim() || '';
+  const receiverPhone =
+    (trip as any).receiverPhone?.trim() ||
+    (trip as any).customerPhone?.trim() ||
+    '';
 
   // Estimated delivery calculation (typically 1-2 days after departure)
   const departureDate = trip.date || new Date().toISOString().split('T')[0];
@@ -97,15 +133,16 @@ export default function TripChallanModal({
   const handleCopySummary = async () => {
     const textSummary = `
 ========================================
-RegardsAgro Enterprise - Work Order & Trip Consignment Challan
+${businessName} - Freight Consignment Challan & Work Order
 ========================================
+Order No: ${orderNumberFormatted}
 Work Order No: ${trip.tripOrVehicleCode}
 Vehicle No: ${trip.registrationNumber} (${trip.vehicleType || 'Heavy Truck'})
-Driver: ${trip.driverName}
-Consignor (Origin): RegardsAgro Agro Complex (${trip.origin})
-Consignee (Destination): ${trip.customerName || 'Chittagong Wholesale Terminal'} (${trip.destination})
+Driver: ${trip.driverName}${driverPhone ? ` (${driverPhone})` : ''}
+Consignor (Origin): ${trip.origin}
+Consignee (Destination): ${trip.customerName || 'Wholesale Terminal'} (${trip.destination})${receiverPhone ? ` [Phone: ${receiverPhone}]` : ''}
 Distance: ${trip.distanceKm} KM
-Cargo: ${trip.cargoDetails || 'Farm Livestock & Feed Consignment'}
+Cargo: ${trip.cargoDetails || 'Commercial Freight Consignment'}
 Trip Fare: ৳ ${trip.tripRevenue.toLocaleString()}
 Trip Expenses: ৳ ${totalTripCost.toLocaleString()} (Diesel: ৳${(trip.fuelCost || 0).toLocaleString()}, Toll: ৳${(trip.tollCost || 0).toLocaleString()}, Allowance: ৳${(trip.driverAllowance || 0).toLocaleString()})
 Net Profit: ৳ ${netTripProfit.toLocaleString()}
@@ -193,10 +230,10 @@ Date: ${trip.date}
               <span>{businessName} — Fleet Logistics Division</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white print:text-black">
-              Style Wise PO Summary Report & Consignment Challan
+              Freight Consignment Challan & Transport Work Order
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium print:text-slate-700">
-'Address: Central Agro Logistics Hub, Dhaka-Chattogram Highway, Bangladesh | Phone: +880 1711-000000'
+              Address: Central Agro Logistics Hub, Dhaka-Chattogram Highway, Bangladesh{businessPhone ? ` | Phone: ${businessPhone}` : ''}
             </p>
           </div>
 
@@ -212,6 +249,14 @@ Date: ${trip.date}
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x-2 divide-slate-900 dark:divide-slate-700 print:divide-black">
               {/* Left Column: Work Order Details */}
               <div className="p-4 space-y-2 bg-white dark:bg-slate-900/50 print:bg-white">
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    ORDER NO
+                  </span>
+                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 print:text-black w-3/5 text-right sm:text-left text-sm">
+                    : {orderNumberFormatted}
+                  </span>
+                </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
                     WORK ORDER NO
@@ -241,7 +286,7 @@ Date: ${trip.date}
                     CONTACT PERSON
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.driverName} (Driver & In-Charge)
+                    : {trip.driverName || '—'} (Driver & In-Charge)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
@@ -249,7 +294,7 @@ Date: ${trip.date}
                     MOBILE NUMBER
                   </span>
                   <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
-                    : +880 1712-345678
+                    : {driverPhone || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5">
@@ -269,7 +314,7 @@ Date: ${trip.date}
                     BUYER / CONSIGNEE
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.customerName || 'Chittagong Wholesale Terminal'}
+                    : {trip.customerName || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -285,7 +330,7 @@ Date: ${trip.date}
                     ATTENTION
                   </span>
                   <span className="font-medium text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
-                    : Depot Incharge & Receiver
+                    : {trip.brokerName ? `Broker: ${trip.brokerName}` : 'Depot Incharge & Receiver'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -293,7 +338,7 @@ Date: ${trip.date}
                     RECEIVER MOBILE
                   </span>
                   <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
-                    : +880 1700-112233
+                    : {receiverPhone || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -325,14 +370,14 @@ Date: ${trip.date}
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-emerald-100/80 dark:bg-emerald-950/70 print:bg-slate-200 text-slate-800 dark:text-slate-100 print:text-black font-bold border-b border-slate-300 dark:border-slate-700 print:border-black">
-                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center w-12">
-                      JOB
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center w-16">
+                      Serial Number
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
-                      Cargo / Style Details
+                      Cargo & Goods Details
                     </th>
-                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
-                      PO / Ref No
+                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center w-28">
+                      Order Number
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
                       Route & Vehicle
@@ -356,8 +401,8 @@ Date: ${trip.date}
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700 print:divide-slate-300 font-medium">
                   <tr>
-                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold">
-                      #01
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold text-slate-900 dark:text-white print:text-black">
+                      {serialNumberFormatted}
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
                       <div className="font-bold text-slate-900 dark:text-white print:text-black">
@@ -367,8 +412,13 @@ Date: ${trip.date}
                         Safe commercial transport load
                       </div>
                     </td>
-                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black font-mono">
-                      PO-TRIP-{trip.tripOrVehicleCode}
+                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
+                      <div className="font-mono font-bold text-emerald-700 dark:text-emerald-400 print:text-black">
+                        {orderNumberFormatted}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        {trip.tripOrVehicleCode}
+                      </div>
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
                       <div className="font-semibold">
