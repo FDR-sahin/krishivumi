@@ -624,39 +624,82 @@ export default function TransportManagementModule({
   const [tripHelperName, setTripHelperName] = useState('');
   const [tripStartLoc, setTripStartLoc] = useState('Dhaka');
   const [tripDestLoc, setTripDestLoc] = useState('Chittagong');
-  const [tripLoadLoc, setTripLoadLoc] = useState('Tejgaon Central Depot');
-  const [tripDeliverLoc, setTripDeliverLoc] = useState('Agrabad Wholesale Yard');
-  const [tripCustomer, setTripCustomer] = useState('Chittagong Agro Traders');
+  const [tripLoadLoc, setTripLoadLoc] = useState('Dhaka Tejgaon');
+  const [tripDeliverLoc, setTripDeliverLoc] = useState('');
+  const [tripCustomer, setTripCustomer] = useState('');
   const [tripReceiverPhone, setTripReceiverPhone] = useState('');
-  const [tripBrokerName, setTripBrokerName] = useState('Al-Amin Transport Broker');
+  const [tripBrokerName, setTripBrokerName] = useState('');
   const [tripCargo, setTripCargo] = useState('Farm feed and livestock freight');
   const [tripStartDate, setTripStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [tripExpectedReturn, setTripExpectedReturn] = useState(new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]);
   const [tripStartKm, setTripStartKm] = useState<number>(45000);
   const [tripEndKm, setTripEndKm] = useState<number>(45260);
-  const [tripFare, setTripFare] = useState<number>(26000);
-  const [tripAdvance, setTripAdvance] = useState<number>(15000);
-  const [tripCommission, setTripCommission] = useState<number>(1000);
+  const [tripFare, setTripFare] = useState<number>(0);
+  const [tripAdvance, setTripAdvance] = useState<number>(0);
+  const [tripCommission, setTripCommission] = useState<number>(0);
 
   // Return Load (Round Trip / Back Load)
   const [tripHasReturn, setTripHasReturn] = useState(false);
-  const [tripReturnLoadLoc, setTripReturnLoadLoc] = useState('Chittagong Port Yard');
-  const [tripReturnUnloadLoc, setTripReturnUnloadLoc] = useState('Dhaka Tejgaon Depot');
-  const [tripReturnFare, setTripReturnFare] = useState<number>(18000);
-  const [tripReturnDriverCash, setTripReturnDriverCash] = useState<number>(18000);
+  const [tripReturnLoadLoc, setTripReturnLoadLoc] = useState('');
+  const [tripReturnUnloadLoc, setTripReturnUnloadLoc] = useState('');
+  const [tripReturnFare, setTripReturnFare] = useState<number>(0);
+  const [tripReturnDriverCash, setTripReturnDriverCash] = useState<number>(0);
 
   // Trip Expenses Breakdown
-  const [tripDieselCost, setTripDieselCost] = useState<number>(7500);
-  const [tripFuelLitres, setTripFuelLitres] = useState<number>(70);
-  const [tripTollCost, setTripTollCost] = useState<number>(1000);
+  const [tripDieselCost, setTripDieselCost] = useState<number>(0);
+  const [tripFuelLitres, setTripFuelLitres] = useState<number>(0);
+  const [tripTollCost, setTripTollCost] = useState<number>(0);
   const [tripFerryCost, setTripFerryCost] = useState<number>(0);
-  const [tripDriverKhoraki, setTripDriverKhoraki] = useState<number>(1500);
-  const [tripPoliceCost, setTripPoliceCost] = useState<number>(300);
-  const [tripLabourCost, setTripLabourCost] = useState<number>(800);
-  const [tripOtherCost, setTripOtherCost] = useState<number>(500);
+  const [tripDriverKhoraki, setTripDriverKhoraki] = useState<number>(0);
+  const [tripPoliceCost, setTripPoliceCost] = useState<number>(0);
+  const [tripLabourCost, setTripLabourCost] = useState<number>(0);
+  const [tripOtherCost, setTripOtherCost] = useState<number>(0);
   const [tripWalletId, setTripWalletId] = useState(treasuryWallets[0]?.id || '');
   const [tripRemarks, setTripRemarks] = useState('');
   const [tripImageUrl, setTripImageUrl] = useState('');
+
+  const handleOpenAddTripModal = () => {
+    const firstVeh = allVehicles[0];
+    setTripTruckReg(firstVeh?.registrationNumber || 'DHAKA-METRO-TA-12-3456');
+    if (firstVeh?.driverName) {
+      setTripDriverName(firstVeh.driverName);
+      const d = allDrivers.find((dr) => dr.name.toLowerCase() === firstVeh.driverName?.toLowerCase());
+      if (d?.phone) setTripDriverPhone(d.phone);
+      else setTripDriverPhone('');
+    } else {
+      setTripDriverName(allDrivers[0]?.name || 'Abdul Karim');
+      setTripDriverPhone(allDrivers[0]?.phone || '');
+    }
+    setTripHelperName('');
+    setTripStartLoc('Dhaka');
+    setTripDestLoc('Chittagong');
+    setTripLoadLoc('Dhaka Tejgaon');
+    setTripDeliverLoc('');
+    setTripCustomer('');
+    setTripReceiverPhone('');
+    setTripBrokerName('');
+    setTripCargo('Farm feed and livestock freight');
+    setTripStartDate(new Date().toISOString().split('T')[0]);
+    setTripExpectedReturn(new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]);
+    setTripFare(0);
+    setTripAdvance(0);
+    setTripCommission(0);
+    setTripHasReturn(false);
+    setTripReturnLoadLoc('');
+    setTripReturnUnloadLoc('');
+    setTripReturnFare(0);
+    setTripReturnDriverCash(0);
+    setTripDieselCost(0);
+    setTripFuelLitres(0);
+    setTripTollCost(0);
+    setTripFerryCost(0);
+    setTripDriverKhoraki(0);
+    setTripPoliceCost(0);
+    setTripLabourCost(0);
+    setTripOtherCost(0);
+    setTripRemarks('');
+    setShowAddTripModal(true);
+  };
 
   // Auto Distance & Financial Calculations
   const calculatedDistanceKm = Math.max(0, Number(tripEndKm || 0) - Number(tripStartKm || 0));
@@ -1317,12 +1360,7 @@ export default function TransportManagementModule({
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => {
-                setTripTruckReg(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-TA-12-3456');
-                setTripFare(25000);
-                setTripAdvance(15000);
-                setShowAddTripModal(true);
-              }}
+              onClick={handleOpenAddTripModal}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -1851,7 +1889,7 @@ export default function TransportManagementModule({
 
               <button
                 type="button"
-                onClick={() => setShowAddTripModal(true)}
+                onClick={handleOpenAddTripModal}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -2415,13 +2453,13 @@ export default function TransportManagementModule({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-semibold">Delivery Point *</label>
+                    <label className="block mb-1 font-semibold">Unloading Point (আনলোডিং পয়েন্ট) *</label>
                     <input
                       type="text"
                       required
                       value={tripDeliverLoc}
                       onChange={(e) => setTripDeliverLoc(e.target.value)}
-                      placeholder="e.g. Chittagong Agrabad"
+                      placeholder="e.g. Chittagong Agrabad / Unloading Point"
                       className="w-full rounded border px-2 py-1"
                     />
                   </div>
@@ -2465,8 +2503,12 @@ export default function TransportManagementModule({
                       type="number"
                       required
                       min={1}
+                      placeholder="0"
                       value={tripFare === 0 ? '' : tripFare}
-                      onChange={(e) => setTripFare(Number(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripFare(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border border-emerald-400 px-2 py-1 font-mono font-bold"
                     />
                   </div>
@@ -2475,8 +2517,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
+                      placeholder="0"
                       value={tripAdvance === 0 ? '' : tripAdvance}
-                      onChange={(e) => setTripAdvance(Number(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripAdvance(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2528,8 +2574,12 @@ export default function TransportManagementModule({
                       <input
                         type="number"
                         min={0}
+                        placeholder="0"
                         value={tripReturnFare === 0 ? '' : tripReturnFare}
-                        onChange={(e) => setTripReturnFare(Number(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/^0+(?=\d)/, '');
+                          setTripReturnFare(v === '' ? 0 : Number(v));
+                        }}
                         className="w-full rounded border border-sky-400 px-2 py-1 font-mono font-bold"
                       />
                     </div>
@@ -2538,9 +2588,12 @@ export default function TransportManagementModule({
                       <input
                         type="number"
                         min={0}
+                        placeholder="0"
                         value={tripReturnDriverCash === 0 ? '' : tripReturnDriverCash}
-                        onChange={(e) => setTripReturnDriverCash(Number(e.target.value) || 0)}
-                        placeholder="Cash Collected"
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/^0+(?=\d)/, '');
+                          setTripReturnDriverCash(v === '' ? 0 : Number(v));
+                        }}
                         className="w-full rounded border px-2 py-1 font-mono"
                       />
                     </div>
@@ -2564,8 +2617,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripDieselCost}
-                      onChange={(e) => setTripDieselCost(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripDieselCost === 0 ? '' : tripDieselCost}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripDieselCost(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono font-bold"
                     />
                   </div>
@@ -2574,8 +2631,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripTollCost}
-                      onChange={(e) => setTripTollCost(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripTollCost === 0 ? '' : tripTollCost}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripTollCost(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2584,8 +2645,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripFerryCost}
-                      onChange={(e) => setTripFerryCost(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripFerryCost === 0 ? '' : tripFerryCost}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripFerryCost(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2594,8 +2659,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripDriverKhoraki}
-                      onChange={(e) => setTripDriverKhoraki(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripDriverKhoraki === 0 ? '' : tripDriverKhoraki}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripDriverKhoraki(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2607,8 +2676,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripPoliceCost}
-                      onChange={(e) => setTripPoliceCost(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripPoliceCost === 0 ? '' : tripPoliceCost}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripPoliceCost(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2617,8 +2690,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripLabourCost}
-                      onChange={(e) => setTripLabourCost(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripLabourCost === 0 ? '' : tripLabourCost}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripLabourCost(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2627,8 +2704,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripCommission}
-                      onChange={(e) => setTripCommission(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripCommission === 0 ? '' : tripCommission}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripCommission(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono text-amber-600"
                     />
                   </div>
@@ -2637,8 +2718,12 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={tripOtherCost}
-                      onChange={(e) => setTripOtherCost(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      value={tripOtherCost === 0 ? '' : tripOtherCost}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripOtherCost(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
                   </div>
@@ -2734,8 +2819,11 @@ export default function TransportManagementModule({
                   <input
                     type="number"
                     min={1}
-                    value={newVehCapacityTons}
-                    onChange={(e) => setNewVehCapacityTons(Number(e.target.value) || 0)}
+                    value={newVehCapacityTons === 0 ? '' : newVehCapacityTons}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setNewVehCapacityTons(v === '' ? 0 : Number(v));
+                    }}
                     placeholder="e.g. 15"
                     className="w-full rounded-lg border px-2.5 py-1.5 font-bold font-mono"
                   />
@@ -2910,8 +2998,12 @@ export default function TransportManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={fuelLitres}
-                    onChange={(e) => setFuelLitres(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={fuelLitres === 0 ? '' : fuelLitres}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setFuelLitres(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded border px-2 py-1 font-mono font-bold"
                   />
                 </div>
@@ -2921,8 +3013,12 @@ export default function TransportManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={fuelRate}
-                    onChange={(e) => setFuelRate(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={fuelRate === 0 ? '' : fuelRate}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setFuelRate(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded border px-2 py-1 font-mono"
                   />
                 </div>
@@ -3085,8 +3181,12 @@ export default function TransportManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={srvPartsCost}
-                    onChange={(e) => setSrvPartsCost(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={srvPartsCost === 0 ? '' : srvPartsCost}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setSrvPartsCost(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded border px-2 py-1 font-mono"
                   />
                 </div>
@@ -3095,8 +3195,12 @@ export default function TransportManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={srvLabourCost}
-                    onChange={(e) => setSrvLabourCost(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={srvLabourCost === 0 ? '' : srvLabourCost}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setSrvLabourCost(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded border px-2 py-1 font-mono"
                   />
                 </div>
@@ -3122,8 +3226,11 @@ export default function TransportManagementModule({
                   <label className="block mb-1 font-semibold">Next Service Odometer (KM)</label>
                   <input
                     type="number"
-                    value={srvNextKm}
-                    onChange={(e) => setSrvNextKm(Number(e.target.value) || 0)}
+                    value={srvNextKm === 0 ? '' : srvNextKm}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setSrvNextKm(v === '' ? 0 : Number(v));
+                    }}
                     placeholder="e.g. 50000"
                     className="w-full rounded-lg border px-2.5 py-1.5 font-mono text-[11px]"
                   />
@@ -3209,8 +3316,12 @@ export default function TransportManagementModule({
                     type="number"
                     min={1}
                     required
-                    value={drvPayAmount}
-                    onChange={(e) => setDrvPayAmount(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    value={drvPayAmount === 0 ? '' : drvPayAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setDrvPayAmount(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-lg border px-2.5 py-1.5 font-mono font-bold"
                   />
                 </div>
@@ -3281,8 +3392,12 @@ export default function TransportManagementModule({
                   min={1}
                   max={targetTripForPayment.outstandingDue}
                   required
-                  value={custPayAmount}
-                  onChange={(e) => setCustPayAmount(Number(e.target.value) || 0)}
+                  placeholder="0"
+                  value={custPayAmount === 0 ? '' : custPayAmount}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/^0+(?=\d)/, '');
+                    setCustPayAmount(v === '' ? 0 : Number(v));
+                  }}
                   className="w-full rounded-lg border px-2.5 py-1.5 font-mono font-black text-sm text-emerald-600"
                 />
               </div>
@@ -3426,7 +3541,7 @@ export default function TransportManagementModule({
                     type="button"
                     onClick={() => {
                       setShowTodayIncomeModal(false);
-                      setShowAddTripModal(true);
+                      handleOpenAddTripModal();
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs"
                   >

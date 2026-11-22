@@ -351,7 +351,7 @@ Date: ${trip.date}
                 </div>
                 <div className="flex justify-between items-baseline py-0.5">
                   <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
-                    DELIVERY DESTINATION
+                    UNLOADING POINT (DESTINATION)
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
                     : {trip.destination} ({trip.distanceKm} KM)
@@ -383,10 +383,7 @@ Date: ${trip.date}
                       Route & Vehicle
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
-                      WO QTY
-                    </th>
-                    <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
-                      UOM
+                      Weight / Load
                     </th>
                     <th className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right">
                       Freight Fare
@@ -429,10 +426,7 @@ Date: ${trip.date}
                       </div>
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold">
-                      1 Lot / 5,500 kg
-                    </td>
-                    <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
-                      Trip
+                      {trip.capacityTons ? `${trip.capacityTons} Ton` : 'Full Truck Load'}
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">
                       {formatBDT(trip.tripRevenue)}
@@ -464,11 +458,8 @@ Date: ${trip.date}
                     >
                       Grand Total:
                     </td>
-                    <td className="py-2.5 px-3 text-center border-r border-slate-300 dark:border-slate-700 print:border-black font-mono">
-                      1 Trip
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
-                      -
+                    <td className="py-2.5 px-3 text-center border-r border-slate-300 dark:border-slate-700 print:border-black font-mono font-bold">
+                      {trip.capacityTons ? `${trip.capacityTons} Ton` : '1 Load'}
                     </td>
                     <td className="py-2.5 px-3 text-right border-r border-slate-300 dark:border-slate-700 print:border-black font-mono text-emerald-800 dark:text-emerald-400 print:text-black">
                       {formatBDT(trip.tripRevenue)}
