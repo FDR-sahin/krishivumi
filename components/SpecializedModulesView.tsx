@@ -782,19 +782,28 @@ export default function SpecializedModulesView({
     }
   };
 
-  // Dedicated full-workspace view for Truck & Transport Business
-  if (tpl === 'transport') {
-    return (
-      <div className="space-y-6 relative">
-        {/* Thematic Agribusiness Watermark (Jolchap) Background */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 -z-10 opacity-[0.055] dark:opacity-[0.035] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50"
-          style={{
-            backgroundImage: 'url(/images/agro_enterprise_hero.jpg)',
-          }}
-        />
+  // Dedicated full-workspace view for Truck & Transport Business handled in main JSX return below
 
+  return (
+    <div className="space-y-6 relative">
+      {/* Thematic Agribusiness Watermark (Jolchap) Background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.055] dark:opacity-[0.035] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50"
+        style={{
+          backgroundImage: `url(${
+            tpl === 'cattle' || tpl === 'goat'
+              ? '/images/agro_precision_livestock.jpg'
+              : tpl === 'poultry' || tpl === 'transport'
+              ? '/images/agro_enterprise_hero.jpg'
+              : '/images/agro_dashboard_watermark.webp'
+          })`,
+        }}
+      />
+      {/* 12-Month Period Filter for this Business Workspace */}
+      <MonthFilterBar value={activeMonthFilter} onChange={setMonthFilter} bn={bn} />
+
+      {tpl === 'transport' ? (
         <TransportManagementModule
           activeBusiness={activeBusiness}
           ops={bizTransport}
@@ -811,30 +820,9 @@ export default function SpecializedModulesView({
           onBackToDashboard={onBackToDashboard}
           lang={lang}
         />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 relative">
-      {/* Thematic Agribusiness Watermark (Jolchap) Background */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.055] dark:opacity-[0.035] bg-cover bg-center bg-no-repeat mix-blend-multiply dark:mix-blend-screen filter saturate-50"
-        style={{
-          backgroundImage: `url(${
-            tpl === 'cattle' || tpl === 'goat'
-              ? '/images/agro_precision_livestock.jpg'
-              : tpl === 'poultry'
-              ? '/images/agro_enterprise_hero.jpg'
-              : '/images/agro_dashboard_watermark.webp'
-          })`,
-        }}
-      />
-      {/* 12-Month Period Filter for this Business Workspace */}
-      <MonthFilterBar value={activeMonthFilter} onChange={setMonthFilter} bn={bn} />
-
-      {/* Top Business Header with Simple Action Buttons */}
+      ) : (
+        <>
+          {/* Top Business Header with Simple Action Buttons */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5">
@@ -2128,6 +2116,8 @@ export default function SpecializedModulesView({
           </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* THIS BUSINESS'S RECENT TRANSACTIONS LEDGER (Always visible so client sees their sales/expenses right here!) */}
