@@ -40,6 +40,7 @@ import {
   Check,
   Receipt,
   UserCheck,
+  Loader2,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -221,34 +222,33 @@ export default function TransportManagementModule({
     return accounts.filter((a) => a.subType === 'cash' || a.subType === 'bank');
   }, [accounts]);
 
-  // 3. Four (4) Dynamically Selected Currently Running Trucks (EXACT REQUIREMENT)
+  // 3. Dynamically Selected Currently Running Trucks (Supports 5+ fleet trucks)
   const runningTrips = useMemo(() => {
     return allTrips.filter((t) => t.status === 'active' || t.status === 'running');
   }, [allTrips]);
 
   const fourRunningTrucks = useMemo(() => {
-    // If we have active running trips, take up to 4 distinct running trucks
+    // Show all distinct trucks that are currently running (support 5+ trucks)
     const selected: ErpTransportOp[] = [];
     const seenRegs = new Set<string>();
     for (const t of runningTrips) {
       if (!seenRegs.has(t.registrationNumber)) {
         seenRegs.add(t.registrationNumber);
         selected.push(t);
-        if (selected.length === 4) break;
       }
     }
-    // If fewer than 4 running, supplement with most recent trips marked with status
-    if (selected.length < 4) {
-      for (const t of allTrips) {
-        if (!seenRegs.has(t.registrationNumber)) {
-          seenRegs.add(t.registrationNumber);
-          selected.push(t);
-          if (selected.length === 4) break;
+    // Supplement with latest trips from other registered fleet trucks
+    for (const v of allVehicles) {
+      if (!seenRegs.has(v.registrationNumber)) {
+        const latestTrip = allTrips.find((t) => t.registrationNumber === v.registrationNumber);
+        if (latestTrip) {
+          seenRegs.add(v.registrationNumber);
+          selected.push(latestTrip);
         }
       }
     }
     return selected;
-  }, [runningTrips, allTrips]);
+  }, [runningTrips, allTrips, allVehicles]);
 
   // 4. Document & Maintenance Expiry Alerts
   const expiryAlerts = useMemo(() => {
@@ -296,7 +296,13 @@ export default function TransportManagementModule({
     return alerts;
   }, [allVehicles, bn]);
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
 
   // Today's Income Items & Total
   const todayIncomeData = useMemo(() => {
@@ -316,43 +322,48 @@ export default function TransportManagementModule({
       party: string;
       vehicle: string;
       date: string;
+      trip?: ErpTransportOp;
     }> = [];
 
     let total = 0;
 
-    for (const j of jEntries) {
-      const amt = Number(j.amount || 0);
-      total += amt;
+    // All trips dispatched today contribute their full freight revenue
+    for (const t of tripsToday) {
+      const rev = Number(t.tripRevenue || 0);
+      const due = Number(t.outstandingDue !== undefined ? t.outstandingDue : t.remainingDue || 0);
+      total += rev;
       items.push({
-        id: j.id,
-        code: j.referenceNo,
-        title: j.category || 'Truck Freight Revenue',
-        subtitle: j.description || 'Freight collection',
-        category: 'Freight Revenue',
-        amount: amt,
-        dueAmount: Number(j.dueAmount || 0),
-        party: j.counterpartyName || 'Client / Party',
-        vehicle: j.description?.match(/DHAKA-[A-Z0-9-]+/i)?.[0] || 'Fleet Vehicle',
-        date: j.date,
+        id: t.id,
+        code: t.tripOrVehicleCode,
+        title: `Trip Freight: ${t.origin} ➔ ${t.destination}`,
+        subtitle: `Party: ${t.customerName || 'Consignee'} • Driver: ${t.driverName}`,
+        category: t.route?.includes('⇄') ? 'Round Trip Freight' : 'Single Trip Freight',
+        amount: rev,
+        dueAmount: due,
+        party: t.customerName || 'Consignee Party',
+        vehicle: t.registrationNumber,
+        date: t.date,
+        trip: t,
       });
     }
 
-    for (const t of tripsToday) {
-      const alreadyInJ = jEntries.some((j) => j.referenceNo?.includes(t.tripOrVehicleCode));
-      if (!alreadyInJ) {
-        const fare = Number(t.advanceReceived || t.tripRevenue || 0);
-        total += fare;
+    // Direct collections or settlement receipts from journal that are not already from today's trips
+    for (const j of jEntries) {
+      const belongsToTodayTrip = tripsToday.some((t) => j.referenceNo?.includes(t.tripOrVehicleCode));
+      if (!belongsToTodayTrip) {
+        const amt = Number(j.amount || 0);
+        total += amt;
         items.push({
-          id: t.id,
-          code: t.tripOrVehicleCode,
-          title: `Trip Freight: ${t.origin} ➔ ${t.destination}`,
-          subtitle: `Party: ${t.customerName || 'Consignee'} • Driver: ${t.driverName}`,
-          category: 'Trip Freight',
-          amount: fare,
-          dueAmount: Number(t.outstandingDue || 0),
-          party: t.customerName || 'Consignee Party',
-          vehicle: t.registrationNumber,
-          date: t.date,
+          id: j.id,
+          code: j.referenceNo,
+          title: j.category || 'Freight Collection / Settlement',
+          subtitle: j.description || 'Customer payment received',
+          category: 'Customer Collection',
+          amount: amt,
+          dueAmount: Number(j.dueAmount || 0),
+          party: j.counterpartyName || 'Client / Party',
+          vehicle: j.description?.match(/DHAKA-[A-Z0-9-]+/i)?.[0] || 'Fleet Vehicle',
+          date: j.date,
         });
       }
     }
@@ -713,13 +724,14 @@ export default function TransportManagementModule({
     }
   };
 
-  const handleOpenAddTripModal = () => {
-    // Pick first AVAILABLE truck that is not currently running an active trip
+  const resetTripFormState = () => {
+    // Pick first available truck that is not currently running an active trip, or first truck
     const availableVeh = allVehicles.find(
       (v) => !allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'))
     ) || allVehicles[0];
 
-    setTripTruckReg(availableVeh?.registrationNumber || 'DHAKA-METRO-TA-12-3456');
+    const reg = availableVeh?.registrationNumber || 'DHAKA-METRO-TA-12-3456';
+    setTripTruckReg(reg);
     if (availableVeh?.driverName) {
       setTripDriverName(availableVeh.driverName);
       const d = allDrivers.find((dr) => dr.name.toLowerCase() === availableVeh.driverName?.toLowerCase());
@@ -738,7 +750,7 @@ export default function TransportManagementModule({
     setTripReceiverPhone('');
     setTripBrokerName('');
     setTripCargo('Farm feed and livestock freight');
-    setTripStartDate(new Date().toISOString().split('T')[0]);
+    setTripStartDate(todayStr);
     setTripExpectedReturn(new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]);
     setTripFare(0);
     setTripAdvance(0);
@@ -757,6 +769,10 @@ export default function TransportManagementModule({
     setTripLabourCost(0);
     setTripOtherCost(0);
     setTripRemarks('');
+  };
+
+  const handleOpenAddTripModal = () => {
+    resetTripFormState();
     setShowAddTripModal(true);
   };
 
@@ -895,32 +911,39 @@ export default function TransportManagementModule({
     }
   };
 
-  // 13. Handlers: + Create Trip (With Overlapping Active Trip Check!)
+  // 13. Handlers: + Create Trip
   const handleSaveTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripTruckReg) {
-      triggerGlobalToast('Select vehicle', 'info');
+      triggerGlobalToast('Please select a truck (গাড়ি নির্বাচন করুন)', 'info');
       return;
     }
     if (tripFare <= 0) {
-      triggerGlobalToast('Enter trip fare', 'info');
-      return;
-    }
-
-    // Overlapping Active Trip Prevention:
-    const activeTripOnSameTruck = allTrips.find(
-      (t) => t.registrationNumber === tripTruckReg && (t.status === 'active' || t.status === 'running')
-    );
-    if (activeTripOnSameTruck) {
-      triggerGlobalToast(
-        `Truck ${tripTruckReg} is currently on an active trip (${activeTripOnSameTruck.origin} ➔ ${activeTripOnSameTruck.destination}). Please complete that trip or use '+ Return Load' on that trip!`,
-        'info'
-      );
+      triggerGlobalToast('Please enter trip freight fare (ভাড়া লিখুন)', 'info');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Auto-complete any prior active trip on this truck so fleet status transitions seamlessly
+      const activeTripOnSameTruck = allTrips.find(
+        (t) => t.registrationNumber === tripTruckReg && (t.status === 'active' || t.status === 'running')
+      );
+      if (activeTripOnSameTruck) {
+        try {
+          await updateTransportOpRecord(
+            activeTripOnSameTruck,
+            {
+              status: 'completed',
+              actualReturnDate: tripStartDate,
+            },
+            actorEmail
+          );
+        } catch (e) {
+          console.warn('Auto-completing prior trip', e);
+        }
+      }
+
       const tripCode = `TRP-${Date.now().toString().slice(-5)}`;
       const returnLoad = tripHasReturn ? (tripReturnLoadLoc.trim() || tripDestLoc.trim()) : '';
       const returnUnload = tripHasReturn ? (tripReturnUnloadLoc.trim() || tripStartLoc.trim()) : '';
@@ -1046,9 +1069,10 @@ export default function TransportManagementModule({
         );
       }
 
+      resetTripFormState();
       setShowAddTripModal(false);
       triggerGlobalToast(
-        `Trip ${tripCode} started on ${tripTruckReg} (${routeStr})!`,
+        `Trip ${tripCode} started on ${tripTruckReg} (Freight: ${formatBDT(totalIncome)})!`,
         'success'
       );
     } catch (err: any) {
@@ -1936,13 +1960,26 @@ export default function TransportManagementModule({
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={selectedTruckFilter}
+                onChange={(e) => setSelectedTruckFilter(e.target.value)}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold"
+              >
+                <option value="ALL">All Trucks ({allVehicles.length} Registered)</option>
+                {allVehicles.map((v) => (
+                  <option key={v.id} value={v.registrationNumber}>
+                    {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                  </option>
+                ))}
+              </select>
+
               <select
                 value={selectedTripStatusFilter}
                 onChange={(e) => setSelectedTripStatusFilter(e.target.value)}
                 className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1 text-xs font-semibold"
               >
-                <option value="ALL">All Trips</option>
+                <option value="ALL">All Status</option>
                 <option value="active">Running</option>
                 <option value="completed">Completed</option>
               </select>
@@ -1962,7 +1999,7 @@ export default function TransportManagementModule({
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
-                  <th className="py-2.5 px-3">Trip & Date</th>
+                  <th className="py-2.5 px-3">SL & Trip</th>
                   <th className="py-2.5 px-3">Truck & Driver</th>
                   <th className="py-2.5 px-3">Route</th>
                   <th className="py-2.5 px-3 text-right">Distance (KM)</th>
@@ -1976,9 +2013,10 @@ export default function TransportManagementModule({
                 {allTrips
                   .filter((t) => {
                     if (selectedTripStatusFilter !== 'ALL' && t.status !== selectedTripStatusFilter) return false;
+                    if (selectedTruckFilter !== 'ALL' && t.registrationNumber !== selectedTruckFilter) return false;
                     return true;
                   })
-                  .map((t) => {
+                  .map((t, index) => {
                     const isRunning = t.status === 'active' || t.status === 'running';
                     const hasReturn = Boolean(
                       (t.returnFare && t.returnFare > 0) ||
@@ -1992,8 +2030,13 @@ export default function TransportManagementModule({
                     return (
                       <tr key={t.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                         <td className="py-2 px-3 whitespace-nowrap">
-                          <div className="font-mono font-bold text-slate-900 dark:text-white">{t.tripOrVehicleCode}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{t.date}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[10px] font-black text-slate-500 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white">{t.tripOrVehicleCode}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{t.date}</div>
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           <div className="font-bold text-emerald-700 dark:text-emerald-400">{t.registrationNumber}</div>
@@ -2077,10 +2120,11 @@ export default function TransportManagementModule({
                             <button
                               type="button"
                               onClick={() => setSelectedTripChallan(t)}
-                              className="p-1 rounded text-slate-500 hover:text-emerald-600 cursor-pointer"
-                              title="View Challan"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                              title="View Official Consignment Challan & Income Slip"
                             >
-                              <Eye className="h-3.5 w-3.5" />
+                              <FileText className="h-3 w-3" />
+                              <span>Challan Slip</span>
                             </button>
 
                             <button
@@ -2856,8 +2900,22 @@ export default function TransportManagementModule({
                 <button type="button" onClick={() => setShowAddTripModal(false)} className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
                   Cancel
                 </button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-600/30">
-                  {isSubmitting ? 'Saving...' : 'Start Trip & Post Accounting'}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-600/30 disabled:opacity-60 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Saving & Dispatching Trip...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Start Trip & Post Accounting</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -3806,6 +3864,7 @@ export default function TransportManagementModule({
                         <th className="py-2 px-3">Category</th>
                         <th className="py-2 px-3 text-right">Amount (BDT)</th>
                         <th className="py-2 px-3 text-right">Due (BDT)</th>
+                        <th className="py-2 px-3 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -3816,7 +3875,7 @@ export default function TransportManagementModule({
                           </td>
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-slate-800 dark:text-slate-200">{item.party}</div>
-                            <div className="text-[10px] text-slate-500">{item.subtitle}</div>
+                            <div className="text-[10px] text-slate-500">{item.subtitle} • {item.vehicle}</div>
                           </td>
                           <td className="py-2.5 px-3">
                             <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold">
@@ -3831,6 +3890,24 @@ export default function TransportManagementModule({
                               <span className="text-amber-600 font-bold">{formatBDT(item.dueAmount)}</span>
                             ) : (
                               'Paid'
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {item.trip ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowTodayIncomeModal(false);
+                                  setSelectedTripChallan(item.trip!);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold shadow-2xs cursor-pointer"
+                                title="View Consignment Challan & Income Slip"
+                              >
+                                <FileText className="h-3 w-3" />
+                                <span>Challan Slip</span>
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">Collection</span>
                             )}
                           </td>
                         </tr>
