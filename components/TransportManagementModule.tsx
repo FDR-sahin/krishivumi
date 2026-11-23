@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -142,6 +142,39 @@ export default function TransportManagementModule({
   const [viewImageTrip, setViewImageTrip] = useState<ErpTransportOp | null>(null);
   const [targetTripForPayment, setTargetTripForPayment] = useState<ErpTransportOp | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Edit Trip Modal State ──────────────────────────────────────────────
+  const [showEditTripModal, setShowEditTripModal] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<ErpTransportOp | null>(null);
+  const [editTripFare, setEditTripFare] = useState<number>(0);
+  const [editTripAdvance, setEditTripAdvance] = useState<number>(0);
+  const [editTripDiesel, setEditTripDiesel] = useState<number>(0);
+  const [editTripToll, setEditTripToll] = useState<number>(0);
+  const [editTripFerry, setEditTripFerry] = useState<number>(0);
+  const [editTripKhoraki, setEditTripKhoraki] = useState<number>(0);
+  const [editTripPolice, setEditTripPolice] = useState<number>(0);
+  const [editTripLabour, setEditTripLabour] = useState<number>(0);
+  const [editTripCommission, setEditTripCommission] = useState<number>(0);
+  const [editTripOther, setEditTripOther] = useState<number>(0);
+  const [editTripCustomer, setEditTripCustomer] = useState('');
+  const [editTripCargo, setEditTripCargo] = useState('');
+  const [editTripRemarks, setEditTripRemarks] = useState('');
+  const [editTripDistanceKm, setEditTripDistanceKm] = useState<number>(0);
+
+  // ── Edit Truck/Vehicle Modal State ─────────────────────────────────────
+  const [showEditVehicleModal, setShowEditVehicleModal] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<ErpTransportOp | null>(null);
+  const [editVehReg, setEditVehReg] = useState('');
+  const [editVehName, setEditVehName] = useState('');
+  const [editVehDriver, setEditVehDriver] = useState('');
+  const [editVehOdometer, setEditVehOdometer] = useState<number>(0);
+  const [editVehCapacity, setEditVehCapacity] = useState<number>(0);
+  const [editVehBodyType, setEditVehBodyType] = useState('covered');
+  const [editVehTaxToken, setEditVehTaxToken] = useState('');
+  const [editVehFitness, setEditVehFitness] = useState('');
+  const [editVehInsurance, setEditVehInsurance] = useState('');
+  const [editVehRoutePermit, setEditVehRoutePermit] = useState('');
+  const [editVehStatus, setEditVehStatus] = useState<string>('available');
 
   // Drill-down Detail Modals requested by user
   const [showTodayIncomeModal, setShowTodayIncomeModal] = useState(false);
@@ -905,6 +938,122 @@ export default function TransportManagementModule({
       setShowAddReturnLoadModal(false);
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error saving return load', 'info');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Edit Trip: Open modal pre-filled with existing data ────────────────
+  const handleOpenEditTrip = (trip: ErpTransportOp) => {
+    setEditingTrip(trip);
+    setEditTripFare(Number(trip.tripRevenue || 0));
+    setEditTripAdvance(Number(trip.advanceReceived || 0));
+    setEditTripDiesel(Number(trip.fuelCost || 0));
+    setEditTripToll(Number(trip.tollCost || 0));
+    setEditTripFerry(Number(trip.ferryCost || 0));
+    setEditTripKhoraki(Number(trip.driverKhoraki || trip.driverAllowance || 0));
+    setEditTripPolice(Number(trip.policeRoadCost || 0));
+    setEditTripLabour(Number(trip.labourLoadingCost || 0));
+    setEditTripCommission(Number(trip.commission || 0));
+    setEditTripOther(Number(trip.otherCosts || 0));
+    setEditTripCustomer(trip.customerName || '');
+    setEditTripCargo(trip.cargoDetails || '');
+    setEditTripRemarks(trip.remarks || '');
+    setEditTripDistanceKm(Number(trip.distanceKm || 0));
+    setShowEditTripModal(true);
+  };
+
+  // ── Edit Trip: Save updated data ────────────────────────────────────────
+  const handleSaveEditTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTrip) return;
+    setIsSubmitting(true);
+    try {
+      const totalExpense =
+        editTripDiesel + editTripToll + editTripFerry + editTripKhoraki +
+        editTripPolice + editTripLabour + editTripCommission + editTripOther;
+      const newDue = Math.max(0, editTripFare - editTripAdvance);
+
+      await updateTransportOpRecord(
+        editingTrip,
+        {
+          tripRevenue: editTripFare,
+          advanceReceived: editTripAdvance,
+          outstandingDue: newDue,
+          remainingDue: newDue,
+          fuelCost: editTripDiesel,
+          tollCost: editTripToll,
+          ferryCost: editTripFerry,
+          driverKhoraki: editTripKhoraki,
+          driverAllowance: editTripKhoraki,
+          policeRoadCost: editTripPolice,
+          labourLoadingCost: editTripLabour,
+          commission: editTripCommission,
+          otherCosts: editTripOther,
+          tripExpense: totalExpense,
+          customerName: editTripCustomer.trim(),
+          cargoDetails: editTripCargo.trim(),
+          remarks: editTripRemarks.trim(),
+          distanceKm: editTripDistanceKm,
+        },
+        actorEmail
+      );
+
+      setShowEditTripModal(false);
+      setEditingTrip(null);
+      triggerGlobalToast(`Trip ${editingTrip.tripOrVehicleCode} আপডেট হয়েছে! ✅`, 'success');
+    } catch (err: any) {
+      triggerGlobalToast(err?.message || 'ট্রিপ আপডেট করতে সমস্যা হয়েছে', 'info');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Edit Vehicle: Open modal pre-filled with vehicle data ──────────────
+  const handleOpenEditVehicle = (v: ErpTransportOp) => {
+    setEditingVehicle(v);
+    setEditVehReg(v.registrationNumber || '');
+    setEditVehName(v.truckName || v.vehicleType || '');
+    setEditVehDriver(v.driverName || '');
+    setEditVehOdometer(Number(v.currentOdometer || v.distanceKm || 0));
+    setEditVehCapacity(Number(v.capacityTons || 0));
+    setEditVehBodyType(v.truckBodyType || 'covered');
+    setEditVehTaxToken(v.taxTokenExpiry || '');
+    setEditVehFitness(v.fitnessExpiry || '');
+    setEditVehInsurance(v.insuranceExpiry || '');
+    setEditVehRoutePermit(v.routePermitExpiry || '');
+    setEditVehStatus(v.status || 'available');
+    setShowEditVehicleModal(true);
+  };
+
+  // ── Edit Vehicle: Save updated data ────────────────────────────────────
+  const handleSaveEditVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVehicle) return;
+    setIsSubmitting(true);
+    try {
+      await updateTransportOpRecord(
+        editingVehicle,
+        {
+          registrationNumber: editVehReg.trim(),
+          truckName: editVehName.trim(),
+          driverName: editVehDriver.trim() || 'Unassigned',
+          currentOdometer: editVehOdometer,
+          capacityTons: editVehCapacity,
+          truckBodyType: editVehBodyType,
+          taxTokenExpiry: editVehTaxToken,
+          fitnessExpiry: editVehFitness,
+          insuranceExpiry: editVehInsurance,
+          routePermitExpiry: editVehRoutePermit,
+          status: editVehStatus as any,
+        },
+        actorEmail
+      );
+      setShowEditVehicleModal(false);
+      setEditingVehicle(null);
+      triggerGlobalToast(`ট্রাক ${editVehReg} সফলভাবে আপডেট হয়েছে! ✅`, 'success');
+    } catch (err: any) {
+      triggerGlobalToast(err?.message || 'ট্রাক আপডেট করতে সমস্যা হয়েছে', 'info');
     } finally {
       setIsSubmitting(false);
     }
@@ -2110,24 +2259,34 @@ export default function TransportManagementModule({
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerConfirmDelete({
-                            title: 'Confirm Delete Truck',
-                            message: `Are you sure you want to delete vehicle ${v.registrationNumber}?`,
-                            itemName: v.registrationNumber,
-                            onConfirm: async () => {
-                              await deleteTransportOp(v.id);
-                              triggerGlobalToast('Vehicle deleted', 'delete');
-                            },
-                          });
-                        }}
-                        className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditVehicle(v)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-sky-600 text-white hover:bg-sky-700 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                          title="Edit / Update Truck Details (ট্রাক সম্পাদনা)"
+                        >
+                          <span>✏ Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerConfirmDelete({
+                              title: 'Confirm Delete Truck',
+                              message: `Are you sure you want to delete vehicle ${v.registrationNumber}?`,
+                              itemName: v.registrationNumber,
+                              onConfirm: async () => {
+                                await deleteTransportOp(v.id);
+                                triggerGlobalToast('Vehicle deleted', 'delete');
+                              },
+                            });
+                          }}
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -2307,6 +2466,15 @@ export default function TransportManagementModule({
                                 Complete
                               </button>
                             )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditTrip(t)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-sky-600 text-white hover:bg-sky-700 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                              title="Edit / Update Trip Details (ট্রিপ সম্পাদনা)"
+                            >
+                              <span>✏ Edit</span>
+                            </button>
 
                             <button
                               type="button"
@@ -4287,6 +4455,319 @@ export default function TransportManagementModule({
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: EDIT TRIP (UPDATE FARE, EXPENSES, DETAILS) ── */}
+      {showEditTripModal && editingTrip && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowEditTripModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-700">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>✏</span>
+                  <span>ট্রিপ সম্পাদনা করুন — {editingTrip.tripOrVehicleCode}</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingTrip.registrationNumber} • {editingTrip.origin} ➔ {editingTrip.destination} • {editingTrip.date}
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowEditTripModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditTrip} className="space-y-4 text-xs">
+              {/* Revenue & Payment */}
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 space-y-3">
+                <div className="font-bold text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  আয় (Revenue) ও পেমেন্ট
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">মোট ভাড়া / Freight Fare (৳)</label>
+                    <input type="number" value={editTripFare} onChange={(e) => setEditTripFare(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">অগ্রিম পেমেন্ট (Advance) (৳)</label>
+                    <input type="number" value={editTripAdvance} onChange={(e) => setEditTripAdvance(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                </div>
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/30 rounded-lg px-3 py-1.5">
+                  বাকি (Due): {formatBDT(Math.max(0, editTripFare - editTripAdvance))}
+                </div>
+              </div>
+
+              {/* Trip Expenses */}
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 space-y-3">
+                <div className="font-bold text-rose-800 dark:text-rose-300 text-[11px] flex items-center gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  ট্রিপ খরচ (Trip Expenses)
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">ডিজেল খরচ (Diesel Cost) (৳)</label>
+                    <input type="number" value={editTripDiesel} onChange={(e) => setEditTripDiesel(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">টোল চার্জ (Toll) (৳)</label>
+                    <input type="number" value={editTripToll} onChange={(e) => setEditTripToll(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">ফেরি চার্জ (Ferry) (৳)</label>
+                    <input type="number" value={editTripFerry} onChange={(e) => setEditTripFerry(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">চালকের খোরাকি (৳)</label>
+                    <input type="number" value={editTripKhoraki} onChange={(e) => setEditTripKhoraki(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">পুলিশ / রোড খরচ (৳)</label>
+                    <input type="number" value={editTripPolice} onChange={(e) => setEditTripPolice(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">লেবার / লোডিং (৳)</label>
+                    <input type="number" value={editTripLabour} onChange={(e) => setEditTripLabour(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">ব্রোকার কমিশন (৳)</label>
+                    <input type="number" value={editTripCommission} onChange={(e) => setEditTripCommission(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">অন্যান্য খরচ (Other) (৳)</label>
+                    <input type="number" value={editTripOther} onChange={(e) => setEditTripOther(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">দূরত্ব (Distance) (KM)</label>
+                    <input type="number" value={editTripDistanceKm} onChange={(e) => setEditTripDistanceKm(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
+                  </div>
+                </div>
+                <div className="text-[11px] text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-900/30 rounded-lg px-3 py-1.5 flex justify-between">
+                  <span>মোট খরচ (Total Expense):</span>
+                  <span>{formatBDT(editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripOther)}</span>
+                </div>
+              </div>
+
+              {/* Other Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">কাস্টমার / কনসাইনি</label>
+                  <input type="text" value={editTripCustomer} onChange={(e) => setEditTripCustomer(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">মালামালের বিবরণ (Cargo)</label>
+                  <input type="text" value={editTripCargo} onChange={(e) => setEditTripCargo(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">মন্তব্য / রিমার্ক</label>
+                  <input type="text" value={editTripRemarks} onChange={(e) => setEditTripRemarks(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs" />
+                </div>
+              </div>
+
+              {/* Net Profit Preview */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">নেট আয় (Net Profit):</span>
+                <span className={`font-mono font-black text-sm ${editTripFare - (editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripOther) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {formatBDT(editTripFare - (editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripOther))}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-1">
+                <button type="button" onClick={() => setShowEditTripModal(false)} className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-300 cursor-pointer">
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white font-black text-xs shadow-xs cursor-pointer"
+                >
+                  {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  <span>{isSubmitting ? 'সেভ হচ্ছে...' : '✅ আপডেট করুন'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── MODAL: EDIT TRUCK / VEHICLE ── */}
+      {showEditVehicleModal && editingVehicle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowEditVehicleModal(false)}
+        >
+          <div
+            className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-700">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-sky-600" />
+                  <span>ট্রাক বিবরণ সম্পাদনা — {editingVehicle.registrationNumber}</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  রেজিস্ট্রেশন, চালক, ওডোমিটার ও বিআরটিএ ডকুমেন্টের তথ্য আপডেট করুন
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditVehicleModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditVehicle} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    রেজিস্ট্রেশন নম্বর *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editVehReg}
+                    onChange={(e) => setEditVehReg(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    ট্রাকের নাম / মডেল
+                  </label>
+                  <input
+                    type="text"
+                    value={editVehName}
+                    onChange={(e) => setEditVehName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    নিযুক্ত চালক (Driver)
+                  </label>
+                  <input
+                    type="text"
+                    value={editVehDriver}
+                    onChange={(e) => setEditVehDriver(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    বর্তমান ওডোমিটার / কিমি
+                  </label>
+                  <input
+                    type="number"
+                    value={editVehOdometer}
+                    onChange={(e) => setEditVehOdometer(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    ধারণক্ষমতা (টন)
+                  </label>
+                  <input
+                    type="number"
+                    value={editVehCapacity}
+                    onChange={(e) => setEditVehCapacity(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    গাড়ির স্ট্যাটাস
+                  </label>
+                  <select
+                    value={editVehStatus}
+                    onChange={(e) => setEditVehStatus(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold"
+                  >
+                    <option value="available">Available (উপলব্ধ / ট্রিপের জন্য প্রস্তুত)</option>
+                    <option value="active">On Trip (চলমান ট্রিপ)</option>
+                    <option value="maintenance">Maintenance (গ্যারেজ / মেরামত)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* BRTA Documents Expiry */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="font-bold text-slate-700 dark:text-slate-300 text-[11px] flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-sky-600" />
+                  বিআরটিএ ও আইনি নথিপত্রের মেয়াদ
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">ট্যাক্স টোকেন মেয়াদ</label>
+                    <input
+                      type="date"
+                      value={editVehTaxToken}
+                      onChange={(e) => setEditVehTaxToken(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">ফিটনেস সনদ মেয়াদ</label>
+                    <input
+                      type="date"
+                      value={editVehFitness}
+                      onChange={(e) => setEditVehFitness(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">বীমা (Insurance) মেয়াদ</label>
+                    <input
+                      type="date"
+                      value={editVehInsurance}
+                      onChange={(e) => setEditVehInsurance(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">রুট পারমিট মেয়াদ</label>
+                    <input
+                      type="date"
+                      value={editVehRoutePermit}
+                      onChange={(e) => setEditVehRoutePermit(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowEditVehicleModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-300 cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white font-black text-xs shadow-xs cursor-pointer"
+                >
+                  {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  <span>{isSubmitting ? 'সেভ হচ্ছে...' : '✅ আপডেট করুন'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
