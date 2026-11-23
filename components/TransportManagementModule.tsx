@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -655,10 +655,33 @@ export default function TransportManagementModule({
       totalCost: number;
       status: string;
       date: string;
+      daysInGarage: number;
+      avgDailyRevenue: number;
+      demurrage: number;
     }> = [];
+
+    // Helper: compute demurrage for a truck
+    const computeDemurrage = (reg: string, serviceDate: string) => {
+      const startMs = new Date(serviceDate || todayStr).getTime();
+      const todayMs = new Date(todayStr).getTime();
+      const daysInGarage = Math.max(1, Math.round((todayMs - startMs) / 86400000));
+      // Average daily revenue from completed trips for this truck
+      const truckCompletedTrips = allTrips.filter(
+        (t) => t.registrationNumber === reg && t.status === 'completed' && Number(t.tripRevenue || 0) > 0
+      );
+      const avgDailyRevenue =
+        truckCompletedTrips.length > 0
+          ? truckCompletedTrips.reduce((s, t) => s + Number(t.tripRevenue || 0), 0) /
+            truckCompletedTrips.length /
+            2 // assume ~2 days per trip avg
+          : 5000; // fallback BDT 5000/day if no history
+      const demurrage = Math.round(daysInGarage * avgDailyRevenue);
+      return { daysInGarage, avgDailyRevenue: Math.round(avgDailyRevenue), demurrage };
+    };
 
     // 1. Existing maintenance logs in ops
     for (const m of allMaintenanceLogs) {
+      const { daysInGarage, avgDailyRevenue, demurrage } = computeDemurrage(m.registrationNumber, m.date || todayStr);
       list.push({
         id: m.id,
         truckReg: m.registrationNumber,
@@ -676,6 +699,9 @@ export default function TransportManagementModule({
         totalCost: Number(m.maintenanceCost || (Number(m.partsCost || 6500) + Number(m.labourCost || 1500))),
         status: m.status === 'completed' ? 'Completed & Tested' : 'Under Workshop Repair (গ্যারেজে মেরামত চলছে)',
         date: m.date || todayStr,
+        daysInGarage,
+        avgDailyRevenue,
+        demurrage,
       });
     }
 
@@ -684,6 +710,7 @@ export default function TransportManagementModule({
       if (v.status === 'maintenance' || v.status === 'workshop' || v.status === 'repair') {
         const exists = list.some((l) => l.truckReg === v.registrationNumber);
         if (!exists) {
+          const { daysInGarage, avgDailyRevenue, demurrage } = computeDemurrage(v.registrationNumber, todayStr);
           list.unshift({
             id: v.id,
             truckReg: v.registrationNumber,
@@ -701,13 +728,16 @@ export default function TransportManagementModule({
             totalCost: 18000,
             status: 'Under Workshop Repair (গ্যারেজে মেরামত চলছে)',
             date: todayStr,
+            daysInGarage,
+            avgDailyRevenue,
+            demurrage,
           });
         }
       }
     }
 
     return list;
-  }, [allMaintenanceLogs, allVehicles, todayStr]);
+  }, [allMaintenanceLogs, allVehicles, allTrips, todayStr]);
 
   // 5. Dashboard Top Summary KPIs (with Today's figures first)
   const dashboardKpis = useMemo(() => {
@@ -1768,6 +1798,11 @@ export default function TransportManagementModule({
                 <span>{dashboardKpis.maintenanceCount > 0 ? `${dashboardKpis.maintenanceCount} in garage/shop` : 'All healthy'}</span>
                 <span className="underline decoration-dotted text-[9px] font-bold">Details →</span>
               </div>
+              {activeMaintenanceList.length > 0 && (
+                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-2 py-1 mt-0.5 border border-amber-200 dark:border-amber-800/50">
+                  ⚠ ডামারেজ: {formatBDT(activeMaintenanceList.reduce((s, m) => s + (m.demurrage || 0), 0))}
+                </div>
+              )}
             </div>
 
             {/* 6. Total Trucks */}
@@ -4295,6 +4330,51 @@ export default function TransportManagementModule({
               </button>
             </div>
 
+            {/* Demurrage Summary Strip */}
+            {activeMaintenanceList.length > 0 && (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/50 space-y-2">
+                <div className="text-[11px] font-extrabold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  গাড়ি গ্যারেজে থাকায় আনুমানিক সম্ভাব্য আয় ক্ষতি (ডামারেজ)
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="text-[10px] text-amber-700 dark:text-amber-400 border-b border-amber-200 dark:border-amber-800/50">
+                        <th className="text-left pb-1 pr-2">গাড়ির নম্বর</th>
+                        <th className="text-left pb-1 pr-2">সার্ভিসে আসার তারিখ</th>
+                        <th className="text-center pb-1 pr-2">দিন</th>
+                        <th className="text-right pb-1 pr-2">দৈনিক গড় আয়</th>
+                        <th className="text-right pb-1">মোট ক্ষতি (ডামারেজ)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeMaintenanceList.map((m, idx) => (
+                        <tr key={m.id || idx} className="border-b border-amber-100 dark:border-amber-900/40">
+                          <td className="py-1 pr-2 font-mono font-bold text-slate-900 dark:text-white">{m.truckReg}</td>
+                          <td className="py-1 pr-2 text-slate-600 dark:text-slate-400">{m.date}</td>
+                          <td className="py-1 pr-2 text-center font-bold text-rose-600">{m.daysInGarage} দিন</td>
+                          <td className="py-1 pr-2 text-right font-mono text-slate-700 dark:text-slate-300">{formatBDT(m.avgDailyRevenue)}</td>
+                          <td className="py-1 text-right font-mono font-black text-rose-700 dark:text-rose-400">{formatBDT(m.demurrage)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={4} className="pt-2 text-right font-extrabold text-amber-800 dark:text-amber-300 text-xs">মোট আনুমানিক ডামারেজ:</td>
+                        <td className="pt-2 text-right font-mono font-black text-rose-700 dark:text-rose-300 text-sm">
+                          {formatBDT(activeMaintenanceList.reduce((s, m) => s + (m.demurrage || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <p className="text-[10px] text-amber-600 dark:text-amber-500 italic">
+                  * গড় আয় = ওই গাড়ির সম্পন্ন ট্রিপের গড় ভাড়া ÷ ২ দিন (অনুমানিক ট্রিপ সময়)। ইতিহাস না থাকলে ৳৫,০০০/দিন ধরা হয়েছে।
+                </p>
+              </div>
+            )}
+
             {/* List of Vehicles under repair */}
             <div className="space-y-4">
               {activeMaintenanceList.map((m, idx) => (
@@ -4406,6 +4486,14 @@ export default function TransportManagementModule({
                         <span className="text-[10px] text-slate-400 block">মোট মেরামত ব্যয়:</span>
                         <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-sm">
                           {formatBDT(m.totalCost)}
+                        </span>
+                      </div>
+                      <div className="border-l pl-3 border-amber-200 dark:border-amber-800">
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-semibold">
+                          গ্যারেজে {m.daysInGarage} দিন — আনুমানিক ডামারেজ:
+                        </span>
+                        <span className="font-mono font-black text-amber-700 dark:text-amber-400 text-sm">
+                          {formatBDT(m.demurrage)}
                         </span>
                       </div>
                     </div>
