@@ -170,17 +170,17 @@ export default function TransportManagementModule({
   }, [ops]);
 
   const allFuelLogs = useMemo(() => {
-    return ops.filter((op) => op.recordType === 'fuel' || (op.fuelLitres && op.fuelLitres > 0));
+    return ops.filter((op) => op.recordType === 'fuel' || (op.fuelLitres && op.fuelLitres > 0) || (op.fuelCost && op.fuelCost > 0));
   }, [ops]);
 
   const allMaintenanceLogs = useMemo(() => {
     return ops.filter(
-      (op) => op.recordType === 'vehicle_maintenance' || (op.garageName || op.partsCost)
+      (op) => op.recordType === 'vehicle_maintenance' || op.recordType === 'maintenance' || (op.garageName || op.partsCost)
     );
   }, [ops]);
 
   const allTripExpenses = useMemo(() => {
-    return ops.filter((op) => op.recordType === 'expense' || op.expenseCategory);
+    return ops.filter((op) => op.recordType === 'expense' || op.expenseCategory || (op.tripExpense && op.tripExpense > 0));
   }, [ops]);
 
   const allDrivers = useMemo(() => {
@@ -373,11 +373,21 @@ export default function TransportManagementModule({
 
   // Today's Expense Items & Category Breakdown
   const todayExpenseData = useMemo(() => {
-    const jEntries = journalEntries.filter(
-      (j) => j.date === todayStr && j.transactionType === 'expense'
+    // 1. Trips dispatched or logged today (Source of truth for trip expenses)
+    const tripsToday = allTrips.filter((t) => t.date === todayStr);
+
+    // 2. Standalone fuel logs logged today
+    const fuelToday = ops.filter((o) => o.recordType === 'fuel' && o.date === todayStr);
+
+    // 3. Standalone maintenance logs logged today
+    const maintToday = ops.filter(
+      (o) => (o.recordType === 'maintenance' || o.recordType === 'vehicle_maintenance') && o.date === todayStr
     );
-    const fuelToday = allFuelLogs.filter((f) => f.date === todayStr);
-    const maintToday = allMaintenanceLogs.filter((m) => m.date === todayStr);
+
+    // 4. Standalone direct expense journal entries (not trip direct outflows)
+    const jEntries = journalEntries.filter(
+      (j) => j.date === todayStr && j.transactionType === 'expense' && !j.referenceNo?.startsWith('EXP-TRP-')
+    );
 
     const items: Array<{
       id: string;
@@ -404,6 +414,176 @@ export default function TransportManagementModule({
 
     let total = 0;
 
+    // A. Add individual expense heads from all trips dispatched today!
+    for (const t of tripsToday) {
+      // 1. Diesel Fuel Cost
+      const diesel = Number(t.fuelCost || 0);
+      if (diesel > 0) {
+        total += diesel;
+        breakdown.diesel += diesel;
+        items.push({
+          id: `${t.id}-diesel`,
+          code: `${t.tripOrVehicleCode}-DSL`,
+          title: `Diesel Refueling (${t.fuelLitres ? `${t.fuelLitres} L` : 'Fuel Expense'})`,
+          subtitle: `${t.registrationNumber} (${t.origin} ➔ ${t.destination}) • Driver: ${t.driverName}`,
+          category: 'diesel',
+          categoryLabel: 'Diesel / Fuel (তেল খরচ)',
+          amount: diesel,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 2. Toll & Ferry Charges
+      const toll = Number(t.tollCost || 0) + Number(t.ferryCost || 0);
+      if (toll > 0) {
+        total += toll;
+        breakdown.toll += toll;
+        items.push({
+          id: `${t.id}-toll`,
+          code: `${t.tripOrVehicleCode}-TOLL`,
+          title: `Highway Toll & Ferry Charges`,
+          subtitle: `${t.registrationNumber} (${t.origin} ➔ ${t.destination}) • Toll: ৳${t.tollCost || 0}${t.ferryCost ? `, Ferry: ৳${t.ferryCost}` : ''}`,
+          category: 'toll',
+          categoryLabel: 'Toll & Ferry (টোল ও ফেরি)',
+          amount: toll,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 3. Driver Khoraki & Daily Allowance
+      const khoraki = Number(t.driverKhoraki || t.driverAllowance || 0);
+      if (khoraki > 0) {
+        total += khoraki;
+        breakdown.khoraki += khoraki;
+        items.push({
+          id: `${t.id}-khoraki`,
+          code: `${t.tripOrVehicleCode}-KHK`,
+          title: `Driver Khoraki & Daily Allowance (খোরাকি)`,
+          subtitle: `Driver: ${t.driverName} • Truck: ${t.registrationNumber}`,
+          category: 'khoraki',
+          categoryLabel: 'Driver Khoraki (খোরাকি)',
+          amount: khoraki,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 4. Police & Highway Road Expenses
+      const police = Number(t.policeRoadCost || 0);
+      if (police > 0) {
+        total += police;
+        breakdown.road += police;
+        items.push({
+          id: `${t.id}-road`,
+          code: `${t.tripOrVehicleCode}-ROAD`,
+          title: `Police & Highway Road Clearance`,
+          subtitle: `Route: ${t.origin} ➔ ${t.destination} • Truck: ${t.registrationNumber}`,
+          category: 'road',
+          categoryLabel: 'Police & Highway Road (পুলিশ ও রোড)',
+          amount: police,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 5. Labour & Loading Charges
+      const labour = Number(t.labourLoadingCost || 0);
+      if (labour > 0) {
+        total += labour;
+        breakdown.labour += labour;
+        items.push({
+          id: `${t.id}-labour`,
+          code: `${t.tripOrVehicleCode}-LBR`,
+          title: `Labour & Loading Charges (লেবার খরচ)`,
+          subtitle: `Loading: ${t.loadingLocation || t.origin} • Truck: ${t.registrationNumber}`,
+          category: 'labour',
+          categoryLabel: 'Labour & Loading (লেবার)',
+          amount: labour,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 6. Broker Commission
+      const comm = Number(t.commission || 0);
+      if (comm > 0) {
+        total += comm;
+        breakdown.other += comm;
+        items.push({
+          id: `${t.id}-comm`,
+          code: `${t.tripOrVehicleCode}-COM`,
+          title: `Broker Commission (ব্রোকার কমিশন)`,
+          subtitle: `${t.brokerName ? `Broker: ${t.brokerName} • ` : ''}Truck: ${t.registrationNumber}`,
+          category: 'other',
+          categoryLabel: 'Broker Commission',
+          amount: comm,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 7. On-Route Maintenance / Repair
+      const maint = Number(t.maintenanceCost || 0);
+      if (maint > 0) {
+        total += maint;
+        breakdown.maintenance += maint;
+        items.push({
+          id: `${t.id}-maint`,
+          code: `${t.tripOrVehicleCode}-MNT`,
+          title: `On-Route Repair & Maintenance`,
+          subtitle: `${t.maintenanceDetails || 'Emergency fix'} • Truck: ${t.registrationNumber}`,
+          category: 'maintenance',
+          categoryLabel: 'Workshop & Maintenance (মেরামত)',
+          amount: maint,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+    }
+
+    // B. Standalone Fuel Refueling Entries (not attached to a trip today)
+    for (const f of fuelToday) {
+      if (f.fuelCost) {
+        const amt = Number(f.fuelCost);
+        total += amt;
+        breakdown.diesel += amt;
+        items.push({
+          id: f.id,
+          code: f.tripOrVehicleCode || 'FUEL-LOG',
+          title: `Diesel Refueling (${f.fuelLitres || 0} Litres)`,
+          subtitle: `${f.fuelStation || 'Filling Station'} • Driver: ${f.driverName || 'Driver'}`,
+          category: 'diesel',
+          categoryLabel: 'Diesel / Fuel (তেল খরচ)',
+          amount: amt,
+          vehicle: f.registrationNumber,
+          date: f.date,
+        });
+      }
+    }
+
+    // C. Standalone Workshop / Maintenance Entries (not attached to a trip today)
+    for (const m of maintToday) {
+      if (m.maintenanceCost || m.partsCost) {
+        const amt = Number(m.maintenanceCost || m.partsCost);
+        total += amt;
+        breakdown.maintenance += amt;
+        items.push({
+          id: m.id,
+          code: m.tripOrVehicleCode || 'MAINT-LOG',
+          title: `Workshop Repair: ${m.cargoDetails || m.maintenanceDetails || 'Service'}`,
+          subtitle: `Garage: ${m.origin || m.garageName || 'Garage'} • Mechanic: ${m.driverName || m.mechanicName || 'N/A'}`,
+          category: 'maintenance',
+          categoryLabel: 'Workshop & Maintenance (মেরামত)',
+          amount: amt,
+          vehicle: m.registrationNumber,
+          date: m.date,
+        });
+      }
+    }
+
+    // D. Standalone Journal Expenses
     for (const j of jEntries) {
       const amt = Number(j.amount || 0);
       total += amt;
@@ -453,48 +633,8 @@ export default function TransportManagementModule({
       });
     }
 
-    for (const f of fuelToday) {
-      const inJ = jEntries.some((j) => j.referenceNo?.includes(f.tripOrVehicleCode));
-      if (!inJ && f.fuelCost) {
-        const amt = Number(f.fuelCost);
-        total += amt;
-        breakdown.diesel += amt;
-        items.push({
-          id: f.id,
-          code: f.tripOrVehicleCode,
-          title: `Diesel Refueling (${f.fuelLitres || 0} Litres)`,
-          subtitle: `${f.fuelStation || 'Filling Station'} • Driver: ${f.driverName || 'Driver'}`,
-          category: 'diesel',
-          categoryLabel: 'Diesel / Fuel',
-          amount: amt,
-          vehicle: f.registrationNumber,
-          date: f.date,
-        });
-      }
-    }
-
-    for (const m of maintToday) {
-      const inJ = jEntries.some((j) => j.referenceNo?.includes(m.tripOrVehicleCode));
-      if (!inJ && m.maintenanceCost) {
-        const amt = Number(m.maintenanceCost);
-        total += amt;
-        breakdown.maintenance += amt;
-        items.push({
-          id: m.id,
-          code: m.tripOrVehicleCode,
-          title: `Workshop Repair: ${m.cargoDetails || m.maintenanceDetails || 'Service'}`,
-          subtitle: `Garage: ${m.origin || m.garageName || 'Local Garage'} • Mechanic: ${m.driverName || m.mechanicName || 'N/A'}`,
-          category: 'maintenance',
-          categoryLabel: 'Workshop & Maintenance',
-          amount: amt,
-          vehicle: m.registrationNumber,
-          date: m.date,
-        });
-      }
-    }
-
     return { total, items, breakdown };
-  }, [journalEntries, allFuelLogs, allMaintenanceLogs, todayStr]);
+  }, [allTrips, ops, journalEntries, todayStr]);
 
   // Active / Detailed Maintenance Records
   const activeMaintenanceList = useMemo(() => {
@@ -586,10 +726,26 @@ export default function TransportManagementModule({
     const monthlyTrips = allTrips.filter((t) => t.date && t.date.startsWith(currentMonthPrefix));
     const monthlyRevenue = monthlyTrips.reduce((s, t) => s + Number(t.tripRevenue || 0), 0);
     const monthlyExpenses = monthlyTrips.reduce((s, t) => {
-      const exp = t.tripExpense !== undefined ? t.tripExpense : Number(t.fuelCost || 0) + Number(t.tollCost || 0) + Number(t.maintenanceCost || 0);
-      return s + exp + Number(t.commission || 0);
+      const exp = Number(t.tripExpense || 0) > 0
+        ? Number(t.tripExpense)
+        : Number(t.fuelCost || 0) +
+          Number(t.tollCost || 0) +
+          Number(t.ferryCost || 0) +
+          Number(t.driverKhoraki || t.driverAllowance || 0) +
+          Number(t.policeRoadCost || 0) +
+          Number(t.labourLoadingCost || 0) +
+          Number(t.maintenanceCost || 0) +
+          Number(t.commission || 0);
+      return s + exp;
     }, 0);
-    const monthlyNetProfit = monthlyRevenue - monthlyExpenses;
+    const standaloneMonthlyFuel = ops
+      .filter((o) => o.recordType === 'fuel' && o.date && o.date.startsWith(currentMonthPrefix))
+      .reduce((s, f) => s + Number(f.fuelCost || 0), 0);
+    const standaloneMonthlyMaint = ops
+      .filter((o) => (o.recordType === 'maintenance' || o.recordType === 'vehicle_maintenance') && o.date && o.date.startsWith(currentMonthPrefix))
+      .reduce((s, m) => s + Number(m.maintenanceCost || m.partsCost || 0), 0);
+    const totalMonthlyExpenses = monthlyExpenses + standaloneMonthlyFuel + standaloneMonthlyMaint;
+    const monthlyNetProfit = monthlyRevenue - totalMonthlyExpenses;
 
     return {
       todayIncome: todayIncomeData.total,
@@ -601,10 +757,10 @@ export default function TransportManagementModule({
       totalDrivers,
       totalDistance,
       monthlyRevenue,
-      monthlyExpenses,
+      monthlyExpenses: totalMonthlyExpenses,
       monthlyNetProfit,
     };
-  }, [allVehicles, runningTrips, allDrivers, allTrips, selectedMonth, selectedYear, todayIncomeData, todayExpenseData, activeMaintenanceList]);
+  }, [allVehicles, runningTrips, allDrivers, allTrips, ops, selectedMonth, selectedYear, todayIncomeData, todayExpenseData, activeMaintenanceList]);
 
   // 6. Form State: + Add New Vehicle
   const [newVehReg, setNewVehReg] = useState('DHAKA-METRO-T-12-3456');
