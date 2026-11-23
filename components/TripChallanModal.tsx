@@ -104,12 +104,38 @@ export default function TripChallanModal({
 
   if (!isOpen || !trip) return null;
 
+  const hasReturnLeg = Boolean(
+    (trip.returnFare && trip.returnFare > 0) ||
+    trip.returnLoadingPoint ||
+    trip.returnUnloadingPoint ||
+    (trip.route && (trip.route.includes('⇄') || trip.route.toLowerCase().includes('round')))
+  );
+
   const totalTripCost =
     (trip.fuelCost || 0) +
     (trip.tollCost || 0) +
     (trip.driverAllowance || 0) +
     (trip.maintenanceCost || 0);
-  const netTripProfit = (trip.tripRevenue || 0) - totalTripCost;
+
+  const returnFare = trip.returnFare || 0;
+  // Outgoing fare is total revenue minus return fare (if return fare was stored)
+  const outgoingFare = hasReturnLeg && returnFare > 0
+    ? Math.max(0, (trip.tripRevenue || 0) - returnFare)
+    : (trip.tripRevenue || 0);
+
+  const totalFare = (trip.tripRevenue && trip.tripRevenue > 0)
+    ? trip.tripRevenue
+    : (outgoingFare + returnFare);
+
+  const advanceReceived = Number(trip.advanceReceived || 0);
+  const driverReturnCash = Number(trip.returnDriverCash || 0);
+  const totalReceived = advanceReceived + driverReturnCash;
+
+  const outstandingDue = trip.outstandingDue !== undefined
+    ? Number(trip.outstandingDue)
+    : Math.max(0, totalFare - totalReceived);
+
+  const netTripProfit = totalFare - totalTripCost;
 
   // Real phone numbers entered by user (NO fake hardcoded fallback!)
   const driverPhone = trip.driverPhone?.trim() || '';
@@ -135,19 +161,24 @@ export default function TripChallanModal({
 ========================================
 ${businessName} - Freight Consignment Challan & Work Order
 ========================================
+Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP (যাওয়া ও আসা)' : 'ONE WAY / SINGLE TRIP (একমুখী ট্রিপ)'}
 Order No: ${orderNumberFormatted}
 Work Order No: ${trip.tripOrVehicleCode}
 Vehicle No: ${trip.registrationNumber} (${trip.vehicleType || 'Heavy Truck'})
 Driver: ${trip.driverName}${driverPhone ? ` (${driverPhone})` : ''}
-Consignor (Origin): ${trip.origin}
+Consignor (Origin): ${trip.origin} (Loading: ${trip.loadingLocation || trip.origin})
 Consignee (Destination): ${trip.customerName || 'Wholesale Terminal'} (${trip.destination})${receiverPhone ? ` [Phone: ${receiverPhone}]` : ''}
 Distance: ${trip.distanceKm} KM
 Cargo: ${trip.cargoDetails || 'Commercial Freight Consignment'}
-Trip Fare: ৳ ${trip.tripRevenue.toLocaleString()}
+${hasReturnLeg ? `Return Route: ${trip.returnLoadingPoint || trip.destination} ➔ ${trip.returnUnloadingPoint || trip.origin} (Return Fare: ৳${returnFare.toLocaleString()})\n` : ''}--- Financial & Payment Summary ---
+Outgoing Fare: ৳ ${outgoingFare.toLocaleString()}
+${hasReturnLeg ? `Return Fare: ৳ ${returnFare.toLocaleString()}\n` : ''}Total Freight Fare: ৳ ${totalFare.toLocaleString()}
+Advance Received: ৳ ${advanceReceived.toLocaleString()}
+${hasReturnLeg ? `Driver Return Cash: ৳ ${driverReturnCash.toLocaleString()}\n` : ''}Total Received: ৳ ${totalReceived.toLocaleString()}
+Remaining Due: ৳ ${outstandingDue.toLocaleString()}
 Trip Expenses: ৳ ${totalTripCost.toLocaleString()} (Diesel: ৳${(trip.fuelCost || 0).toLocaleString()}, Toll: ৳${(trip.tollCost || 0).toLocaleString()}, Allowance: ৳${(trip.driverAllowance || 0).toLocaleString()})
 Net Profit: ৳ ${netTripProfit.toLocaleString()}
-Remaining Due: ৳ ${trip.outstandingDue.toLocaleString()}
-Status: ${trip.status === 'completed' ? 'Delivered' : 'On Highway'}
+Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'}
 Date: ${trip.date}
 ========================================
 `.trim();
@@ -297,12 +328,26 @@ Date: ${trip.date}
                     : {driverPhone || '—'}
                   </span>
                 </div>
-                <div className="flex justify-between items-baseline py-0.5">
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
                     VEHICLE REG NO
                   </span>
                   <span className="font-bold text-emerald-700 dark:text-emerald-400 print:text-black w-3/5 text-right sm:text-left">
                     : {trip.registrationNumber} ({trip.vehicleType || 'Heavy Truck'})
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    TRIP TYPE
+                  </span>
+                  <span className="font-bold w-3/5 text-right sm:text-left">
+                    : <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                        hasReturnLeg
+                          ? 'bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 border border-sky-300 print:border-black print:text-black'
+                          : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 print:border-black print:text-black'
+                      }`}>
+                        {hasReturnLeg ? 'Round / Return Trip (যাওয়া-আসা)' : 'One-Way / Single Trip (একমুখী)'}
+                      </span>
                   </span>
                 </div>
               </div>
@@ -357,6 +402,16 @@ Date: ${trip.date}
                     : {trip.destination} ({trip.distanceKm} KM)
                   </span>
                 </div>
+                {hasReturnLeg && (
+                  <div className="flex justify-between items-baseline py-0.5 pt-1 mt-1 border-t border-sky-200 dark:border-sky-800 print:border-slate-300">
+                    <span className="font-bold uppercase tracking-wider text-sky-800 dark:text-sky-400 print:text-slate-800 w-2/5">
+                      RETURN LEG (ফিরে আসা)
+                    </span>
+                    <span className="font-bold text-sky-950 dark:text-sky-200 print:text-black w-3/5 text-right sm:text-left">
+                      : {trip.returnLoadingPoint || trip.destination} ➔ {trip.returnUnloadingPoint || trip.origin} (Fare: {formatBDT(returnFare)})
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -397,6 +452,7 @@ Date: ${trip.date}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700 print:divide-slate-300 font-medium">
+                  {/* Row 1: Outgoing Leg */}
                   <tr>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold text-slate-900 dark:text-white print:text-black">
                       {serialNumberFormatted}
@@ -405,8 +461,8 @@ Date: ${trip.date}
                       <div className="font-bold text-slate-900 dark:text-white print:text-black">
                         {trip.cargoDetails || 'Farm Livestock & Feed Consignment'}
                       </div>
-                      <div className="text-[11px] text-slate-500 print:text-slate-600">
-                        Safe commercial transport load
+                      <div className="text-[11px] text-emerald-700 dark:text-emerald-400 print:text-slate-600 font-semibold">
+                        {hasReturnLeg ? 'Outgoing Leg (যাওয়া)' : 'Safe commercial transport load'}
                       </div>
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
@@ -429,7 +485,7 @@ Date: ${trip.date}
                       {trip.capacityTons ? `${trip.capacityTons} Ton` : 'Full Truck Load'}
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">
-                      {formatBDT(trip.tripRevenue)}
+                      {formatBDT(outgoingFare)}
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono text-slate-700 dark:text-slate-300 print:text-black">
                       {formatBDT(totalTripCost)}
@@ -440,29 +496,74 @@ Date: ${trip.date}
                     <td className="py-3 px-3 text-right font-mono font-bold">
                       <span
                         className={
-                          netTripProfit >= 0
+                          (outgoingFare - totalTripCost) >= 0
                             ? 'text-emerald-700 dark:text-emerald-400 print:text-black'
                             : 'text-red-600 print:text-black'
                         }
                       >
-                        {formatBDT(netTripProfit)}
+                        {formatBDT(outgoingFare - totalTripCost)}
                       </span>
                     </td>
                   </tr>
 
-                  {/* Grand Total Row matching client screenshot */}
+                  {/* Row 2: Return Leg (If round / return trip) */}
+                  {hasReturnLeg && (
+                    <tr className="bg-sky-50/40 dark:bg-sky-950/20 print:bg-white">
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold text-sky-800 dark:text-sky-300 print:text-black">
+                        02
+                      </td>
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                        <div className="font-bold text-sky-900 dark:text-sky-200 print:text-black">
+                          Return Freight Load (ফিরে আসা পণ্য)
+                        </div>
+                        <div className="text-[11px] text-sky-600 dark:text-sky-400 print:text-slate-600 font-semibold">
+                          Back Load Leg (রিটার্ন ট্রিপ)
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center">
+                        <div className="font-mono font-bold text-sky-700 dark:text-sky-400 print:text-black">
+                          {orderNumberFormatted}-R
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          RET-{trip.tripOrVehicleCode.slice(-4)}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
+                        <div className="font-semibold text-sky-900 dark:text-sky-200 print:text-black">
+                          {trip.returnLoadingPoint || trip.destination} ➔ {trip.returnUnloadingPoint || trip.origin}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          {trip.registrationNumber} · {trip.driverName}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold text-sky-800 dark:text-sky-300 print:text-black">
+                        Back Load
+                      </td>
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono font-bold text-sky-800 dark:text-sky-300 print:text-black">
+                        {formatBDT(returnFare)}
+                      </td>
+                      <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono text-slate-500 print:text-black">
+                        ৳ 0
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-sky-800 dark:text-sky-300 print:text-black">
+                        {formatBDT(returnFare)}
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* Grand Total Row */}
                   <tr className="bg-slate-100/90 dark:bg-slate-800 font-bold border-t-2 border-slate-900 dark:border-slate-700 print:border-black print:bg-slate-100">
                     <td
                       colSpan={4}
                       className="py-2.5 px-4 text-right uppercase tracking-wider border-r border-slate-300 dark:border-slate-700 print:border-black"
                     >
-                      Grand Total:
+                      Grand Total ({hasReturnLeg ? 'Outgoing + Return' : 'Single Trip'}):
                     </td>
                     <td className="py-2.5 px-3 text-center border-r border-slate-300 dark:border-slate-700 print:border-black font-mono font-bold">
-                      {trip.capacityTons ? `${trip.capacityTons} Ton` : '1 Load'}
+                      {trip.capacityTons ? `${trip.capacityTons} Ton` : hasReturnLeg ? '2 Legs' : '1 Load'}
                     </td>
                     <td className="py-2.5 px-3 text-right border-r border-slate-300 dark:border-slate-700 print:border-black font-mono text-emerald-800 dark:text-emerald-400 print:text-black">
-                      {formatBDT(trip.tripRevenue)}
+                      {formatBDT(totalFare)}
                     </td>
                     <td className="py-2.5 px-3 text-right border-r border-slate-300 dark:border-slate-700 print:border-black font-mono text-slate-700 dark:text-slate-300 print:text-black">
                       {formatBDT(totalTripCost)}
@@ -477,6 +578,62 @@ Date: ${trip.date}
           </div>
 
           {/* ============================================================== */}
+          {/* FINANCIAL, ADVANCE & OUTSTANDING DUE SUMMARY BOX               */}
+          {/* ============================================================== */}
+          <div className="rounded-lg border-2 border-slate-900 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 print:bg-slate-100 overflow-hidden text-xs">
+            <div className="bg-slate-200/80 dark:bg-slate-800 py-1.5 px-4 font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 print:text-black border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+              <span>Payment, Advance & Due Summary (ভাড়া, অগ্রিম ও বকেয়া হিসাব)</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                outstandingDue > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+              }`}>
+                {outstandingDue > 0 ? 'Due Pending' : 'Paid in Full'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-300 dark:divide-slate-700 p-3.5 gap-2 font-mono">
+              <div className="space-y-0.5">
+                <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 print:text-slate-600">Total Freight Fare (মোট ভাড়া)</div>
+                <div className="text-base font-bold text-slate-900 dark:text-white print:text-black">{formatBDT(totalFare)}</div>
+                {hasReturnLeg && (
+                  <div className="text-[10px] text-slate-500 font-sans">
+                    Outgoing: {formatBDT(outgoingFare)} + Return: {formatBDT(returnFare)}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-0.5 sm:pl-3">
+                <div className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400 print:text-slate-600">Advance Received (অগ্রিম গ্রহণ)</div>
+                <div className="text-base font-bold text-emerald-700 dark:text-emerald-400 print:text-black">{formatBDT(advanceReceived)}</div>
+                <div className="text-[10px] text-slate-500 font-sans">
+                  {advanceReceived > 0 ? 'Paid via cash / bank' : 'No advance payment'}
+                </div>
+              </div>
+
+              <div className="space-y-0.5 sm:pl-3">
+                <div className="text-[10px] font-bold uppercase text-sky-700 dark:text-sky-400 print:text-slate-600">Driver Return Cash (ড্রাইভার নগদ)</div>
+                <div className="text-base font-bold text-sky-700 dark:text-sky-400 print:text-black">{formatBDT(driverReturnCash)}</div>
+                <div className="text-[10px] text-slate-500 font-sans">
+                  {driverReturnCash > 0 ? 'Cash in driver hand' : 'No return cash collected'}
+                </div>
+              </div>
+
+              <div className="space-y-0.5 sm:pl-3">
+                <div className="text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400 print:text-slate-600">Outstanding Due (অবশিষ্ট বকেয়া)</div>
+                <div className={`text-lg font-black ${outstandingDue > 0 ? 'text-rose-600 print:text-black' : 'text-emerald-600 print:text-black'}`}>
+                  {formatBDT(outstandingDue)}
+                </div>
+                <div className="text-[10px] font-sans font-bold">
+                  {outstandingDue > 0 ? (
+                    <span className="text-rose-600">Pending payment from customer</span>
+                  ) : (
+                    <span className="text-emerald-600">All due cleared</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
           {/* IN WORD, NOTE & REMARKS SECTION                                */}
           {/* Matches Screenshot 2 exactly                                   */}
           {/* ============================================================== */}
@@ -486,7 +643,7 @@ Date: ${trip.date}
                 IN WORD:
               </span>
               <span className="font-semibold text-slate-700 dark:text-slate-300 print:text-black italic">
-                {numberToWords(trip.tripRevenue)} ({trip.tripRevenue.toLocaleString()} BDT Only)
+                {numberToWords(totalFare)} ({totalFare.toLocaleString()} BDT Only)
               </span>
             </div>
 
@@ -495,7 +652,7 @@ Date: ${trip.date}
                 NOTE:
               </span>
               <span className="text-slate-600 dark:text-slate-400 print:text-slate-700">
-'Consignment must be delivered safely in sealed condition. Receiver signature and company stamp required upon discharge.'
+                Consignment must be delivered safely in sealed condition. Receiver signature and company stamp required upon discharge.
               </span>
             </div>
 
@@ -504,7 +661,7 @@ Date: ${trip.date}
                 REMARKS:
               </span>
               <span className="text-slate-600 dark:text-slate-400 print:text-slate-700 font-mono">
-`Trip Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'} | Outstanding Fare: ${formatBDT(trip.outstandingDue)}`
+                {`Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP (যাওয়া ও আসা)' : 'SINGLE TRIP (একমুখী)'} | Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'} | Total Fare: ${formatBDT(totalFare)} | Received: ${formatBDT(totalReceived)} | Outstanding Due: ${formatBDT(outstandingDue)}`}
               </span>
             </div>
           </div>

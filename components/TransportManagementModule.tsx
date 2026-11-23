@@ -658,12 +658,71 @@ export default function TransportManagementModule({
   const [tripRemarks, setTripRemarks] = useState('');
   const [tripImageUrl, setTripImageUrl] = useState('');
 
+  // Return Load Direct Modal (for adding or updating return trip on running or active trips)
+  const [showAddReturnLoadModal, setShowAddReturnLoadModal] = useState(false);
+  const [targetTripForReturnLoad, setTargetTripForReturnLoad] = useState<ErpTransportOp | null>(null);
+  const [retLoadPoint, setRetLoadPoint] = useState('');
+  const [retUnloadPoint, setRetUnloadPoint] = useState('');
+  const [retFare, setRetFare] = useState<number>(0);
+  const [retDriverCash, setRetDriverCash] = useState<number>(0);
+
+  const handleOpenAddReturnLoadModal = (trip: ErpTransportOp) => {
+    setTargetTripForReturnLoad(trip);
+    setRetLoadPoint(trip.returnLoadingPoint || trip.destination || 'Chittagong');
+    setRetUnloadPoint(trip.returnUnloadingPoint || trip.origin || 'Dhaka');
+    setRetFare(trip.returnFare || 0);
+    setRetDriverCash(trip.returnDriverCash || 0);
+    setShowAddReturnLoadModal(true);
+  };
+
+  const handleSaveReturnLoad = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetTripForReturnLoad) return;
+    setIsSubmitting(true);
+    try {
+      const existingRetFare = targetTripForReturnLoad.returnFare || 0;
+      const baseOutgoingFare = (targetTripForReturnLoad.tripRevenue || 0) > existingRetFare
+        ? (targetTripForReturnLoad.tripRevenue || 0) - existingRetFare
+        : (targetTripForReturnLoad.tripRevenue || 0);
+      const newTotalRev = baseOutgoingFare + Number(retFare || 0);
+      const totalRecv = Number(targetTripForReturnLoad.advanceReceived || 0) + Number(retDriverCash || 0);
+      const newDue = Math.max(0, newTotalRev - totalRecv);
+      const returnUnload = retUnloadPoint.trim() || targetTripForReturnLoad.origin;
+      const updatedRoute = `${targetTripForReturnLoad.origin} ➔ ${targetTripForReturnLoad.destination} ⇄ ${returnUnload}`;
+
+      await updateTransportOpRecord(
+        targetTripForReturnLoad,
+        {
+          returnLoadingPoint: retLoadPoint.trim(),
+          returnUnloadingPoint: returnUnload,
+          returnFare: Number(retFare || 0),
+          returnDriverCash: Number(retDriverCash || 0),
+          tripRevenue: newTotalRev,
+          outstandingDue: newDue,
+          remainingDue: newDue,
+          route: updatedRoute,
+        },
+        actorEmail
+      );
+      triggerGlobalToast(`Return load added to ${targetTripForReturnLoad.tripOrVehicleCode}!`, 'success');
+      setShowAddReturnLoadModal(false);
+    } catch (err: any) {
+      triggerGlobalToast(err?.message || 'Error saving return load', 'info');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleOpenAddTripModal = () => {
-    const firstVeh = allVehicles[0];
-    setTripTruckReg(firstVeh?.registrationNumber || 'DHAKA-METRO-TA-12-3456');
-    if (firstVeh?.driverName) {
-      setTripDriverName(firstVeh.driverName);
-      const d = allDrivers.find((dr) => dr.name.toLowerCase() === firstVeh.driverName?.toLowerCase());
+    // Pick first AVAILABLE truck that is not currently running an active trip
+    const availableVeh = allVehicles.find(
+      (v) => !allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'))
+    ) || allVehicles[0];
+
+    setTripTruckReg(availableVeh?.registrationNumber || 'DHAKA-METRO-TA-12-3456');
+    if (availableVeh?.driverName) {
+      setTripDriverName(availableVeh.driverName);
+      const d = allDrivers.find((dr) => dr.name.toLowerCase() === availableVeh.driverName?.toLowerCase());
       if (d?.phone) setTripDriverPhone(d.phone);
       else setTripDriverPhone('');
     } else {
@@ -704,7 +763,8 @@ export default function TransportManagementModule({
   // Auto Distance & Financial Calculations
   const calculatedDistanceKm = Math.max(0, Number(tripEndKm || 0) - Number(tripStartKm || 0));
   const calculatedTotalIncome = Number(tripFare || 0) + (tripHasReturn ? Number(tripReturnFare || 0) : 0);
-  const calculatedRemainingDue = Math.max(0, Number(tripFare || 0) - Number(tripAdvance || 0));
+  const calculatedTotalReceived = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
+  const calculatedRemainingDue = Math.max(0, calculatedTotalIncome - calculatedTotalReceived);
   const calculatedTripExpense =
     Number(tripDieselCost || 0) +
     Number(tripTollCost || 0) +
@@ -828,7 +888,6 @@ export default function TransportManagementModule({
         `Vehicle ${newVehReg} registered successfully!`,
         'success'
       );
-      onNotify('Vehicle registered');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error creating vehicle', 'info');
     } finally {
@@ -854,7 +913,7 @@ export default function TransportManagementModule({
     );
     if (activeTripOnSameTruck) {
       triggerGlobalToast(
-`Vehicle ${tripTruckReg} is currently on an active trip (${activeTripOnSameTruck.origin} ➔ ${activeTripOnSameTruck.destination})! Complete that trip first.`,
+        `Truck ${tripTruckReg} is currently on an active trip (${activeTripOnSameTruck.origin} ➔ ${activeTripOnSameTruck.destination}). Please complete that trip or use '+ Return Load' on that trip!`,
         'info'
       );
       return;
@@ -863,7 +922,15 @@ export default function TransportManagementModule({
     setIsSubmitting(true);
     try {
       const tripCode = `TRP-${Date.now().toString().slice(-5)}`;
-      const routeStr = `${tripStartLoc} ➔ ${tripDestLoc}`;
+      const returnLoad = tripHasReturn ? (tripReturnLoadLoc.trim() || tripDestLoc.trim()) : '';
+      const returnUnload = tripHasReturn ? (tripReturnUnloadLoc.trim() || tripStartLoc.trim()) : '';
+      const routeStr = tripHasReturn && (tripReturnFare > 0 || returnLoad || returnUnload)
+        ? `${tripStartLoc} ➔ ${tripDestLoc} ⇄ ${returnUnload || tripStartLoc}`
+        : `${tripStartLoc} ➔ ${tripDestLoc}`;
+
+      const totalIncome = Number(tripFare || 0) + (tripHasReturn ? Number(tripReturnFare || 0) : 0);
+      const totalRecv = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
+      const dueRemaining = Math.max(0, totalIncome - totalRecv);
 
       await createTransportOpRecord(
         {
@@ -885,8 +952,8 @@ export default function TransportManagementModule({
           cargoDetails: tripCargo.trim(),
           customerName: tripCustomer.trim(),
           brokerName: tripBrokerName.trim(),
-          returnLoadingPoint: tripHasReturn ? tripReturnLoadLoc.trim() : '',
-          returnUnloadingPoint: tripHasReturn ? tripReturnUnloadLoc.trim() : '',
+          returnLoadingPoint: returnLoad,
+          returnUnloadingPoint: returnUnload,
           returnFare: tripHasReturn ? Number(tripReturnFare || 0) : 0,
           returnDriverCash: tripHasReturn ? Number(tripReturnDriverCash || 0) : 0,
           distanceKm: calculatedDistanceKm,
@@ -904,11 +971,11 @@ export default function TransportManagementModule({
           tripExpense: calculatedTripExpense,
           maintenanceCost: Number(tripOtherCost || 0),
           maintenanceDetails: `Toll: ৳${tripTollCost} | Ferry: ৳${tripFerryCost} | Khoraki: ৳${tripDriverKhoraki} | Police: ৳${tripPoliceCost} | Labour: ৳${tripLabourCost} | Commission: ৳${tripCommission}`,
-          tripRevenue: calculatedTotalIncome,
+          tripRevenue: totalIncome,
           advanceReceived: Number(tripAdvance || 0),
-          remainingDue: calculatedRemainingDue,
-          outstandingDue: calculatedRemainingDue,
-          netIncome: calculatedNetIncome,
+          remainingDue: dueRemaining,
+          outstandingDue: dueRemaining,
+          netIncome: totalIncome - calculatedTripExpense,
           insuranceExpiry: '2027-12-31',
           fitnessExpiry: '2027-12-31',
           taxTokenExpiry: '2027-12-31',
@@ -943,8 +1010,8 @@ export default function TransportManagementModule({
             creditAccountId: revAcc.id,
             creditAccountName: revAcc.name,
             amount: Number(tripAdvance),
-            paymentStatus: calculatedRemainingDue > 0 ? 'partial' : 'paid',
-            dueAmount: calculatedRemainingDue,
+            paymentStatus: dueRemaining > 0 ? 'partial' : 'paid',
+            dueAmount: dueRemaining,
             counterpartyName: tripCustomer || tripDriverName,
           },
           accounts,
@@ -981,10 +1048,9 @@ export default function TransportManagementModule({
 
       setShowAddTripModal(false);
       triggerGlobalToast(
-`Trip ${tripCode} started on ${tripTruckReg} (${routeStr})!`,
+        `Trip ${tripCode} started on ${tripTruckReg} (${routeStr})!`,
         'success'
       );
-      onNotify('Trip started');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error saving trip', 'info');
     } finally {
@@ -1007,7 +1073,6 @@ export default function TransportManagementModule({
         `Trip ${trip.tripOrVehicleCode} marked as completed!`,
         'success'
       );
-      onNotify('Trip completed');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error completing trip', 'info');
     }
@@ -1062,7 +1127,6 @@ export default function TransportManagementModule({
 `Collected payment of ৳${custPayAmount} successfully!`,
         'success'
       );
-      onNotify('Payment collected');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error recording payment', 'info');
     } finally {
@@ -1150,7 +1214,6 @@ export default function TransportManagementModule({
 `Fuel logged: ${fuelLitres}L (৳${fuelTotal}) for ${fuelTruckReg}!`,
         'success'
       );
-      onNotify('Fuel logged');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error saving fuel', 'info');
     } finally {
@@ -1241,7 +1304,6 @@ export default function TransportManagementModule({
           : `Maintenance logged: ৳${srvTotal} for ${srvTruckReg}!`,
         'success'
       );
-      onNotify('Service recorded');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error recording service', 'info');
     } finally {
@@ -1291,7 +1353,6 @@ export default function TransportManagementModule({
           : `Paid ৳${drvPayAmount} to driver ${drvPayName}!`,
         'success'
       );
-      onNotify('Driver paid');
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error paying driver', 'info');
     } finally {
@@ -1844,7 +1905,6 @@ export default function TransportManagementModule({
                             onConfirm: async () => {
                               await deleteTransportOp(v.id);
                               triggerGlobalToast('Vehicle deleted', 'delete');
-                              onNotify('Deleted');
                             },
                           });
                         }}
@@ -1920,8 +1980,14 @@ export default function TransportManagementModule({
                   })
                   .map((t) => {
                     const isRunning = t.status === 'active' || t.status === 'running';
+                    const hasReturn = Boolean(
+                      (t.returnFare && t.returnFare > 0) ||
+                      t.returnLoadingPoint ||
+                      t.returnUnloadingPoint ||
+                      (t.route && (t.route.includes('⇄') || t.route.toLowerCase().includes('round')))
+                    );
                     const routeStr = t.route || `${t.origin} ➔ ${t.destination}`;
-                    const dueAmt = Number(t.outstandingDue || t.remainingDue || 0);
+                    const dueAmt = Number(t.outstandingDue !== undefined ? t.outstandingDue : t.remainingDue || 0);
 
                     return (
                       <tr key={t.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
@@ -1933,9 +1999,21 @@ export default function TransportManagementModule({
                           <div className="font-bold text-emerald-700 dark:text-emerald-400">{t.registrationNumber}</div>
                           <div className="text-[10px] text-slate-500">{t.driverName}</div>
                         </td>
-                        <td className="py-2 px-3 max-w-[200px] truncate">
-                          <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{routeStr}</div>
-                          <div className="text-[10px] text-slate-400 truncate">{t.customerName} • {t.cargoDetails}</div>
+                        <td className="py-2 px-3 max-w-[240px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                              hasReturn
+                                ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-300'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                            }`}>
+                              {hasReturn ? 'Round Trip' : 'Single Trip'}
+                            </span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{routeStr}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {t.customerName} • {t.cargoDetails}
+                            {hasReturn && t.returnFare ? ` • Return: ${formatBDT(t.returnFare)}` : ''}
+                          </div>
                         </td>
                         <td className="py-2 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
                           {t.distanceKm || (t.endOdometer && t.startOdometer ? t.endOdometer - t.startOdometer : 0)} KM
@@ -1977,6 +2055,17 @@ export default function TransportManagementModule({
                             {isRunning && (
                               <button
                                 type="button"
+                                onClick={() => handleOpenAddReturnLoadModal(t)}
+                                className="px-2 py-0.5 rounded bg-sky-50 text-sky-700 text-[10px] font-bold border border-sky-200 hover:bg-sky-600 hover:text-white cursor-pointer"
+                                title={hasReturn ? "Edit Return Load" : "+ Add Return Load"}
+                              >
+                                {hasReturn ? 'Edit Return' : '+ Return Load'}
+                              </button>
+                            )}
+
+                            {isRunning && (
+                              <button
+                                type="button"
                                 onClick={() => handleCompleteTrip(t)}
                                 className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 hover:bg-emerald-600 hover:text-white cursor-pointer"
                                 title="Mark Completed"
@@ -2004,7 +2093,6 @@ export default function TransportManagementModule({
                                   onConfirm: async () => {
                                     await deleteTransportOp(t.id);
                                     triggerGlobalToast('Deleted', 'delete');
-                                    onNotify('Deleted');
                                   },
                                 });
                               }}
@@ -2365,11 +2453,14 @@ export default function TransportManagementModule({
                       }}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                     >
-                      {allVehicles.map((v) => (
-                        <option key={v.id} value={v.registrationNumber}>
-                          {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
-                        </option>
-                      ))}
+                      {allVehicles.map((v) => {
+                        const isBusy = allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'));
+                        return (
+                          <option key={v.id} value={v.registrationNumber}>
+                            {v.registrationNumber} {isBusy ? '— [On Active Trip]' : '— [Available]'} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   <div>
@@ -2540,10 +2631,17 @@ export default function TransportManagementModule({
                     <input
                       type="checkbox"
                       checked={tripHasReturn}
-                      onChange={(e) => setTripHasReturn(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setTripHasReturn(checked);
+                        if (checked) {
+                          if (!tripReturnLoadLoc) setTripReturnLoadLoc(tripDeliverLoc || 'Chittagong');
+                          if (!tripReturnUnloadLoc) setTripReturnUnloadLoc(tripLoadLoc || 'Dhaka');
+                        }
+                      }}
                       className="h-4 w-4 rounded text-sky-600"
                     />
-                    <span>Has Return Freight Load?</span>
+                    <span>Has Return Freight Load? (রিটার্ন ট্রিপ যোগ করুন)</span>
                   </label>
                 </div>
 
@@ -3457,6 +3555,155 @@ export default function TransportManagementModule({
             ) : (
               <div className="py-12 text-center text-xs text-slate-400">No image</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 7.5: ADD / UPDATE RETURN FREIGHT LOAD ───────────── */}
+      {showAddReturnLoadModal && targetTripForReturnLoad && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowAddReturnLoadModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-600">
+                  <RotateCcw className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Add / Update Return Freight Load (রিটার্ন ট্রিপ যোগ করুন)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Trip: {targetTripForReturnLoad.tripOrVehicleCode} · {targetTripForReturnLoad.registrationNumber} ({targetTripForReturnLoad.driverName})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddReturnLoadModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveReturnLoad} className="space-y-3.5 text-xs">
+              <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 space-y-1">
+                <div className="text-[11px] font-bold text-sky-900 dark:text-sky-300">Outgoing Trip Info:</div>
+                <div className="text-slate-600 dark:text-slate-300 flex justify-between">
+                  <span>Route: {targetTripForReturnLoad.origin} ➔ {targetTripForReturnLoad.destination}</span>
+                  <span className="font-semibold">Fare: {formatBDT(targetTripForReturnLoad.tripRevenue || 0)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">Return Loading Point (লোডিং পয়েন্ট) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={retLoadPoint}
+                    onChange={(e) => setRetLoadPoint(e.target.value)}
+                    placeholder="e.g. Chittagong Port / Depot"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">Return Unload Point (আনলোডিং পয়েন্ট) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={retUnloadPoint}
+                    onChange={(e) => setRetUnloadPoint(e.target.value)}
+                    placeholder="e.g. Dhaka Tejgaon"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-bold text-sky-700 dark:text-sky-400">Return Freight Fare (রিটার্ন ভাড়া - BDT) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    placeholder="0"
+                    value={retFare === 0 ? '' : retFare}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setRetFare(v === '' ? 0 : Number(v));
+                    }}
+                    className="w-full rounded-lg border border-sky-400 dark:border-sky-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">Driver Return Cash (ড্রাইভারের হাতে নগদ গ্রহণ - BDT)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={retDriverCash === 0 ? '' : retDriverCash}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setRetDriverCash(v === '' ? 0 : Number(v));
+                    }}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated summary */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
+                <div>
+                  <span className="text-slate-500">New Total Freight: </span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {formatBDT(
+                      ((targetTripForReturnLoad.tripRevenue || 0) > (targetTripForReturnLoad.returnFare || 0)
+                        ? (targetTripForReturnLoad.tripRevenue || 0) - (targetTripForReturnLoad.returnFare || 0)
+                        : (targetTripForReturnLoad.tripRevenue || 0)) + Number(retFare || 0)
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Updated Due: </span>
+                  <span className="font-bold text-amber-600">
+                    {formatBDT(
+                      Math.max(
+                        0,
+                        ((targetTripForReturnLoad.tripRevenue || 0) > (targetTripForReturnLoad.returnFare || 0)
+                          ? (targetTripForReturnLoad.tripRevenue || 0) - (targetTripForReturnLoad.returnFare || 0)
+                          : (targetTripForReturnLoad.tripRevenue || 0)) +
+                          Number(retFare || 0) -
+                          (Number(targetTripForReturnLoad.advanceReceived || 0) + Number(retDriverCash || 0))
+                      )
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddReturnLoadModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-1.5 rounded-lg bg-sky-600 text-white font-bold hover:bg-sky-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Return Load'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
