@@ -130,6 +130,11 @@ export default function TransportManagementModule({
   const [selectedTruckFilter, setSelectedTruckFilter] = useState<string>('ALL');
   const [selectedTripStatusFilter, setSelectedTripStatusFilter] = useState<string>('ALL');
 
+  // Driver Table Filters (Excel View)
+  const [driverSearchQuery, setDriverSearchQuery] = useState('');
+  const [driverTruckFilter, setDriverTruckFilter] = useState('ALL');
+  const [driverStatusFilter, setDriverStatusFilter] = useState('ALL');
+
   // Modals
   const [showAddTripModal, setShowAddTripModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -155,6 +160,7 @@ export default function TransportManagementModule({
   const [editTripPolice, setEditTripPolice] = useState<number>(0);
   const [editTripLabour, setEditTripLabour] = useState<number>(0);
   const [editTripCommission, setEditTripCommission] = useState<number>(0);
+  const [editTripDriverCommission, setEditTripDriverCommission] = useState<number>(0);
   const [editTripOther, setEditTripOther] = useState<number>(0);
   const [editTripCustomer, setEditTripCustomer] = useState('');
   const [editTripCargo, setEditTripCargo] = useState('');
@@ -218,37 +224,110 @@ export default function TransportManagementModule({
 
   const allDrivers = useMemo(() => {
     // Drivers from transport ops + transport stakeholders
-    const driverMap = new Map<string, { name: string; phone?: string; license?: string; salary?: number; truck?: string }>();
+    const driverMap = new Map<
+      string,
+      {
+        id?: string;
+        name: string;
+        phone: string;
+        license: string;
+        salary: number;
+        truck: string;
+        tripCount: number;
+        totalCommission: number;
+        totalKhoraki: number;
+        status: string;
+      }
+    >();
+
     for (const op of ops) {
       if (op.driverName) {
         const name = op.driverName.trim();
         if (!driverMap.has(name)) {
           driverMap.set(name, {
+            id: op.id,
             name,
-            phone: op.driverPhone,
-            license: op.driverLicense,
-            salary: op.driverMonthlySalary,
-            truck: op.registrationNumber,
+            phone: op.driverPhone || '',
+            license: op.driverLicense || (op as any).licenseNumber || 'BRTA Verified',
+            salary: Number(op.driverMonthlySalary || 5000), // Default monthly 5000 BDT as client requested
+            truck: op.registrationNumber || '',
+            tripCount: 0,
+            totalCommission: 0,
+            totalKhoraki: 0,
+            status: 'Active',
           });
+        } else {
+          const existing = driverMap.get(name)!;
+          if (!existing.phone && op.driverPhone) existing.phone = op.driverPhone;
+          if ((!existing.license || existing.license === 'BRTA Verified') && (op.driverLicense || (op as any).licenseNumber)) {
+            existing.license = op.driverLicense || (op as any).licenseNumber;
+          }
+          if (!existing.truck && op.registrationNumber) existing.truck = op.registrationNumber;
+          if (op.driverMonthlySalary) existing.salary = Number(op.driverMonthlySalary);
         }
       }
     }
+
     for (const stk of stakeholders) {
       if (
         stk.businessId === activeBusiness.id &&
-        (stk.stakeholderType === 'employee' || stk.designationOrCategory?.toLowerCase().includes('driver')  || stk.designationOrCategory?.includes('Driver'))
+        (stk.stakeholderType === 'employee' || stk.designationOrCategory?.toLowerCase().includes('driver') || stk.designationOrCategory?.includes('Driver'))
       ) {
         if (!driverMap.has(stk.name)) {
           driverMap.set(stk.name, {
+            id: stk.id,
             name: stk.name,
-            phone: stk.phone,
-            salary: stk.monthlySalaryOrCreditLimit,
+            phone: stk.phone || '',
+            license: (stk as any).licenseNumber || 'BRTA Verified',
+            salary: Number(stk.monthlySalaryOrCreditLimit || 5000),
+            truck: '',
+            tripCount: 0,
+            totalCommission: 0,
+            totalKhoraki: 0,
+            status: 'Active',
           });
         }
       }
     }
+
+    // Aggregate trips for trip count & commissions
+    for (const t of allTrips) {
+      if (t.driverName) {
+        const dName = t.driverName.trim();
+        const d = driverMap.get(dName);
+        if (d) {
+          d.tripCount += 1;
+          const comm = Number(t.driverCommission !== undefined ? t.driverCommission : t.commission || 0);
+          d.totalCommission += comm;
+          d.totalKhoraki += Number(t.driverKhoraki || t.driverAllowance || 0);
+          if (t.status === 'active' || t.status === 'running') {
+            d.status = 'On Trip';
+          }
+          if (!d.truck && t.registrationNumber) {
+            d.truck = t.registrationNumber;
+          }
+        }
+      }
+    }
+
     return Array.from(driverMap.values());
-  }, [ops, stakeholders, activeBusiness.id]);
+  }, [ops, stakeholders, activeBusiness.id, allTrips]);
+
+  const filteredDrivers = useMemo(() => {
+    return allDrivers.filter((d) => {
+      if (driverTruckFilter !== 'ALL' && d.truck !== driverTruckFilter) return false;
+      if (driverStatusFilter !== 'ALL' && d.status !== driverStatusFilter) return false;
+      if (driverSearchQuery.trim()) {
+        const q = driverSearchQuery.toLowerCase();
+        const matchesName = d.name.toLowerCase().includes(q);
+        const matchesPhone = (d.phone || '').toLowerCase().includes(q);
+        const matchesTruck = (d.truck || '').toLowerCase().includes(q);
+        const matchesLicense = (d.license || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesPhone && !matchesTruck && !matchesLicense) return false;
+      }
+      return true;
+    });
+  }, [allDrivers, driverTruckFilter, driverStatusFilter, driverSearchQuery]);
 
   // Cash & Bank Wallets for Financial Payments
   const treasuryWallets = useMemo(() => {
@@ -539,7 +618,25 @@ export default function TransportManagementModule({
         });
       }
 
-      // 6. Broker Commission
+      // 6. Driver Commission
+      const drvComm = Number(t.driverCommission || 0);
+      if (drvComm > 0) {
+        total += drvComm;
+        breakdown.other += drvComm;
+        items.push({
+          id: `${t.id}-drvcomm`,
+          code: `${t.tripOrVehicleCode}-DCM`,
+          title: `Driver Trip Commission (ড্রাইভার ট্রিপ কমিশন)`,
+          subtitle: `Driver: ${t.driverName} • Truck: ${t.registrationNumber}`,
+          category: 'other',
+          categoryLabel: 'Driver Commission (কমিশন)',
+          amount: drvComm,
+          vehicle: t.registrationNumber,
+          date: t.date,
+        });
+      }
+
+      // 7. Broker Commission
       const comm = Number(t.commission || 0);
       if (comm > 0) {
         total += comm;
@@ -557,7 +654,7 @@ export default function TransportManagementModule({
         });
       }
 
-      // 7. On-Route Maintenance / Repair
+      // 8. On-Route Maintenance / Repair
       const maint = Number(t.maintenanceCost || 0);
       if (maint > 0) {
         total += maint;
@@ -798,6 +895,7 @@ export default function TransportManagementModule({
           Number(t.policeRoadCost || 0) +
           Number(t.labourLoadingCost || 0) +
           Number(t.maintenanceCost || 0) +
+          Number(t.driverCommission || 0) +
           Number(t.commission || 0);
       return s + exp;
     }, 0);
@@ -867,6 +965,7 @@ export default function TransportManagementModule({
   const [tripFare, setTripFare] = useState<number>(0);
   const [tripAdvance, setTripAdvance] = useState<number>(0);
   const [tripCommission, setTripCommission] = useState<number>(0);
+  const [tripDriverCommission, setTripDriverCommission] = useState<number>(0);
 
   // Return Load (Round Trip / Back Load)
   const [tripHasReturn, setTripHasReturn] = useState(false);
@@ -955,6 +1054,7 @@ export default function TransportManagementModule({
     setEditTripPolice(Number(trip.policeRoadCost || 0));
     setEditTripLabour(Number(trip.labourLoadingCost || 0));
     setEditTripCommission(Number(trip.commission || 0));
+    setEditTripDriverCommission(Number(trip.driverCommission !== undefined ? trip.driverCommission : trip.commission || 0));
     setEditTripOther(Number(trip.otherCosts || 0));
     setEditTripCustomer(trip.customerName || '');
     setEditTripCargo(trip.cargoDetails || '');
@@ -971,7 +1071,7 @@ export default function TransportManagementModule({
     try {
       const totalExpense =
         editTripDiesel + editTripToll + editTripFerry + editTripKhoraki +
-        editTripPolice + editTripLabour + editTripCommission + editTripOther;
+        editTripPolice + editTripLabour + editTripCommission + editTripDriverCommission + editTripOther;
       const newDue = Math.max(0, editTripFare - editTripAdvance);
 
       await updateTransportOpRecord(
@@ -989,6 +1089,7 @@ export default function TransportManagementModule({
           policeRoadCost: editTripPolice,
           labourLoadingCost: editTripLabour,
           commission: editTripCommission,
+          driverCommission: editTripDriverCommission,
           otherCosts: editTripOther,
           tripExpense: totalExpense,
           customerName: editTripCustomer.trim(),
@@ -1090,6 +1191,7 @@ export default function TransportManagementModule({
     setTripFare(0);
     setTripAdvance(0);
     setTripCommission(0);
+    setTripDriverCommission(0);
     setTripHasReturn(false);
     setTripReturnLoadLoc('');
     setTripReturnUnloadLoc('');
@@ -1124,6 +1226,7 @@ export default function TransportManagementModule({
     Number(tripPoliceCost || 0) +
     Number(tripLabourCost || 0) +
     Number(tripCommission || 0) +
+    Number(tripDriverCommission || 0) +
     Number(tripOtherCost || 0);
   const calculatedNetIncome = calculatedTotalIncome - calculatedTripExpense;
   const calculatedDriverCashInHand =
@@ -1169,10 +1272,10 @@ export default function TransportManagementModule({
   const [srvImageUrl, setSrvImageUrl] = useState('');
   const calculatedServiceTotal = Number(srvPartsCost || 0) + Number(srvLabourCost || 0) + Number(srvOtherCost || 0);
 
-  // 10. Form State: + Driver Payment (Salary / Advance / Allowance)
+  // 10. Form State: + Driver Payment (Salary / Commission / Advance / Allowance)
   const [drvPayName, setDrvPayName] = useState(allDrivers[0]?.name || 'Abdul Karim');
-  const [drvPayType, setDrvPayType] = useState<'salary' | 'advance' | 'allowance'>('salary');
-  const [drvPayAmount, setDrvPayAmount] = useState<number>(18000);
+  const [drvPayType, setDrvPayType] = useState<'salary' | 'commission' | 'advance' | 'allowance'>('salary');
+  const [drvPayAmount, setDrvPayAmount] = useState<number>(5000);
   const [drvPayDate, setDrvPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [drvPayWalletId, setDrvPayWalletId] = useState(treasuryWallets[0]?.id || '');
   const [drvPayNote, setDrvPayNote] = useState('Monthly salary settlement');
@@ -1326,9 +1429,10 @@ export default function TransportManagementModule({
           labourLoadingCost: Number(tripLabourCost || 0),
           driverAllowance: Number(tripDriverKhoraki || 0),
           commission: Number(tripCommission || 0),
+          driverCommission: Number(tripDriverCommission || 0),
           tripExpense: calculatedTripExpense,
           maintenanceCost: Number(tripOtherCost || 0),
-          maintenanceDetails: `Toll: ৳${tripTollCost} | Ferry: ৳${tripFerryCost} | Khoraki: ৳${tripDriverKhoraki} | Police: ৳${tripPoliceCost} | Labour: ৳${tripLabourCost} | Commission: ৳${tripCommission}`,
+          maintenanceDetails: `Toll: ৳${tripTollCost} | Ferry: ৳${tripFerryCost} | Khoraki: ৳${tripDriverKhoraki} | Driver Comm: ৳${tripDriverCommission} | Police: ৳${tripPoliceCost} | Labour: ৳${tripLabourCost} | Broker Comm: ৳${tripCommission}`,
           tripRevenue: totalIncome,
           advanceReceived: Number(tripAdvance || 0),
           remainingDue: dueRemaining,
@@ -1688,8 +1792,8 @@ export default function TransportManagementModule({
             businessId: activeBusiness.id,
             businessName: activeBusiness.name,
             transactionType: 'payroll',
-            category: `Driver Salary & Allowance (${drvPayName})`,
-            description: `${drvPayName} — ${drvPayType === 'salary' ? 'Monthly Salary' : drvPayType === 'advance' ? 'Salary Advance' : 'Trip Allowance'} payment of BDT ${drvPayAmount}`,
+            category: `Driver Salary & Commission (${drvPayName})`,
+            description: `${drvPayName} — ${drvPayType === 'salary' ? 'Monthly Basic Salary' : drvPayType === 'commission' ? 'Trip Commission' : drvPayType === 'advance' ? 'Salary Advance' : 'Trip Allowance'} payment of BDT ${drvPayAmount}`,
             debitAccountId: expAcc.id,
             debitAccountName: expAcc.name,
             creditAccountId: targetWallet.id,
@@ -2601,70 +2705,236 @@ export default function TransportManagementModule({
         </div>
       )}
 
-      {/* ── TAB 5: DRIVERS & STAFF MANAGEMENT ──────────────────────── */}
+      {/* ── TAB 5: DRIVERS & STAFF MANAGEMENT (EXCEL-STYLE TABLE) ──────────────────────── */}
       {activeTab === 'drivers' && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-2xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Header & KPI Summary */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Users className="h-4 w-4 text-purple-600" />
-                <span>Driver & Staff Management ({allDrivers.length})</span>
+                <span>Driver & Staff Payroll Ledger ({allDrivers.length} Drivers)</span>
               </h2>
               <p className="text-xs text-slate-500">
-                'Driver license validity, assigned truck, monthly salary, and advance ledger'
+                Monthly basic salary (৳৫,০০০), per-trip driver commission, license validity, and assigned fleet trucks
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAddDriverModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 shadow-xs cursor-pointer"
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              <span>+ Pay Driver</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 text-xs font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-[11px]">Monthly Payroll:</span>
+                <span className="font-bold text-purple-700 dark:text-purple-300">
+                  {formatBDT(allDrivers.reduce((s, d) => s + (d.salary || 5000), 0))}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-[11px]">Total Commission:</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                  {formatBDT(allDrivers.reduce((s, d) => s + (d.totalCommission || 0), 0))}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrvPayName(allDrivers[0]?.name || '');
+                  setDrvPayAmount(5000);
+                  setShowAddDriverModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 shadow-xs cursor-pointer"
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                <span>+ Pay Salary / Commission</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {allDrivers.map((d, idx) => (
-              <div
-                key={idx}
-                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2.5"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">{d.name}</h3>
-                    <div className="text-[11px] text-slate-500 font-mono">{d.phone || 'Phone not set'}</div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                    Active Driver
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200 dark:border-slate-700">
-                  <div>
-                    <span className="text-[10px] text-slate-400">Assigned Truck:</span>
-                    <div className="font-semibold text-emerald-700 dark:text-emerald-400 truncate">{d.truck || 'Float'}</div>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400">Monthly Salary:</span>
-                    <div className="font-mono font-bold text-slate-900 dark:text-white">{formatBDT(d.salary || 22000)}</div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrvPayName(d.name);
-                    setDrvPayAmount(d.salary || 22000);
-                    setShowAddDriverModal(true);
-                  }}
-                  className="w-full py-1 text-xs font-bold rounded-lg border border-purple-200 text-purple-700 dark:text-purple-300 hover:bg-purple-50 text-center cursor-pointer"
-                >
-                  Pay Salary / Advance
-                </button>
+          {/* Search & Filter Dropdown Bar requested by user */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ড্রাইভারের নাম, ফোন বা লাইসেন্স খুঁজুন..."
+                  value={driverSearchQuery}
+                  onChange={(e) => setDriverSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-purple-500"
+                />
               </div>
-            ))}
+
+              {/* Truck Dropdown Filter */}
+              <select
+                value={driverTruckFilter}
+                onChange={(e) => setDriverTruckFilter(e.target.value)}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-purple-500"
+              >
+                <option value="ALL">All Trucks (সব ট্রাক - {allVehicles.length})</option>
+                {allVehicles.map((v) => (
+                  <option key={v.id} value={v.registrationNumber}>
+                    {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                  </option>
+                ))}
+              </select>
+
+              {/* Status Dropdown Filter */}
+              <select
+                value={driverStatusFilter}
+                onChange={(e) => setDriverStatusFilter(e.target.value)}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-purple-500"
+              >
+                <option value="ALL">All Status (সব অবস্থা)</option>
+                <option value="Active">Active (উপলব্ধ)</option>
+                <option value="On Trip">On Trip (চলমান ট্রিপে)</option>
+              </select>
+            </div>
+
+            {(driverSearchQuery || driverTruckFilter !== 'ALL' || driverStatusFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDriverSearchQuery('');
+                  setDriverTruckFilter('ALL');
+                  setDriverStatusFilter('ALL');
+                }}
+                className="text-[11px] font-bold text-rose-600 hover:underline px-2 py-1"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+          {/* Excel-style Clean Data Table */}
+          <div className="overflow-x-auto max-h-[55vh] border border-slate-200 dark:border-slate-700 rounded-xl">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="py-2.5 px-3 text-center w-12 border-r border-slate-200 dark:border-slate-700">SL</th>
+                  <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Driver & Contact</th>
+                  <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Assigned Truck</th>
+                  <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">Driving License</th>
+                  <th className="py-2.5 px-3 text-right border-r border-slate-200 dark:border-slate-700">Monthly Basic Salary (মূল বেতন)</th>
+                  <th className="py-2.5 px-3 text-center border-r border-slate-200 dark:border-slate-700">Completed Trips</th>
+                  <th className="py-2.5 px-3 text-right border-r border-slate-200 dark:border-slate-700 text-purple-700 dark:text-purple-400">Total Commission (ট্রিপ কমিশন)</th>
+                  <th className="py-2.5 px-3 text-right border-r border-slate-200 dark:border-slate-700">Total Payable / Earnings</th>
+                  <th className="py-2.5 px-3 text-center border-r border-slate-200 dark:border-slate-700">Status</th>
+                  <th className="py-2.5 px-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {filteredDrivers.map((d, index) => {
+                  const basicSalary = Number(d.salary || 5000);
+                  const totalEarnings = basicSalary + Number(d.totalCommission || 0);
+
+                  return (
+                    <tr key={index} className="hover:bg-purple-50/30 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100 dark:border-slate-800">
+                        {String(index + 1).padStart(2, '0')}
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 dark:border-slate-800">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-purple-600" />
+                          <span>{d.name}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3 text-slate-400" />
+                          <span>{d.phone || 'Phone not set'}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 dark:border-slate-800">
+                        {d.truck ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-200 dark:border-emerald-800">
+                            <Truck className="h-3 w-3" />
+                            {d.truck}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] italic">Float / Unassigned</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800">
+                        {d.license || 'BRTA Verified'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white border-r border-slate-100 dark:border-slate-800">
+                        {formatBDT(basicSalary)}
+                        <span className="text-[9px] text-slate-400 block font-normal font-sans">/ month</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center border-r border-slate-100 dark:border-slate-800 font-mono">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-bold">
+                          {d.tripCount} Trips
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-black text-purple-700 dark:text-purple-300 border-r border-slate-100 dark:border-slate-800">
+                        {formatBDT(d.totalCommission)}
+                        {d.totalKhoraki > 0 && (
+                          <span className="text-[9px] text-slate-400 block font-normal font-sans">
+                            + খোরাকি: {formatBDT(d.totalKhoraki)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-700 dark:text-emerald-400 border-r border-slate-100 dark:border-slate-800">
+                        {formatBDT(totalEarnings)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            d.status === 'On Trip'
+                              ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-300'
+                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          }`}
+                        >
+                          {d.status === 'On Trip' ? '🚚 On Trip' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDrvPayName(d.name);
+                            setDrvPayAmount(basicSalary);
+                            setDrvPayType('salary');
+                            setShowAddDriverModal(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer shadow-2xs"
+                        >
+                          <CreditCard className="h-3 w-3" />
+                          <span>Pay Salary / Comm</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+
+              {/* Excel Summary Footer Row */}
+              <tfoot className="sticky bottom-0 bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-300 dark:border-slate-600 font-bold text-xs">
+                <tr>
+                  <td colSpan={4} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] border-r border-slate-200 dark:border-slate-700">
+                    Grand Total ({filteredDrivers.length} Drivers):
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">
+                    {formatBDT(filteredDrivers.reduce((s, d) => s + (d.salary || 5000), 0))}
+                  </td>
+                  <td className="py-2.5 px-3 text-center font-mono border-r border-slate-200 dark:border-slate-700">
+                    {filteredDrivers.reduce((s, d) => s + d.tripCount, 0)} Trips
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono font-black text-purple-700 dark:text-purple-300 border-r border-slate-200 dark:border-slate-700">
+                    {formatBDT(filteredDrivers.reduce((s, d) => s + (d.totalCommission || 0), 0))}
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-700 dark:text-emerald-400 border-r border-slate-200 dark:border-slate-700">
+                    {formatBDT(
+                      filteredDrivers.reduce(
+                        (s, d) => s + (d.salary || 5000) + (d.totalCommission || 0),
+                        0
+                      )
+                    )}
+                  </td>
+                  <td colSpan={2} className="py-2.5 px-3 text-center text-slate-400 text-[10px]">
+                    Excel Ledger View
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       )}
@@ -3198,6 +3468,22 @@ export default function TransportManagementModule({
                         setTripLabourCost(v === '' ? 0 : Number(v));
                       }}
                       className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-purple-600 dark:text-purple-400 font-bold mb-0.5">
+                      Driver Commission (ড্রাইভার কমিশন)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={tripDriverCommission === 0 ? '' : tripDriverCommission}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripDriverCommission(v === '' ? 0 : Number(v));
+                      }}
+                      className="w-full rounded border border-purple-300 dark:border-purple-700 px-2 py-1 font-mono text-purple-700 dark:text-purple-300 font-bold"
                     />
                   </div>
                   <div>
@@ -3793,7 +4079,7 @@ export default function TransportManagementModule({
             <div className="flex items-center justify-between border-b pb-2.5">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-purple-600" />
-                <span>Pay Driver Salary / Advance</span>
+                <span>Pay Driver Salary / Commission / Advance</span>
               </h3>
               <button type="button" onClick={() => setShowAddDriverModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
@@ -3817,12 +4103,21 @@ export default function TransportManagementModule({
                   <label className="block mb-1 font-semibold">Payment Type</label>
                   <select
                     value={drvPayType}
-                    onChange={(e) => setDrvPayType(e.target.value as any)}
+                    onChange={(e) => {
+                      const newType = e.target.value as any;
+                      setDrvPayType(newType);
+                      const d = allDrivers.find((dr) => dr.name.toLowerCase() === drvPayName.toLowerCase());
+                      if (d) {
+                        if (newType === 'salary') setDrvPayAmount(d.salary || 5000);
+                        else if (newType === 'commission') setDrvPayAmount(d.totalCommission || 0);
+                      }
+                    }}
                     className="w-full rounded-lg border px-2.5 py-1.5 font-semibold"
                   >
-                    <option value="salary">Monthly Salary</option>
-                    <option value="advance">Advance</option>
-                    <option value="allowance">Trip Allowance</option>
+                    <option value="salary">Monthly Basic Salary (মূল বেতন - ৳৫,০০০)</option>
+                    <option value="commission">Trip Commission (ট্রিপ কমিশন)</option>
+                    <option value="advance">Salary Advance (অগ্রিম)</option>
+                    <option value="allowance">Trip Khoraki / Allowance (খোরাকি)</option>
                   </select>
                 </div>
                 <div>
@@ -4539,6 +4834,10 @@ export default function TransportManagementModule({
                     <input type="number" value={editTripLabour} onChange={(e) => setEditTripLabour(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
                   </div>
                   <div>
+                    <label className="text-[10px] font-bold text-purple-700 dark:text-purple-300 block mb-1">ড্রাইভার ট্রিপ কমিশন (৳)</label>
+                    <input type="number" value={editTripDriverCommission} onChange={(e) => setEditTripDriverCommission(Number(e.target.value))} className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-purple-700 dark:text-purple-300" />
+                  </div>
+                  <div>
                     <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">ব্রোকার কমিশন (৳)</label>
                     <input type="number" value={editTripCommission} onChange={(e) => setEditTripCommission(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
                   </div>
@@ -4553,7 +4852,7 @@ export default function TransportManagementModule({
                 </div>
                 <div className="text-[11px] text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-900/30 rounded-lg px-3 py-1.5 flex justify-between">
                   <span>মোট খরচ (Total Expense):</span>
-                  <span>{formatBDT(editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripOther)}</span>
+                  <span>{formatBDT(editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripDriverCommission + editTripOther)}</span>
                 </div>
               </div>
 
@@ -4576,8 +4875,8 @@ export default function TransportManagementModule({
               {/* Net Profit Preview */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between items-center">
                 <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">নেট আয় (Net Profit):</span>
-                <span className={`font-mono font-black text-sm ${editTripFare - (editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripOther) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {formatBDT(editTripFare - (editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripOther))}
+                <span className={`font-mono font-black text-sm ${editTripFare - (editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripDriverCommission + editTripOther) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {formatBDT(editTripFare - (editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripDriverCommission + editTripOther))}
                 </span>
               </div>
 

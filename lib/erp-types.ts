@@ -332,6 +332,7 @@ export interface ErpTransportOp {
   tyreOrBatterySerial?: string;
   warrantyExpiryDate?: string;
   commission?: number;
+  driverCommission?: number;
   tripExpense?: number;
   expenseCategory?: string;
   expenseDescription?: string;

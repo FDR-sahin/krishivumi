@@ -111,11 +111,22 @@ export default function TripChallanModal({
     (trip.route && (trip.route.includes('⇄') || trip.route.toLowerCase().includes('round')))
   );
 
-  const totalTripCost =
-    (trip.fuelCost || 0) +
-    (trip.tollCost || 0) +
-    (trip.driverAllowance || 0) +
-    (trip.maintenanceCost || 0);
+  const driverCommission = Number(
+    trip.driverCommission !== undefined
+      ? trip.driverCommission
+      : trip.commission || 0
+  );
+
+  const totalTripCost = Number(trip.tripExpense || 0) > 0
+    ? Number(trip.tripExpense)
+    : (trip.fuelCost || 0) +
+      (trip.tollCost || 0) +
+      (trip.ferryCost || 0) +
+      (trip.driverKhoraki || trip.driverAllowance || 0) +
+      (trip.policeRoadCost || 0) +
+      (trip.labourLoadingCost || 0) +
+      driverCommission +
+      (trip.maintenanceCost || 0);
 
   const returnFare = trip.returnFare || 0;
   // Outgoing fare is total revenue minus return fare (if return fare was stored)
@@ -176,7 +187,8 @@ ${hasReturnLeg ? `Return Fare: ৳ ${returnFare.toLocaleString()}\n` : ''}Total 
 Advance Received: ৳ ${advanceReceived.toLocaleString()}
 ${hasReturnLeg ? `Driver Return Cash: ৳ ${driverReturnCash.toLocaleString()}\n` : ''}Total Received: ৳ ${totalReceived.toLocaleString()}
 Remaining Due: ৳ ${outstandingDue.toLocaleString()}
-Trip Expenses: ৳ ${totalTripCost.toLocaleString()} (Diesel: ৳${(trip.fuelCost || 0).toLocaleString()}, Toll: ৳${(trip.tollCost || 0).toLocaleString()}, Allowance: ৳${(trip.driverAllowance || 0).toLocaleString()})
+Driver Trip Commission: ৳ ${driverCommission.toLocaleString()}
+Trip Expenses: ৳ ${totalTripCost.toLocaleString()} (Diesel: ৳${(trip.fuelCost || 0).toLocaleString()}, Toll: ৳${(trip.tollCost || 0).toLocaleString()}, Driver Comm: ৳${driverCommission.toLocaleString()}, Allowance: ৳${(trip.driverAllowance || 0).toLocaleString()})
 Net Profit: ৳ ${netTripProfit.toLocaleString()}
 Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'}
 Date: ${trip.date}
@@ -489,8 +501,13 @@ Date: ${trip.date}
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-right font-mono text-slate-700 dark:text-slate-300 print:text-black">
                       {formatBDT(totalTripCost)}
-                      <div className="text-[10px] text-slate-400 print:text-slate-500">
-                        Diesel: {formatBDT(trip.fuelCost)} | Toll: {formatBDT(trip.tollCost)}
+                      <div className="text-[10px] text-slate-400 print:text-slate-500 space-y-0.5">
+                        <div>Diesel: {formatBDT(trip.fuelCost)} | Toll: {formatBDT(trip.tollCost)}</div>
+                        {driverCommission > 0 && (
+                          <div className="text-purple-700 dark:text-purple-400 print:text-black font-bold">
+                            Driver Comm: {formatBDT(driverCommission)}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-bold">
@@ -590,7 +607,7 @@ Date: ${trip.date}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-300 dark:divide-slate-700 p-3.5 gap-2 font-mono">
+            <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-300 dark:divide-slate-700 p-3.5 gap-2 font-mono">
               <div className="space-y-0.5">
                 <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 print:text-slate-600">Total Freight Fare (মোট ভাড়া)</div>
                 <div className="text-base font-bold text-slate-900 dark:text-white print:text-black">{formatBDT(totalFare)}</div>
@@ -624,10 +641,20 @@ Date: ${trip.date}
                 </div>
                 <div className="text-[10px] font-sans font-bold">
                   {outstandingDue > 0 ? (
-                    <span className="text-rose-600">Pending payment from customer</span>
+                    <span className="text-rose-600">Pending from customer</span>
                   ) : (
                     <span className="text-emerald-600">All due cleared</span>
                   )}
+                </div>
+              </div>
+
+              <div className="space-y-0.5 sm:pl-3 bg-purple-50/60 dark:bg-purple-950/20 print:bg-white rounded p-1">
+                <div className="text-[10px] font-bold uppercase text-purple-700 dark:text-purple-400 print:text-slate-700">Driver Commission (ড্রাইভার কমিশন)</div>
+                <div className="text-base font-black text-purple-700 dark:text-purple-300 print:text-black">
+                  {formatBDT(driverCommission)}
+                </div>
+                <div className="text-[10px] text-purple-600 dark:text-purple-400 font-sans">
+                  {driverCommission > 0 ? 'Trip commission to driver' : 'No trip commission'}
                 </div>
               </div>
             </div>
@@ -661,7 +688,7 @@ Date: ${trip.date}
                 REMARKS:
               </span>
               <span className="text-slate-600 dark:text-slate-400 print:text-slate-700 font-mono">
-                {`Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP (যাওয়া ও আসা)' : 'SINGLE TRIP (একমুখী)'} | Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'} | Total Fare: ${formatBDT(totalFare)} | Received: ${formatBDT(totalReceived)} | Outstanding Due: ${formatBDT(outstandingDue)}`}
+                {`Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP (যাওয়া ও আসা)' : 'SINGLE TRIP (একমুখী)'} | Status: ${trip.status === 'completed' ? 'Delivered & Received' : 'On Highway Dispatch'} | Total Fare: ${formatBDT(totalFare)} | Driver Commission: ${formatBDT(driverCommission)} | Received: ${formatBDT(totalReceived)} | Outstanding Due: ${formatBDT(outstandingDue)}`}
               </span>
             </div>
           </div>
