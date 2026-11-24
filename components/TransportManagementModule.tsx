@@ -140,6 +140,7 @@ export default function TransportManagementModule({
   const [truckSearchQuery, setTruckSearchQuery] = useState('');
   const [truckStatusFilter, setTruckStatusFilter] = useState('ALL');
   const [truckBodyTypeFilter, setTruckBodyTypeFilter] = useState('ALL');
+  const [truckContractFilter, setTruckContractFilter] = useState<'ALL' | 'garments' | 'open'>('ALL');
 
   // Truck Details Profile Modal State
   const [selectedTruckForDetails, setSelectedTruckForDetails] = useState<ErpTransportOp | null>(null);
@@ -721,6 +722,8 @@ export default function TransportManagementModule({
     return allVehicles.filter((v) => {
       if (truckStatusFilter !== 'ALL' && v.status !== truckStatusFilter) return false;
       if (truckBodyTypeFilter !== 'ALL' && (v.truckBodyType || 'open') !== truckBodyTypeFilter) return false;
+      if (truckContractFilter === 'garments' && !getTruckAssignedGarments(v.registrationNumber)) return false;
+      if (truckContractFilter === 'open' && getTruckAssignedGarments(v.registrationNumber)) return false;
       if (truckSearchQuery.trim()) {
         const q = truckSearchQuery.toLowerCase();
         const matchReg = (v.registrationNumber || '').toLowerCase().includes(q);
@@ -732,7 +735,7 @@ export default function TransportManagementModule({
       }
       return true;
     });
-  }, [allVehicles, truckStatusFilter, truckBodyTypeFilter, truckSearchQuery]);
+  }, [allVehicles, truckStatusFilter, truckBodyTypeFilter, truckContractFilter, truckSearchQuery, getTruckAssignedGarments]);
 
   // Helper to dynamically resolve driver name and phone across trips, vehicles & driver rosters
   const resolveTripDriverName = useCallback(
@@ -2952,6 +2955,88 @@ export default function TransportManagementModule({
             </div>
           </div>
 
+          {/* ── FLEET ALLOCATION OVERVIEW: 5 GARMENTS vs 2 OPEN MARKET ─── */}
+          <div className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-gradient-to-r from-purple-50/80 via-white to-sky-50/80 dark:from-purple-950/30 dark:via-slate-900 dark:to-sky-950/20 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center shrink-0">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                      ৭টি নিজস্ব ট্রাকের দায়িত্ব ও চুক্তি বিভাজন (Fleet Deployment Overview)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                      ৫টি গার্মেন্টসে • ২টি সাধারণ
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    অনন্ত অ্যাপারেলস (২টি ট্রাক), হা-মীম ডেনিম (২টি ট্রাক), স্কয়ার ফ্যাশনস (১টি ট্রাক) — বাকি ২টি ট্রাক উন্মুক্ত সাধারণ ভাড়ায় চলে।
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTruckContractFilter('garments');
+                    setActiveTab('vehicles');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white font-bold text-xs hover:bg-purple-700 shadow-2xs cursor-pointer"
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span>গার্মেন্টস ৫টি ট্রাক দেখুন</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTruckContractFilter('open');
+                    setActiveTab('vehicles');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 text-white font-bold text-xs hover:bg-sky-700 shadow-2xs cursor-pointer"
+                >
+                  <Navigation className="h-3.5 w-3.5" />
+                  <span>সাধারণ ২টি ট্রাক দেখুন</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick 2-Column Visual Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1 text-xs">
+              <div className="p-2.5 rounded-lg bg-purple-50/70 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 space-y-1">
+                <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-purple-600" />
+                    <span>গার্মেন্টস কারখানায় নিয়োজিত (৫টি ট্রাক):</span>
+                  </span>
+                  <span className="font-mono font-bold text-purple-700 dark:text-purple-400">৫ টি</span>
+                </div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                  <div>• <strong>অনন্ত অ্যাপারেলস (আশুলিয়া):</strong> ২ টি (দিন/ট্রিপ - ৳১৪,৫০০)</div>
+                  <div>• <strong>হা-মীম ডেনিম (কোনাবাড়ী):</strong> ২ টি (দিন/ট্রিপ - ৳১৬,০০০)</div>
+                  <div>• <strong>স্কয়ার ফ্যাশনস (ভালুকা):</strong> ১ টি (মাসিক ফিক্সড - ৳২,২০,০০০)</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-sky-50/70 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 space-y-1">
+                <div className="font-bold text-sky-900 dark:text-sky-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Navigation className="h-3.5 w-3.5 text-sky-600" />
+                    <span>এমনি সাধারণ ফ্লিট (উন্মুক্ত ভাড়া):</span>
+                  </span>
+                  <span className="font-mono font-bold text-sky-700 dark:text-sky-400">২ টি</span>
+                </div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                  <div>• <strong>ঢাকা মেট্রো-ট-১৬-৭৭৮৮ (ইসুজু ১৪ টন):</strong> ড্রাইভার হারুন (উন্মুক্ত ট্রিপ)</div>
+                  <div>• <strong>ঢাকা মেট্রো-ট-১৭-৮৮৯৯ (হিনো ২২ টন ট্রেইলার):</strong> ড্রাইভার আনোয়ার (উন্মুক্ত ট্রিপ)</div>
+                  <div className="text-[10px] text-slate-400">💡 কোনো কারখানায় বাঁধা নেই, যেখানেই ভাড়া পাবেন সেখানেই চলবে।</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ── EXACT REQUIREMENT: 4 CURRENTLY RUNNING TRUCKS SECTION ──── */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
@@ -3131,6 +3216,74 @@ export default function TransportManagementModule({
             </div>
           </div>
 
+          {/* Quick Fleet Segmentation Cards: All vs Garments vs Open */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setTruckContractFilter('ALL')}
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                truckContractFilter === 'ALL'
+                  ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-950 dark:text-emerald-200 shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[11px] font-bold flex items-center justify-between">
+                <span>All Fleet Trucks (মোট গাড়ি)</span>
+                <Truck className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+              <div className="text-lg font-black font-mono">{allVehicles.length} Trucks</div>
+              <div className="text-[10px] text-slate-400">আপনার নিজস্ব মোট ৭টি ট্রাক</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTruckContractFilter('garments')}
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                truckContractFilter === 'garments'
+                  ? 'border-purple-500 bg-purple-50/60 dark:bg-purple-950/30 text-purple-950 dark:text-purple-200 shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[11px] font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5 text-purple-600" />
+                  <span>Garments Dedicated (গার্মেন্টস নিয়োজিত)</span>
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+                  ৫টি ট্রাক
+                </span>
+              </div>
+              <div className="text-lg font-black font-mono text-purple-600 dark:text-purple-400">
+                {allVehicles.filter((v) => getTruckAssignedGarments(v.registrationNumber)).length} Trucks
+              </div>
+              <div className="text-[10px] text-slate-400">অনন্ত (২টি), হা-মীম (২টি), স্কয়ার (১টি)</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTruckContractFilter('open')}
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                truckContractFilter === 'open'
+                  ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/30 text-sky-950 dark:text-sky-200 shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[11px] font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Navigation className="h-3.5 w-3.5 text-sky-600" />
+                  <span>Open Market Fleet (এমনি সাধারণ)</span>
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-200 dark:bg-sky-900 text-sky-800 dark:text-sky-200">
+                  ২টি ট্রাক
+                </span>
+              </div>
+              <div className="text-lg font-black font-mono text-sky-600 dark:text-sky-400">
+                {allVehicles.filter((v) => !getTruckAssignedGarments(v.registrationNumber)).length} Trucks
+              </div>
+              <div className="text-[10px] text-slate-400">উন্মুক্ত ভাড়া — যেখানে ভাড়া পাবে চলবে</div>
+            </button>
+          </div>
+
           {/* Search & Filter Bar for Trucks */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs">
             <div className="flex items-center gap-2 flex-1 flex-wrap sm:flex-nowrap">
@@ -3144,6 +3297,17 @@ export default function TransportManagementModule({
                   className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-emerald-500"
                 />
               </div>
+
+              {/* Contract Assignment Filter Dropdown */}
+              <select
+                value={truckContractFilter}
+                onChange={(e) => setTruckContractFilter(e.target.value as any)}
+                className="rounded-lg border border-purple-200 dark:border-purple-800 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-purple-500"
+              >
+                <option value="ALL">All Assignments (সব ৭টি ট্রাক)</option>
+                <option value="garments">Garments Dedicated (গার্মেন্টস নিয়োজিত - ৫টি)</option>
+                <option value="open">Open Market Fleet (এমনি সাধারণ - ২টি)</option>
+              </select>
 
               {/* Status Filter Dropdown */}
               <select
@@ -3171,13 +3335,14 @@ export default function TransportManagementModule({
               </select>
             </div>
 
-            {(truckSearchQuery || truckStatusFilter !== 'ALL' || truckBodyTypeFilter !== 'ALL') && (
+            {(truckSearchQuery || truckStatusFilter !== 'ALL' || truckBodyTypeFilter !== 'ALL' || truckContractFilter !== 'ALL') && (
               <button
                 type="button"
                 onClick={() => {
                   setTruckSearchQuery('');
                   setTruckStatusFilter('ALL');
                   setTruckBodyTypeFilter('ALL');
+                  setTruckContractFilter('ALL');
                 }}
                 className="text-[11px] font-bold text-rose-600 hover:underline px-2 py-1"
               >
@@ -3238,21 +3403,28 @@ export default function TransportManagementModule({
                         const c = getTruckAssignedGarments(v.registrationNumber);
                         if (c) {
                           return (
-                            <div>
+                            <div className="space-y-0.5">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
                                 <Building2 className="h-2.5 w-2.5" />
-                                <span>{c.clientName ? c.clientName.split(' ')[0] : 'Garments'}</span>
+                                <span>{c.clientName || 'Garments'}</span>
                               </span>
-                              <div className="text-[9px] text-slate-500 font-medium mt-0.5">
-                                {c.billingType === 'monthly' ? 'মাসিক চুক্তি' : 'দিন/ট্রিপ অনুযায়ী'}
+                              <div className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold flex items-center gap-1">
+                                <span>{c.billingType === 'monthly' ? 'মাসিক চুক্তি' : 'দিন/ট্রিপ অনুযায়ী'}</span>
+                                <span>• ৳{(c.agreedRate || 0).toLocaleString()}</span>
                               </div>
                             </div>
                           );
                         }
                         return (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                            Open Market Fleet
-                          </span>
+                          <div className="space-y-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                              <Navigation className="h-2.5 w-2.5" />
+                              <span>এমনি সাধারণ ফ্লিট</span>
+                            </span>
+                            <div className="text-[10px] text-slate-500 font-medium">
+                              উন্মুক্ত ভাড়া (যেখানে ভাড়া পাবে চলবে)
+                            </div>
+                          </div>
                         );
                       })()}
                     </td>
