@@ -177,8 +177,8 @@ Order No: ${orderNumberFormatted}
 Work Order No: ${trip.tripOrVehicleCode}
 Vehicle No: ${trip.registrationNumber} (${trip.vehicleType || 'Heavy Truck'})
 Driver: ${trip.driverName}${driverPhone ? ` (${driverPhone})` : ''}
-Consignor (Origin): ${trip.origin} (Loading: ${trip.loadingLocation || trip.origin})
-Consignee (Destination): ${trip.customerName || 'Wholesale Terminal'} (${trip.destination})${receiverPhone ? ` [Phone: ${receiverPhone}]` : ''}
+Consignor (Origin): ${trip.loadingLocation || trip.origin || '—'}
+Consignee (Destination): ${trip.customerName || 'Wholesale Terminal'} (${trip.deliveryLocation || trip.destination || '—'})${receiverPhone ? ` [Phone: ${receiverPhone}]` : ''}
 Distance: ${trip.distanceKm} KM
 Cargo: ${trip.cargoDetails || 'Commercial Freight Consignment'}
 ${hasReturnLeg ? `Return Route: ${trip.returnLoadingPoint || trip.destination} ➔ ${trip.returnUnloadingPoint || trip.origin} (Return Fare: ৳${returnFare.toLocaleString()})\n` : ''}--- Financial & Payment Summary ---
@@ -403,7 +403,7 @@ Date: ${trip.date}
                     ORIGIN ADDRESS (CONSIGNOR)
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100 print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.origin} (Loading Point)
+                    : {trip.loadingLocation || trip.origin || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5">
@@ -411,7 +411,7 @@ Date: ${trip.date}
                     UNLOADING POINT (DESTINATION)
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.destination} ({trip.distanceKm} KM)
+                    : {trip.deliveryLocation || trip.destination || '—'}{trip.distanceKm ? ` (${trip.distanceKm} KM)` : ''}
                   </span>
                 </div>
                 {hasReturnLeg && (
@@ -487,7 +487,7 @@ Date: ${trip.date}
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black">
                       <div className="font-semibold">
-                        {trip.origin} ➔ {trip.destination}
+                        {trip.loadingLocation || trip.origin} ➔ {trip.deliveryLocation || trip.destination}
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono">
                         {trip.registrationNumber} · {trip.driverName}

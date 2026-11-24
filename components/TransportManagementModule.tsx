@@ -163,6 +163,8 @@ export default function TransportManagementModule({
   const [editTripDriverCommission, setEditTripDriverCommission] = useState<number>(0);
   const [editTripOther, setEditTripOther] = useState<number>(0);
   const [editTripCustomer, setEditTripCustomer] = useState('');
+  const [editTripOrigin, setEditTripOrigin] = useState('');
+  const [editTripDestination, setEditTripDestination] = useState('');
   const [editTripCargo, setEditTripCargo] = useState('');
   const [editTripRemarks, setEditTripRemarks] = useState('');
   const [editTripDistanceKm, setEditTripDistanceKm] = useState<number>(0);
@@ -950,9 +952,9 @@ export default function TransportManagementModule({
   const [tripDriverName, setTripDriverName] = useState('Abdul Karim');
   const [tripDriverPhone, setTripDriverPhone] = useState('');
   const [tripHelperName, setTripHelperName] = useState('');
-  const [tripStartLoc, setTripStartLoc] = useState('Dhaka');
-  const [tripDestLoc, setTripDestLoc] = useState('Chittagong');
-  const [tripLoadLoc, setTripLoadLoc] = useState('Dhaka Tejgaon');
+  const [tripStartLoc, setTripStartLoc] = useState('');
+  const [tripDestLoc, setTripDestLoc] = useState('');
+  const [tripLoadLoc, setTripLoadLoc] = useState('');
   const [tripDeliverLoc, setTripDeliverLoc] = useState('');
   const [tripCustomer, setTripCustomer] = useState('');
   const [tripReceiverPhone, setTripReceiverPhone] = useState('');
@@ -1057,6 +1059,8 @@ export default function TransportManagementModule({
     setEditTripDriverCommission(Number(trip.driverCommission !== undefined ? trip.driverCommission : trip.commission || 0));
     setEditTripOther(Number(trip.otherCosts || 0));
     setEditTripCustomer(trip.customerName || '');
+    setEditTripOrigin(trip.loadingLocation || trip.origin || '');
+    setEditTripDestination(trip.deliveryLocation || trip.destination || '');
     setEditTripCargo(trip.cargoDetails || '');
     setEditTripRemarks(trip.remarks || '');
     setEditTripDistanceKm(Number(trip.distanceKm || 0));
@@ -1093,6 +1097,11 @@ export default function TransportManagementModule({
           otherCosts: editTripOther,
           tripExpense: totalExpense,
           customerName: editTripCustomer.trim(),
+          origin: editTripOrigin.trim() || editingTrip.origin,
+          destination: editTripDestination.trim() || editingTrip.destination,
+          loadingLocation: editTripOrigin.trim() || editingTrip.loadingLocation || editingTrip.origin,
+          deliveryLocation: editTripDestination.trim() || editingTrip.deliveryLocation || editingTrip.destination,
+          route: `${editTripOrigin.trim() || editingTrip.origin} ➔ ${editTripDestination.trim() || editingTrip.destination}`,
           cargoDetails: editTripCargo.trim(),
           remarks: editTripRemarks.trim(),
           distanceKm: editTripDistanceKm,
@@ -1178,9 +1187,9 @@ export default function TransportManagementModule({
       setTripDriverPhone(allDrivers[0]?.phone || '');
     }
     setTripHelperName('');
-    setTripStartLoc('Dhaka');
-    setTripDestLoc('Chittagong');
-    setTripLoadLoc('Dhaka Tejgaon');
+    setTripStartLoc('');
+    setTripDestLoc('');
+    setTripLoadLoc('');
     setTripDeliverLoc('');
     setTripCustomer('');
     setTripReceiverPhone('');
@@ -1382,12 +1391,15 @@ export default function TransportManagementModule({
         }
       }
 
+      const loadPoint = tripLoadLoc.trim() || tripStartLoc.trim() || 'Loading Point';
+      const unloadPoint = tripDeliverLoc.trim() || tripDestLoc.trim() || 'Unloading Point';
+
       const tripCode = `TRP-${Date.now().toString().slice(-5)}`;
-      const returnLoad = tripHasReturn ? (tripReturnLoadLoc.trim() || tripDestLoc.trim()) : '';
-      const returnUnload = tripHasReturn ? (tripReturnUnloadLoc.trim() || tripStartLoc.trim()) : '';
+      const returnLoad = tripHasReturn ? (tripReturnLoadLoc.trim() || unloadPoint) : '';
+      const returnUnload = tripHasReturn ? (tripReturnUnloadLoc.trim() || loadPoint) : '';
       const routeStr = tripHasReturn && (tripReturnFare > 0 || returnLoad || returnUnload)
-        ? `${tripStartLoc} ➔ ${tripDestLoc} ⇄ ${returnUnload || tripStartLoc}`
-        : `${tripStartLoc} ➔ ${tripDestLoc}`;
+        ? `${loadPoint} ➔ ${unloadPoint} ⇄ ${returnUnload || loadPoint}`
+        : `${loadPoint} ➔ ${unloadPoint}`;
 
       const totalIncome = Number(tripFare || 0) + (tripHasReturn ? Number(tripReturnFare || 0) : 0);
       const totalRecv = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
@@ -1405,10 +1417,10 @@ export default function TransportManagementModule({
           driverPhone: tripDriverPhone.trim() || undefined,
           receiverPhone: tripReceiverPhone.trim() || undefined,
           helperName: tripHelperName.trim(),
-          origin: tripStartLoc.trim(),
-          destination: tripDestLoc.trim(),
-          loadingLocation: tripLoadLoc.trim(),
-          deliveryLocation: tripDeliverLoc.trim(),
+          origin: loadPoint,
+          destination: unloadPoint,
+          loadingLocation: loadPoint,
+          deliveryLocation: unloadPoint,
           route: routeStr,
           cargoDetails: tripCargo.trim(),
           customerName: tripCustomer.trim(),
@@ -4856,8 +4868,16 @@ export default function TransportManagementModule({
                 </div>
               </div>
 
-              {/* Other Details */}
+              {/* Route & Other Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">লোডিং পয়েন্ট (Loading Point / Origin) *</label>
+                  <input type="text" value={editTripOrigin} onChange={(e) => setEditTripOrigin(e.target.value)} placeholder="e.g. Dhaka Tejgaon" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">আনলোডিং পয়েন্ট (Unloading Point / Destination) *</label>
+                  <input type="text" value={editTripDestination} onChange={(e) => setEditTripDestination(e.target.value)} placeholder="e.g. Chittagong Port" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold" />
+                </div>
                 <div>
                   <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">কাস্টমার / কনসাইনি</label>
                   <input type="text" value={editTripCustomer} onChange={(e) => setEditTripCustomer(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs" />
