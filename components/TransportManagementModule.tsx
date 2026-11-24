@@ -163,7 +163,7 @@ export default function TransportManagementModule({
   const [garmentsStatus, setGarmentsStatus] = useState<'active' | 'paused' | 'completed'>('active');
   const [garmentsRemarks, setGarmentsRemarks] = useState('');
 
-  // ── Quick Garments Dispatch Modal State ────────────────────────────────
+  // ── Start Garments Trip Modal State ────────────────────────────────
   const [showQuickGarmentsDispatchModal, setShowQuickGarmentsDispatchModal] = useState(false);
   const [quickDispatchTruck, setQuickDispatchTruck] = useState('');
   const [quickDispatchDest, setQuickDispatchDest] = useState('Chittagong Port (Incoterm CFS)');
@@ -640,7 +640,7 @@ export default function TransportManagementModule({
   }, [ops]);
 
   const allDrivers = useMemo(() => {
-    // Drivers from transport ops + transport stakeholders
+    // Drivers from allVehicles + transport ops + transport stakeholders
     const driverMap = new Map<
       string,
       {
@@ -656,6 +656,27 @@ export default function TransportManagementModule({
         status: string;
       }
     >();
+
+    // 1. Seed drivers from all registered fleet vehicles
+    for (const v of allVehicles) {
+      if (v.driverName && v.driverName.trim() && v.driverName.toLowerCase() !== 'unassigned') {
+        const name = v.driverName.trim();
+        if (!driverMap.has(name)) {
+          driverMap.set(name, {
+            id: `drv-${v.registrationNumber}`,
+            name,
+            phone: v.driverPhone || '',
+            license: 'BRTA Verified',
+            salary: 5000,
+            truck: v.registrationNumber,
+            tripCount: 0,
+            totalCommission: 0,
+            totalKhoraki: 0,
+            status: 'Active',
+          });
+        }
+      }
+    }
 
     for (const op of ops) {
       if (op.driverName) {
@@ -772,17 +793,17 @@ export default function TransportManagementModule({
       if (t.driverName && t.driverName.trim() && t.driverName.toLowerCase() !== 'unassigned') {
         return t.driverName.trim();
       }
-      const veh = allVehicles.find((v) => v.registrationNumber === t.registrationNumber);
+      const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(t.registrationNumber));
       if (veh?.driverName && veh.driverName.trim() && veh.driverName.toLowerCase() !== 'unassigned') {
         return veh.driverName.trim();
       }
-      const drv = allDrivers.find((d) => d.truck === t.registrationNumber);
+      const drv = allDrivers.find((d) => normalizeReg(d.truck) === normalizeReg(t.registrationNumber));
       if (drv?.name && drv.name.trim() && drv.name.toLowerCase() !== 'unassigned') {
         return drv.name.trim();
       }
-      return t.driverName || 'Unassigned';
+      return veh?.driverName || t.driverName || 'Driver Assigned';
     },
-    [allVehicles, allDrivers]
+    [allVehicles, allDrivers, normalizeReg]
   );
 
   const resolveTripDriverPhone = useCallback(
@@ -2172,6 +2193,23 @@ export default function TransportManagementModule({
       );
 
       // Financial Integration: Advance Payment Received
+      // Update vehicle assigned driver so the truck immediately reflects the driver's name everywhere
+      const targetVeh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(tripTruckReg));
+      if (targetVeh && tripDriverName.trim() && tripDriverName.trim().toLowerCase() !== 'unassigned') {
+        try {
+          await updateTransportOpRecord(
+            targetVeh,
+            {
+              driverName: tripDriverName.trim(),
+              driverPhone: tripDriverPhone.trim() || targetVeh.driverPhone || '',
+            },
+            actorEmail
+          );
+        } catch (e) {
+          console.warn('Auto-updating vehicle driver name', e);
+        }
+      }
+
       const targetWallet = accounts.find((a) => a.id === tripWalletId) || treasuryWallets[0];
       const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
       const expAcc = accounts.find((a) => a.accountType === 'expense') || accounts[0];
@@ -2785,7 +2823,6 @@ export default function TransportManagementModule({
       onConfirm: async () => {
         try {
           await deleteTransportOp(contract.id);
-          triggerGlobalToast('Garments contract deleted successfully!', 'success');
         } catch (err: any) {
           triggerGlobalToast('Failed to delete contract: ' + (err?.message || ''), 'info');
         }
@@ -3632,14 +3669,14 @@ export default function TransportManagementModule({
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             triggerConfirmDelete({
                               title: 'Confirm Delete Truck',
                               message: `Are you sure you want to delete vehicle ${v.registrationNumber}?`,
                               itemName: v.registrationNumber,
                               onConfirm: async () => {
                                 await deleteTransportOp(v.id);
-                                triggerGlobalToast('Vehicle deleted', 'delete');
                               },
                             });
                           }}
@@ -3667,14 +3704,14 @@ export default function TransportManagementModule({
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-purple-600" />
                 <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                  Garments Dedicated Fleet & Corporate Contracts
+                  Garments Dedicated Fleet & Client Contracts
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
                   {garmentsDedicatedTrucks.length} Dedicated Trucks • {allGarmentsContracts.length} RMG Clients
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                5 of 7 fleet trucks are dedicated to corporate garment factories on Per-Trip and Monthly contracts. Remaining 2 trucks operate in open market.
+                5 of your 7 fleet trucks are dedicated to corporate garment factories. Click "+ Start Trip" to send any truck on a trip in seconds.
               </p>
             </div>
 
@@ -3685,7 +3722,7 @@ export default function TransportManagementModule({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 <Truck className="h-3.5 w-3.5" />
-                <span>+ Quick Garments Dispatch</span>
+                <span>+ Start Garments Trip</span>
               </button>
 
               <button
@@ -3697,6 +3734,29 @@ export default function TransportManagementModule({
                 <span>+ New Contract</span>
               </button>
             </div>
+          </div>
+
+          {/* Business Guide Banner (Explaining Garments Transport & Trips in plain English) */}
+          <div className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-gradient-to-r from-purple-50/70 to-indigo-50/50 dark:from-purple-950/30 dark:to-indigo-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-1">
+              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span className="text-purple-600 text-sm">💡</span>
+                <span>How Garments Fleet & Trips Work (সহজ কাজের নিয়ম):</span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                1. <strong>Dedicated Fleet:</strong> 5 of your 7 trucks are assigned to garment factories.<br />
+                2. <strong>Billing:</strong> Factories pay either <strong>Per-Trip</strong> (e.g. ৳14,500/trip on delivery) or <strong>Monthly Fixed</strong> (e.g. ৳220,000/month flat rent).<br />
+                3. <strong>Start Trip:</strong> Whenever a truck leaves the factory with goods, click <strong>+ Start Trip</strong>. Driver, loading address, and agreed fare are pre-filled in 5 seconds!
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => openQuickGarmentsDispatch()}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Truck className="h-4 w-4" />
+              <span>+ Start Garments Trip</span>
+            </button>
           </div>
 
           {/* 4 Top KPI Summary Cards */}
@@ -3781,7 +3841,7 @@ export default function TransportManagementModule({
                     <th className="py-2.5 px-3">Billing Type & Rate</th>
                     <th className="py-2.5 px-3">Standard Route</th>
                     <th className="py-2.5 px-3 text-center">Status</th>
-                    <th className="py-2.5 px-3 text-center">Dispatch</th>
+                    <th className="py-2.5 px-3 text-center">Start Trip</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -3878,7 +3938,7 @@ export default function TransportManagementModule({
                             className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                           >
                             <Truck className="h-3 w-3" />
-                            <span>Quick Dispatch</span>
+                            <span>+ Start Trip</span>
                           </button>
                         </td>
                       </tr>
@@ -4142,7 +4202,7 @@ export default function TransportManagementModule({
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
                       >
                         <Truck className="h-3.5 w-3.5" />
-                        <span>+ Quick Dispatch</span>
+                        <span>+ Start Trip</span>
                       </button>
                     </div>
                   </div>
@@ -7905,12 +7965,12 @@ export default function TransportManagementModule({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Dispatching...</span>
+                      <span>Starting Trip...</span>
                     </>
                   ) : (
                     <>
                       <Check className="h-4 w-4" />
-                      <span>Confirm & Dispatch Trip</span>
+                      <span>Confirm & Start Trip</span>
                     </>
                   )}
                 </button>
