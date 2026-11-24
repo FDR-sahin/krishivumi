@@ -327,6 +327,19 @@ export interface ErpTransportOp {
   returnUnloadingPoint?: string;
   returnFare?: number;
   returnDriverCash?: number;
+  // Garments & Corporate Dedicated Fleet Contracts
+  clientName?: string;
+  factoryLocation?: string;
+  contactPerson?: string;
+  contactPhone?: string;
+  startDate?: string;
+  billingType?: 'day_trip' | 'monthly' | string;
+  agreedRate?: number;
+  assignedTrucks?: string[];
+  assignedTrucksJson?: string;
+  assignedGarments?: string;
+  contractStatus?: 'active' | 'paused' | 'completed' | string;
+
   truckBodyType?: 'open' | 'covered' | 'trailer' | 'pickup' | string;
   capacityTons?: number;
   tyreOrBatterySerial?: string;
@@ -334,6 +347,8 @@ export interface ErpTransportOp {
   commission?: number;
   driverCommission?: number;
   tripExpense?: number;
+  estimatedTripFare?: number;
+  advancePaid?: number;
   expenseCategory?: string;
   expenseDescription?: string;
   maintenanceCost: number;

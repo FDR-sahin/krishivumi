@@ -82,6 +82,7 @@ interface TransportManagementModuleProps {
 type TransportTab =
   | 'dashboard'
   | 'vehicles'
+  | 'garments'
   | 'trips'
   | 'fuel'
   | 'drivers'
@@ -144,6 +145,23 @@ export default function TransportManagementModule({
   const [selectedTruckForDetails, setSelectedTruckForDetails] = useState<ErpTransportOp | null>(null);
   const [truckDetailsActiveTab, setTruckDetailsActiveTab] = useState<'overview' | 'trips' | 'fuel' | 'maintenance'>('overview');
 
+  // Garments & Corporate Dedicated Contracts State
+  const [garmentsSearchQuery, setGarmentsSearchQuery] = useState('');
+  const [garmentsBillingFilter, setGarmentsBillingFilter] = useState<'ALL' | 'day_trip' | 'monthly'>('ALL');
+  const [showAddGarmentsModal, setShowAddGarmentsModal] = useState(false);
+  const [editingGarmentsContract, setEditingGarmentsContract] = useState<ErpTransportOp | null>(null);
+  const [selectedGarmentsForDetails, setSelectedGarmentsForDetails] = useState<any | null>(null);
+  const [garmentsClientName, setGarmentsClientName] = useState('');
+  const [garmentsLocation, setGarmentsLocation] = useState('');
+  const [garmentsContactPerson, setGarmentsContactPerson] = useState('');
+  const [garmentsContactPhone, setGarmentsContactPhone] = useState('');
+  const [garmentsBillingType, setGarmentsBillingType] = useState<'day_trip' | 'monthly'>('day_trip');
+  const [garmentsAgreedRate, setGarmentsAgreedRate] = useState<number>(15000);
+  const [garmentsAssignedTrucks, setGarmentsAssignedTrucks] = useState<string[]>([]);
+  const [garmentsStartDate, setGarmentsStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [garmentsStatus, setGarmentsStatus] = useState<'active' | 'paused' | 'completed'>('active');
+  const [garmentsRemarks, setGarmentsRemarks] = useState('');
+
   // Modals
   const [showAddTripModal, setShowAddTripModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -194,6 +212,7 @@ export default function TransportManagementModule({
   const [editVehInsurance, setEditVehInsurance] = useState('');
   const [editVehRoutePermit, setEditVehRoutePermit] = useState('');
   const [editVehStatus, setEditVehStatus] = useState<string>('available');
+  const [editVehAssignedGarments, setEditVehAssignedGarments] = useState('');
 
   // Drill-down Detail Modals requested by user
   const [showTodayIncomeModal, setShowTodayIncomeModal] = useState(false);
@@ -214,8 +233,363 @@ export default function TransportManagementModule({
         }
       }
     }
+
+    // Default 7 Fleet Trucks (User specified fleet of 7 trucks)
+    const default7Fleet: ErpTransportOp[] = [
+      {
+        id: 'fleet-truck-1',
+        tripOrVehicleCode: 'TRK-01',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-11-2233',
+        vehicleType: 'Covered Van',
+        truckName: 'Tata 1618 Covered Van (15 Ton)',
+        driverName: 'Md. Kalam Hossain',
+        driverPhone: '01711-223344',
+        capacityTons: 15,
+        currentOdometer: 64200,
+        truckBodyType: 'covered',
+        taxTokenExpiry: '2027-08-30',
+        fitnessExpiry: '2027-09-15',
+        insuranceExpiry: '2027-11-30',
+        routePermitExpiry: '2028-01-10',
+        status: 'active',
+        origin: 'Dhaka',
+        destination: 'Chittagong',
+        cargoDetails: 'Garments Goods',
+        customerName: 'Ananta Apparels Ltd.',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-2',
+        tripOrVehicleCode: 'TRK-02',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-12-3456',
+        vehicleType: 'Heavy Truck',
+        truckName: 'Ashok Leyland 1616 (16 Ton)',
+        driverName: 'Abdul Karim',
+        driverPhone: '01722-334455',
+        capacityTons: 16,
+        currentOdometer: 78500,
+        truckBodyType: 'open',
+        taxTokenExpiry: '2027-06-20',
+        fitnessExpiry: '2027-07-15',
+        insuranceExpiry: '2027-10-10',
+        routePermitExpiry: '2027-12-25',
+        status: 'active',
+        origin: 'Gazipur',
+        destination: 'Chittagong Port',
+        cargoDetails: 'Fabric & Denim Roll',
+        customerName: 'Ha-Meem Denim & Garments',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-3',
+        tripOrVehicleCode: 'TRK-03',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-13-4455',
+        vehicleType: 'Covered Van',
+        truckName: 'Eicher Pro 3015 (12 Ton)',
+        driverName: 'Jamal Uddin',
+        driverPhone: '01833-445566',
+        capacityTons: 12,
+        currentOdometer: 42100,
+        truckBodyType: 'covered',
+        taxTokenExpiry: '2027-09-10',
+        fitnessExpiry: '2027-10-05',
+        insuranceExpiry: '2027-12-01',
+        routePermitExpiry: '2028-02-15',
+        status: 'active',
+        origin: 'Ashulia',
+        destination: 'Dhaka Airport Cargo',
+        cargoDetails: 'RMG Export Carton',
+        customerName: 'Ha-Meem Denim & Garments',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-4',
+        tripOrVehicleCode: 'TRK-04',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-14-5566',
+        vehicleType: 'Heavy Trailer',
+        truckName: 'Tata LPT 2518 (25 Ton)',
+        driverName: 'Md. Rafiqul Islam',
+        driverPhone: '01944-556677',
+        capacityTons: 25,
+        currentOdometer: 95400,
+        truckBodyType: 'trailer',
+        taxTokenExpiry: '2027-05-18',
+        fitnessExpiry: '2027-06-30',
+        insuranceExpiry: '2027-09-22',
+        routePermitExpiry: '2027-11-15',
+        status: 'active',
+        origin: 'Ashulia',
+        destination: 'Chittagong Port',
+        cargoDetails: 'Export Container / Garments Carton',
+        customerName: 'Ananta Apparels Ltd.',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-5',
+        tripOrVehicleCode: 'TRK-05',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-15-6677',
+        vehicleType: 'Covered Van',
+        truckName: 'Mahindra Blazo 25 (18 Ton)',
+        driverName: 'Sumon Mia',
+        driverPhone: '01755-667788',
+        capacityTons: 18,
+        currentOdometer: 38900,
+        truckBodyType: 'covered',
+        taxTokenExpiry: '2027-11-15',
+        fitnessExpiry: '2027-12-20',
+        insuranceExpiry: '2028-02-10',
+        routePermitExpiry: '2028-04-01',
+        status: 'active',
+        origin: 'Valuka',
+        destination: 'Dhaka Head Office',
+        cargoDetails: 'Garments & Knitwear Goods',
+        customerName: 'Square Fashions Ltd.',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-6',
+        tripOrVehicleCode: 'TRK-06',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-16-7788',
+        vehicleType: 'Open Truck',
+        truckName: 'Isuzu Forward FVR (14 Ton)',
+        driverName: 'Harunur Rashid',
+        driverPhone: '01866-778899',
+        capacityTons: 14,
+        currentOdometer: 51200,
+        truckBodyType: 'open',
+        taxTokenExpiry: '2027-07-25',
+        fitnessExpiry: '2027-08-30',
+        insuranceExpiry: '2027-10-18',
+        routePermitExpiry: '2027-12-10',
+        status: 'active',
+        origin: 'Dhaka',
+        destination: 'Bogra',
+        cargoDetails: 'General Commercial Freight',
+        customerName: 'Open Market Transport',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-7',
+        tripOrVehicleCode: 'TRK-07',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-17-8899',
+        vehicleType: 'Flatbed Trailer',
+        truckName: 'Hino 500 Heavy Prime (22 Ton)',
+        driverName: 'Anowar Hossain',
+        driverPhone: '01977-889900',
+        capacityTons: 22,
+        currentOdometer: 62400,
+        truckBodyType: 'trailer',
+        taxTokenExpiry: '2027-10-05',
+        fitnessExpiry: '2027-11-12',
+        insuranceExpiry: '2028-01-20',
+        routePermitExpiry: '2028-03-15',
+        status: 'active',
+        origin: 'Dhaka',
+        destination: 'Khulna / Mongla',
+        cargoDetails: 'Commercial Steel & Machinery',
+        customerName: 'Open Market Transport',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+    ].map((v) => ({
+      tripRevenue: 0,
+      outstandingDue: 0,
+      nextServiceDate: '2027-12-31',
+      date: '2026-01-01',
+      ownerId: ownerId || activeBusiness.id,
+      ...v,
+    } as ErpTransportOp));
+
+    for (const defTruck of default7Fleet) {
+      if (!vehicleMap.has(defTruck.registrationNumber)) {
+        vehicleMap.set(defTruck.registrationNumber, defTruck);
+      }
+    }
+
     return Array.from(vehicleMap.values());
-  }, [ops]);
+  }, [ops, activeBusiness.id]);
+
+  const defaultGarmentsContracts: ErpTransportOp[] = useMemo(() => [
+    {
+      id: 'gcontract-01',
+      tripOrVehicleCode: 'GCON-01',
+      recordType: 'garments_contract',
+      businessId: activeBusiness.id,
+      registrationNumber: 'DHAKA-METRO-TA-11-2233',
+      vehicleType: 'Corporate Contract',
+      clientName: 'Ananta Apparels Ltd. (অনন্ত অ্যাপারেলস)',
+      customerName: 'Ananta Apparels Ltd. (অনন্ত অ্যাপারেলস)',
+      factoryLocation: 'Nischintapur, Ashulia, Savar, Dhaka',
+      contactPerson: 'Engr. Farhan Tanvir (Logistics & Transport Lead)',
+      contactPhone: '01711-445566',
+      billingType: 'day_trip', // দিন/ট্রিপ অনুযায়ী (Day-Trip / Per-Trip Rate)
+      agreedRate: 14500, // ৳14,500 per trip
+      assignedTrucks: ['DHAKA-METRO-TA-11-2233', 'DHAKA-METRO-TA-14-5566'],
+      assignedTrucksJson: JSON.stringify(['DHAKA-METRO-TA-11-2233', 'DHAKA-METRO-TA-14-5566']),
+      route: 'Ashulia Factory ➔ Chittagong Seaport / Airport',
+      cargoDetails: 'Readymade Export Garments (RMG), Carton, Fabric',
+      startDate: '2026-01-10',
+      contractStatus: 'active',
+      status: 'active',
+      remarks: 'Export container and carton dispatch. Payment settled per trip within 7 days of challan slip submission.',
+      origin: 'Ashulia',
+      destination: 'Chittagong Port',
+      fuelCost: 0,
+      tollCost: 0,
+      maintenanceCost: 0,
+      maintenanceDetails: '',
+      driverName: 'Assigned Fleet (2 Trucks)',
+      distanceKm: 275,
+    },
+    {
+      id: 'gcontract-02',
+      tripOrVehicleCode: 'GCON-02',
+      recordType: 'garments_contract',
+      businessId: activeBusiness.id,
+      registrationNumber: 'DHAKA-METRO-TA-12-3456',
+      vehicleType: 'Corporate Contract',
+      clientName: 'Ha-Meem Denim & Garments Ltd. (হা-মীম গ্রুপ)',
+      customerName: 'Ha-Meem Denim & Garments Ltd. (হা-মীম গ্রুপ)',
+      factoryLocation: 'Konabari, Gazipur Industrial Area',
+      contactPerson: 'Md. Delwar Hossain (Senior Dispatch Officer)',
+      contactPhone: '01819-332211',
+      billingType: 'day_trip', // দিন/ট্রিপ অনুযায়ী (Day-Trip / Per-Trip Rate)
+      agreedRate: 16000, // ৳16,000 per trip
+      assignedTrucks: ['DHAKA-METRO-TA-12-3456', 'DHAKA-METRO-TA-13-4455'],
+      assignedTrucksJson: JSON.stringify(['DHAKA-METRO-TA-12-3456', 'DHAKA-METRO-TA-13-4455']),
+      route: 'Konabari Gazipur ➔ Chittagong Port / Benapole Land Port',
+      cargoDetails: 'Denim Fabrics, Finished Jeans & Export Garments',
+      startDate: '2026-01-15',
+      contractStatus: 'active',
+      status: 'active',
+      remarks: 'Day/trip rate basis. Trips dispatch daily or alternate days. Driver allowances paid on loading.',
+      origin: 'Gazipur',
+      destination: 'Chittagong Port',
+      fuelCost: 0,
+      tollCost: 0,
+      maintenanceCost: 0,
+      maintenanceDetails: '',
+      driverName: 'Assigned Fleet (2 Trucks)',
+      distanceKm: 290,
+    },
+    {
+      id: 'gcontract-03',
+      tripOrVehicleCode: 'GCON-03',
+      recordType: 'garments_contract',
+      businessId: activeBusiness.id,
+      registrationNumber: 'DHAKA-METRO-TA-15-6677',
+      vehicleType: 'Corporate Contract',
+      clientName: 'Square Fashions Ltd. (স্কয়ার ফ্যাশনস)',
+      customerName: 'Square Fashions Ltd. (স্কয়ার ফ্যাশনস)',
+      factoryLocation: 'Masterbari, Valuka, Mymensingh',
+      contactPerson: 'Masum Billah (Commercial & Fleet Officer)',
+      contactPhone: '01912-778899',
+      billingType: 'monthly', // মাসিক চুক্তি (Monthly Fixed Rent)
+      agreedRate: 220000, // ৳2,20,000 per month
+      assignedTrucks: ['DHAKA-METRO-TA-15-6677'],
+      assignedTrucksJson: JSON.stringify(['DHAKA-METRO-TA-15-6677']),
+      route: 'Valuka Factory ➔ Dhaka HQ / Chittagong Depot',
+      cargoDetails: 'Knit Fabrics, Yarns, Sewing Accessories & Export Apparel',
+      startDate: '2026-02-01',
+      contractStatus: 'active',
+      status: 'active',
+      remarks: 'Monthly fixed contract. 1 Dedicated covered van 24/7 dedicated service. Monthly invoice paid 1st week of each month.',
+      origin: 'Valuka',
+      destination: 'Dhaka / Chittagong',
+      fuelCost: 0,
+      tollCost: 0,
+      maintenanceCost: 0,
+      maintenanceDetails: '',
+      driverName: 'Assigned Fleet (1 Truck)',
+      distanceKm: 120,
+    },
+  ].map((c) => ({
+    tripRevenue: 0,
+    outstandingDue: 0,
+    taxTokenExpiry: '2027-12-31',
+    fitnessExpiry: '2027-12-31',
+    insuranceExpiry: '2027-12-31',
+    nextServiceDate: '2027-12-31',
+    date: '2026-01-10',
+    ownerId: ownerId || activeBusiness.id,
+    ...c,
+  } as ErpTransportOp)), [activeBusiness.id, ownerId]);
+
+  const allGarmentsContracts = useMemo(() => {
+    const fromOps = ops.filter((op) => op.recordType === 'garments_contract');
+    if (fromOps.length > 0) {
+      return fromOps;
+    }
+    return defaultGarmentsContracts;
+  }, [ops, defaultGarmentsContracts]);
+
+  // Helper to retrieve which Garments a truck is assigned to
+  const getTruckAssignedGarments = useCallback(
+    (reg: string) => {
+      for (const c of allGarmentsContracts) {
+        let trucks: string[] = [];
+        if (Array.isArray(c.assignedTrucks)) {
+          trucks = c.assignedTrucks;
+        } else if (c.assignedTrucksJson) {
+          try {
+            trucks = JSON.parse(c.assignedTrucksJson);
+          } catch {
+            trucks = [];
+          }
+        } else if (c.route && c.route.includes(',')) {
+          trucks = c.route.split(',').map((s) => s.trim());
+        } else if (c.registrationNumber) {
+          trucks = [c.registrationNumber];
+        }
+        if (trucks.includes(reg)) {
+          return c;
+        }
+      }
+      return null;
+    },
+    [allGarmentsContracts]
+  );
 
   const allTrips = useMemo(() => {
     return ops.filter((op) => op.recordType === 'trip' || (!op.recordType && op.origin));
@@ -464,6 +838,102 @@ export default function TransportManagementModule({
       assignedDriver,
     };
   }, [selectedTruckForDetails, allTrips, ops, allDrivers]);
+
+  // Garments & Corporate Contracts Analytics & Aggregated Ledger
+  const garmentsStatsList = useMemo(() => {
+    return allGarmentsContracts.map((contract) => {
+      let assignedTrucks: string[] = [];
+      if (Array.isArray(contract.assignedTrucks)) {
+        assignedTrucks = contract.assignedTrucks;
+      } else if (contract.assignedTrucksJson) {
+        try {
+          assignedTrucks = JSON.parse(contract.assignedTrucksJson);
+        } catch {
+          assignedTrucks = [];
+        }
+      } else if (contract.route && contract.route.includes(',')) {
+        assignedTrucks = contract.route.split(',').map((s) => s.trim());
+      } else if (contract.registrationNumber) {
+        assignedTrucks = [contract.registrationNumber];
+      }
+
+      // Find all trips matching this client or assigned trucks
+      const cName = (contract.clientName || contract.customerName || '').toLowerCase().trim();
+      const clientTrips = allTrips.filter((t) => {
+        const tCustomer = (t.customerName || '').toLowerCase().trim();
+        const matchesName = cName && tCustomer && (tCustomer.includes(cName) || cName.includes(tCustomer));
+        const matchesTruck = assignedTrucks.includes(t.registrationNumber);
+        return matchesName || matchesTruck;
+      });
+
+      const totalTrips = clientTrips.length;
+      const activeTrips = clientTrips.filter((t) => t.status === 'active' || t.status === 'running').length;
+      const completedTrips = clientTrips.filter((t) => t.status === 'completed').length;
+
+      // Billing calculations:
+      let totalBilled = 0;
+      if (contract.billingType === 'monthly') {
+        const tripBilledSum = clientTrips.reduce((s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0), 0);
+        totalBilled = Math.max(tripBilledSum, Number(contract.agreedRate || 0));
+      } else {
+        // day_trip: sum of trip fares
+        totalBilled = clientTrips.reduce((s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0), 0);
+        if (totalBilled === 0 && totalTrips > 0) {
+          totalBilled = totalTrips * Number(contract.agreedRate || 0);
+        }
+      }
+
+      const totalAdvance = clientTrips.reduce((s, t) => s + Number(t.advancePaid || 0), 0);
+      const totalDue = Math.max(0, totalBilled - totalAdvance);
+
+      const totalExpenses = clientTrips.reduce((s, t) => {
+        const exp = Number(t.tripExpense || 0) > 0
+          ? Number(t.tripExpense)
+          : Number(t.fuelCost || 0) +
+            Number(t.tollCost || 0) +
+            Number(t.ferryCost || 0) +
+            Number(t.driverKhoraki || t.driverAllowance || 0) +
+            Number(t.policeRoadCost || 0) +
+            Number(t.labourLoadingCost || 0) +
+            Number(t.driverCommission || 0) +
+            Number(t.commission || 0);
+        return s + exp;
+      }, 0);
+
+      const netProfit = totalBilled - totalExpenses;
+
+      return {
+        contract,
+        assignedTrucks,
+        totalTrips,
+        activeTrips,
+        completedTrips,
+        totalBilled,
+        totalAdvance,
+        totalDue,
+        totalExpenses,
+        netProfit,
+        clientTrips,
+      };
+    });
+  }, [allGarmentsContracts, allTrips]);
+
+  const filteredGarmentsContracts = useMemo(() => {
+    return garmentsStatsList.filter((item) => {
+      const c = item.contract;
+      if (garmentsBillingFilter !== 'ALL' && c.billingType !== garmentsBillingFilter) return false;
+      if (garmentsSearchQuery.trim()) {
+        const q = garmentsSearchQuery.toLowerCase();
+        const matchesClient = (c.clientName || c.customerName || '').toLowerCase().includes(q);
+        const matchesContact = (c.contactPerson || '').toLowerCase().includes(q);
+        const matchesPhone = (c.contactPhone || '').toLowerCase().includes(q);
+        const matchesLoc = (c.factoryLocation || '').toLowerCase().includes(q);
+        const matchesTruck = item.assignedTrucks.some((tr) => tr.toLowerCase().includes(q));
+        if (!matchesClient && !matchesContact && !matchesPhone && !matchesLoc && !matchesTruck) return false;
+      }
+      return true;
+    });
+  }, [garmentsStatsList, garmentsBillingFilter, garmentsSearchQuery]);
 
   // Cash & Bank Wallets for Financial Payments
   const treasuryWallets = useMemo(() => {
@@ -1334,6 +1804,50 @@ export default function TransportManagementModule({
     }
   };
 
+  const handleTruckSelectChange = useCallback(
+    (reg: string) => {
+      setTripTruckReg(reg);
+      const v = allVehicles.find((veh) => veh.registrationNumber === reg);
+      if (v?.driverName) {
+        setTripDriverName(v.driverName);
+        const d = allDrivers.find((dr) => dr.name.toLowerCase() === v.driverName?.toLowerCase());
+        if (d?.phone) setTripDriverPhone(d.phone);
+        else if (v.driverPhone) setTripDriverPhone(v.driverPhone);
+        else setTripDriverPhone('');
+      } else {
+        const fallbackDriver = allDrivers.find((dr) => dr.truck === reg) || allDrivers[0];
+        if (fallbackDriver) {
+          setTripDriverName(fallbackDriver.name);
+          setTripDriverPhone(fallbackDriver.phone || '');
+        }
+      }
+
+      // Auto-fill Garments contract details if truck is assigned to a Garments contract
+      const contract = getTruckAssignedGarments(reg);
+      if (contract) {
+        const cClient = contract.clientName || contract.customerName || '';
+        if (cClient) setTripCustomer(cClient);
+        const cOrigin = contract.factoryLocation || contract.origin || '';
+        if (cOrigin) {
+          setTripLoadLoc(cOrigin);
+          setTripStartLoc(cOrigin);
+        }
+        const cDest = contract.destination || 'Chittagong Port';
+        if (cDest) {
+          setTripDeliverLoc(cDest);
+          setTripDestLoc(cDest);
+        }
+        if (contract.cargoDetails) {
+          setTripCargo(contract.cargoDetails);
+        }
+        if (contract.agreedRate && contract.agreedRate > 0) {
+          setTripFare(contract.agreedRate);
+        }
+      }
+    },
+    [allVehicles, allDrivers, getTruckAssignedGarments]
+  );
+
   const resetTripFormState = () => {
     // Pick first available truck that is not currently running an active trip, or first truck
     const availableVeh = allVehicles.find(
@@ -1341,16 +1855,7 @@ export default function TransportManagementModule({
     ) || allVehicles[0];
 
     const reg = availableVeh?.registrationNumber || 'DHAKA-METRO-TA-12-3456';
-    setTripTruckReg(reg);
-    if (availableVeh?.driverName) {
-      setTripDriverName(availableVeh.driverName);
-      const d = allDrivers.find((dr) => dr.name.toLowerCase() === availableVeh.driverName?.toLowerCase());
-      if (d?.phone) setTripDriverPhone(d.phone);
-      else setTripDriverPhone('');
-    } else {
-      setTripDriverName(allDrivers[0]?.name || 'Abdul Karim');
-      setTripDriverPhone(allDrivers[0]?.phone || '');
-    }
+    handleTruckSelectChange(reg);
     setTripHelperName('');
     setTripStartLoc('');
     setTripDestLoc('');
@@ -2000,6 +2505,134 @@ export default function TransportManagementModule({
     }
   };
 
+  // Garments Contract Handlers
+  const handleSaveGarmentsContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!garmentsClientName.trim()) {
+      triggerGlobalToast('দয়া করে গার্মেন্টস / কর্পোরেট ক্লায়েন্টের নাম লিখুন', 'info');
+      return;
+    }
+    if (garmentsAssignedTrucks.length === 0) {
+      triggerGlobalToast('কমপক্ষে ১টি ট্রাক সিলেক্ট করুন', 'info');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const gCode = editingGarmentsContract?.tripOrVehicleCode || `GCON-${Date.now().toString().slice(-4)}`;
+      const payload: Partial<ErpTransportOp> = {
+        recordType: 'garments_contract',
+        businessId: activeBusiness.id,
+        tripOrVehicleCode: gCode,
+        clientName: garmentsClientName.trim(),
+        customerName: garmentsClientName.trim(),
+        factoryLocation: garmentsLocation.trim(),
+        contactPerson: garmentsContactPerson.trim(),
+        contactPhone: garmentsContactPhone.trim(),
+        billingType: garmentsBillingType,
+        agreedRate: Number(garmentsAgreedRate || 0),
+        assignedTrucks: garmentsAssignedTrucks,
+        assignedTrucksJson: JSON.stringify(garmentsAssignedTrucks),
+        registrationNumber: garmentsAssignedTrucks[0] || 'DHAKA-METRO-TA-11-2233',
+        route: garmentsAssignedTrucks.join(', '),
+        startDate: garmentsStartDate,
+        contractStatus: garmentsStatus,
+        status: garmentsStatus,
+        remarks: garmentsRemarks.trim(),
+        origin: garmentsLocation.trim() || 'Factory Depot',
+        destination: 'Chittagong Port',
+        cargoDetails: 'Garments Goods & RMG Cargo',
+        vehicleType: 'Corporate Contract',
+        driverName: `Assigned Fleet (${garmentsAssignedTrucks.length} Trucks)`,
+      };
+
+      if (editingGarmentsContract && editingGarmentsContract.id) {
+        await updateTransportOpRecord(
+          editingGarmentsContract,
+          payload,
+          actorEmail
+        );
+        triggerGlobalToast('গার্মেন্টস চুক্তি সফলভাবে আপডেট করা হয়েছে', 'success');
+      } else {
+        await createTransportOpRecord(
+          payload as any,
+          ownerId,
+          actorEmail
+        );
+        triggerGlobalToast('নতুন গার্মেন্টস চুক্তি সফলভাবে তৈরি হয়েছে', 'success');
+      }
+
+      setShowAddGarmentsModal(false);
+      setEditingGarmentsContract(null);
+    } catch (err: any) {
+      console.error('Error saving garments contract:', err);
+      triggerGlobalToast('গার্মেন্টস চুক্তি সংরক্ষণ ব্যর্থ হয়েছে: ' + (err?.message || ''), 'info');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openNewGarmentsModal = () => {
+    setEditingGarmentsContract(null);
+    setGarmentsClientName('');
+    setGarmentsLocation('');
+    setGarmentsContactPerson('');
+    setGarmentsContactPhone('');
+    setGarmentsBillingType('day_trip');
+    setGarmentsAgreedRate(15000);
+    setGarmentsAssignedTrucks(['DHAKA-METRO-TA-11-2233']);
+    setGarmentsStartDate(new Date().toISOString().split('T')[0]);
+    setGarmentsStatus('active');
+    setGarmentsRemarks('');
+    setShowAddGarmentsModal(true);
+  };
+
+  const openEditGarmentsModal = (contract: ErpTransportOp) => {
+    setEditingGarmentsContract(contract);
+    setGarmentsClientName(contract.clientName || contract.customerName || '');
+    setGarmentsLocation(contract.factoryLocation || contract.origin || '');
+    setGarmentsContactPerson(contract.contactPerson || '');
+    setGarmentsContactPhone(contract.contactPhone || '');
+    setGarmentsBillingType(contract.billingType === 'monthly' ? 'monthly' : 'day_trip');
+    setGarmentsAgreedRate(contract.agreedRate || 15000);
+
+    let trucks: string[] = [];
+    if (Array.isArray(contract.assignedTrucks)) {
+      trucks = contract.assignedTrucks;
+    } else if (contract.assignedTrucksJson) {
+      try {
+        trucks = JSON.parse(contract.assignedTrucksJson);
+      } catch {
+        trucks = [];
+      }
+    } else if (contract.route && contract.route.includes(',')) {
+      trucks = contract.route.split(',').map((s) => s.trim());
+    } else if (contract.registrationNumber) {
+      trucks = [contract.registrationNumber];
+    }
+    setGarmentsAssignedTrucks(trucks);
+    setGarmentsStartDate(contract.startDate || new Date().toISOString().split('T')[0]);
+    setGarmentsStatus((contract.contractStatus as any) || (contract.status as any) || 'active');
+    setGarmentsRemarks(contract.remarks || '');
+    setShowAddGarmentsModal(true);
+  };
+
+  const handleDeleteGarmentsContract = async (contract: ErpTransportOp) => {
+    triggerConfirmDelete({
+      title: 'Confirm Delete Contract',
+      message: `${contract.clientName || 'এই গার্মেন্টস চুক্তি'} মুছে ফেলতে চান?`,
+      itemName: contract.clientName || 'Garments Contract',
+      onConfirm: async () => {
+        try {
+          await deleteTransportOp(contract.id);
+          triggerGlobalToast('গার্মেন্টস চুক্তি মুছে ফেলা হয়েছে', 'success');
+        } catch (err: any) {
+          triggerGlobalToast('চুক্তি মুছতে সমস্যা হয়েছে: ' + (err?.message || ''), 'info');
+        }
+      },
+    });
+  };
+
   // 19. Export to CSV Helper
   const handleExportCsv = (title: string, headers: string[], rows: (string | number)[][]) => {
     const csvContent =
@@ -2101,7 +2734,8 @@ export default function TransportManagementModule({
         <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 dark:border-slate-800 pt-2.5 text-xs font-bold">
           {[
             { id: 'dashboard', labelBn: 'Dashboard', labelEn: 'Dashboard', icon: Gauge },
-            { id: 'vehicles', labelBn: 'All Trucks', labelEn: 'All Trucks', icon: Truck },
+            { id: 'vehicles', labelBn: 'All Trucks (7)', labelEn: 'All Trucks (7)', icon: Truck },
+            { id: 'garments', labelBn: 'Garments & Contracts', labelEn: 'Garments & Contracts', icon: Building2 },
             { id: 'trips', labelBn: 'Trip Ledger', labelEn: 'Trip Ledger', icon: Navigation },
             { id: 'fuel', labelBn: 'Fuel Logs', labelEn: 'Fuel Logs', icon: Fuel },
             { id: 'drivers', labelBn: 'Drivers & Staff', labelEn: 'Drivers & Staff', icon: Users },
@@ -2559,6 +3193,7 @@ export default function TransportManagementModule({
                   <th className="py-2.5 px-3">Registration & Code</th>
                   <th className="py-2.5 px-3">Type & Capacity</th>
                   <th className="py-2.5 px-3">Driver & Odometer</th>
+                  <th className="py-2.5 px-3">Dedicated Contract</th>
                   <th className="py-2.5 px-3">Tax Token</th>
                   <th className="py-2.5 px-3">Fitness Expiry</th>
                   <th className="py-2.5 px-3 text-center">Status</th>
@@ -2597,6 +3232,29 @@ export default function TransportManagementModule({
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-semibold text-slate-900 dark:text-slate-100">{v.driverName}</div>
                       <div className="text-[10px] text-slate-400 font-mono">{v.currentOdometer || v.distanceKm || 0} KM</div>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {(() => {
+                        const c = getTruckAssignedGarments(v.registrationNumber);
+                        if (c) {
+                          return (
+                            <div>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                                <Building2 className="h-2.5 w-2.5" />
+                                <span>{c.clientName ? c.clientName.split(' ')[0] : 'Garments'}</span>
+                              </span>
+                              <div className="text-[9px] text-slate-500 font-medium mt-0.5">
+                                {c.billingType === 'monthly' ? 'মাসিক চুক্তি' : 'দিন/ট্রিপ অনুযায়ী'}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                            Open Market Fleet
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px]">
                       {v.taxTokenExpiry || '—'}
@@ -2667,6 +3325,421 @@ export default function TransportManagementModule({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: GARMENTS & CORPORATE FLEET CONTRACTS (দিন/ট্রিপ ও মাসিক চুক্তি) ─── */}
+      {activeTab === 'garments' && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-2xs">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-purple-600" />
+                <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                  Garments & Corporate Fleet Contracts (গার্মেন্টস ডেডিকেটেড চুক্তি ও ট্রিপ ট্র্যাকিং)
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                  {allGarmentsContracts.length} Corporate Clients
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                ৭টি নিজস্ব ট্রাকের মধ্যে নির্দিষ্ট ৪/৫টি ট্রাক গার্মেন্টসে ডেডিকেটেড নিয়োজিত (দিন/ট্রিপ অনুযায়ী অথবা ফিক্সড মাসিক চুক্তি)। বাকি ট্রাক ওপেন মার্কেটে চলে।
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={openNewGarmentsModal}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>+ New Garments Contract (নতুন চুক্তি)</span>
+            </button>
+          </div>
+
+          {/* 5 KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* Card 1: Corporate Garments Clients */}
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
+              <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                <span>Corporate Clients</span>
+                <Building2 className="h-3.5 w-3.5 text-purple-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-purple-600 dark:text-purple-400">
+                {allGarmentsContracts.length}
+              </div>
+              <div className="text-[10px] text-slate-400">Garments & RMG Factories</div>
+            </div>
+
+            {/* Card 2: Dedicated Fleet Assigned */}
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
+              <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                <span>Dedicated Fleet</span>
+                <Truck className="h-3.5 w-3.5 text-emerald-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                {(() => {
+                  const set = new Set<string>();
+                  garmentsStatsList.forEach((g) => g.assignedTrucks.forEach((t) => set.add(t)));
+                  return set.size;
+                })()}{' '}
+                <span className="text-xs font-normal text-slate-400">/ {allVehicles.length} Trucks</span>
+              </div>
+              <div className="text-[10px] text-emerald-600 font-bold">
+                {allVehicles.length - (() => {
+                  const set = new Set<string>();
+                  garmentsStatsList.forEach((g) => g.assignedTrucks.forEach((t) => set.add(t)));
+                  return set.size;
+                })()}{' '}
+                Trucks Open Market
+              </div>
+            </div>
+
+            {/* Card 3: Day/Trip Rate Basis */}
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
+              <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                <span>Day/Trip Rate Basis</span>
+                <Navigation className="h-3.5 w-3.5 text-indigo-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-indigo-600 dark:text-indigo-400">
+                {allGarmentsContracts.filter((c) => c.billingType !== 'monthly').length}{' '}
+                <span className="text-xs font-normal text-slate-400">Factories</span>
+              </div>
+              <div className="text-[10px] text-slate-400">দিন / প্রতি ট্রিপ চুক্তি</div>
+            </div>
+
+            {/* Card 4: Monthly Contracts */}
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
+              <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                <span>Monthly Contracts</span>
+                <Calendar className="h-3.5 w-3.5 text-amber-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
+                {allGarmentsContracts.filter((c) => c.billingType === 'monthly').length}{' '}
+                <span className="text-xs font-normal text-slate-400">Factories</span>
+              </div>
+              <div className="text-[10px] text-slate-400">মাসিক নির্ধারিত চুক্তি</div>
+            </div>
+
+            {/* Card 5: Total Outstanding Dues */}
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
+              <div className="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                <span>Total Due Billed</span>
+                <DollarSign className="h-3.5 w-3.5 text-rose-500" />
+              </div>
+              <div className="text-xl font-black font-mono text-rose-600 dark:text-rose-400">
+                {formatBDT(garmentsStatsList.reduce((s, g) => s + g.totalDue, 0))}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                Total Billed: {formatBDT(garmentsStatsList.reduce((s, g) => s + g.totalBilled, 0))}
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-2 flex-1">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={garmentsSearchQuery}
+                  onChange={(e) => setGarmentsSearchQuery(e.target.value)}
+                  placeholder="গার্মেন্টস নাম, লোকেশন, কন্টাক্ট বা ট্রাক দিয়ে খুঁজুন..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-purple-500"
+                />
+                {garmentsSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setGarmentsSearchQuery('')}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Billing Model Filter */}
+              <select
+                value={garmentsBillingFilter}
+                onChange={(e) => setGarmentsBillingFilter(e.target.value as any)}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-purple-500"
+              >
+                <option value="ALL">All Billing Models (সব মডেল)</option>
+                <option value="day_trip">দিন/ট্রিপ অনুযায়ী (Day/Trip Rate)</option>
+                <option value="monthly">মাসিক চুক্তি (Monthly Fixed)</option>
+              </select>
+            </div>
+
+            {(garmentsSearchQuery || garmentsBillingFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setGarmentsSearchQuery('');
+                  setGarmentsBillingFilter('ALL');
+                }}
+                className="text-[11px] font-bold text-rose-600 hover:underline px-2 py-1"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+          {/* List of Garments Contracts Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredGarmentsContracts.map((item) => {
+              const contract = item.contract;
+              const isMonthly = contract.billingType === 'monthly';
+              return (
+                <div
+                  key={contract.id}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm p-4 space-y-3.5 hover:border-purple-300 dark:hover:border-purple-700 transition-all"
+                >
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                          {contract.tripOrVehicleCode}
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {contract.clientName || contract.customerName}
+                        </h3>
+                      </div>
+                      <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{contract.factoryLocation || contract.origin || 'Industrial Area'}</span>
+                      </div>
+                    </div>
+
+                    {/* Billing Model Badge */}
+                    <div className="shrink-0 text-right">
+                      {isMonthly ? (
+                        <div className="inline-flex flex-col items-end">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                            <Calendar className="h-2.5 w-2.5" />
+                            <span>মাসিক চুক্তি (Monthly)</span>
+                          </span>
+                          <span className="text-[11px] font-black font-mono text-amber-700 dark:text-amber-400 mt-0.5">
+                            {formatBDT(contract.agreedRate || 0)}/Month
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex flex-col items-end">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
+                            <Navigation className="h-2.5 w-2.5" />
+                            <span>দিন/ট্রিপ অনুযায়ী (Day-Trip)</span>
+                          </span>
+                          <span className="text-[11px] font-black font-mono text-indigo-700 dark:text-indigo-400 mt-0.5">
+                            {formatBDT(contract.agreedRate || 0)}/Trip
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contact Person Details */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      <UserCheck className="h-3.5 w-3.5 text-purple-600" />
+                      <span className="font-semibold">{contract.contactPerson || 'Logistics In-Charge'}</span>
+                    </div>
+                    {contract.contactPhone && (
+                      <a
+                        href={`tel:${contract.contactPhone}`}
+                        className="inline-flex items-center gap-1 font-mono font-bold text-purple-600 dark:text-purple-400 hover:underline"
+                      >
+                        <Phone className="h-3 w-3" />
+                        <span>{contract.contactPhone}</span>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Assigned Fleet Trucks */}
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Truck className="h-3 w-3 text-emerald-600" />
+                        <span>Assigned Fleet ({item.assignedTrucks.length} Trucks Dedicated)</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        Auto-fills driver & route on trip dispatch
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {item.assignedTrucks.map((truckReg) => {
+                        const veh = allVehicles.find((v) => v.registrationNumber === truckReg);
+                        const isBusy = allTrips.some(
+                          (t) => t.registrationNumber === truckReg && (t.status === 'active' || t.status === 'running')
+                        );
+                        return (
+                          <div
+                            key={truckReg}
+                            className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-[11px] space-y-0.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                {truckReg}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                  isBusy
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                    : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
+                                }`}
+                              >
+                                {isBusy ? 'On Trip' : 'Available'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {veh?.truckName || veh?.vehicleType || 'Truck'} • {veh?.capacityTons ? `${veh.capacityTons}T` : ''}
+                            </div>
+                            <div className="text-[10px] text-emerald-600 font-medium truncate flex items-center gap-1">
+                              <Users className="h-2.5 w-2.5" />
+                              <span>{veh?.driverName || 'Driver Assigned'}</span>
+                              {veh?.driverPhone && <span className="font-mono">({veh.driverPhone})</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {item.assignedTrucks.length === 0 && (
+                        <div className="text-[11px] text-slate-400 italic p-2">কোনো ট্রাক এসাইন করা হয়নি</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Route & Cargo */}
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5 border-t border-slate-100 dark:border-slate-800 pt-2">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                      <span>Route & Cargo</span>
+                    </div>
+                    <div className="font-medium text-slate-800 dark:text-slate-200">
+                      {contract.cargoDetails || 'Garments Goods & Fabrics'}
+                    </div>
+                    {contract.route && (
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        {contract.route}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4 Financial Stat Boxes */}
+                  <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-center">
+                    <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                      <div className="text-[10px] text-slate-400 font-semibold">Trips</div>
+                      <div className="text-xs font-black font-mono text-slate-800 dark:text-slate-200">
+                        {item.totalTrips}
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                      <div className="text-[10px] text-slate-400 font-semibold">Billed</div>
+                      <div className="text-xs font-black font-mono text-slate-900 dark:text-white">
+                        {formatBDT(item.totalBilled)}
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                      <div className="text-[10px] text-slate-400 font-semibold">Advance</div>
+                      <div className="text-xs font-black font-mono text-emerald-600">
+                        {formatBDT(item.totalAdvance)}
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                      <div className="text-[10px] text-slate-400 font-semibold">Due</div>
+                      <div className="text-xs font-black font-mono text-rose-600">
+                        {formatBDT(item.totalDue)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGarmentsForDetails(item)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                        title="View Trip History & Ledger"
+                      >
+                        <Eye className="h-3 w-3 text-slate-500" />
+                        <span>Ledger & Details</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openEditGarmentsModal(contract)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer"
+                        title="Edit Contract"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGarmentsContract(contract)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                        title="Delete Contract"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Dispatch Trip Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetTripFormState();
+                        if (item.assignedTrucks.length > 0) {
+                          handleTruckSelectChange(item.assignedTrucks[0]);
+                        }
+                        setTripCustomer(contract.clientName || contract.customerName || '');
+                        if (contract.factoryLocation || contract.origin) {
+                          setTripLoadLoc(contract.factoryLocation || contract.origin || '');
+                          setTripStartLoc(contract.factoryLocation || contract.origin || '');
+                        }
+                        if (contract.destination) {
+                          setTripDeliverLoc(contract.destination);
+                          setTripDestLoc(contract.destination);
+                        }
+                        if (contract.cargoDetails) {
+                          setTripCargo(contract.cargoDetails);
+                        }
+                        if (contract.agreedRate && contract.agreedRate > 0) {
+                          setTripFare(contract.agreedRate);
+                        }
+                        setShowAddTripModal(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>+ Dispatch Trip</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredGarmentsContracts.length === 0 && (
+              <div className="col-span-full p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
+                <Building2 className="h-8 w-8 text-slate-400 mx-auto" />
+                <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  কোনো গার্মেন্টস চুক্তি পাওয়া যায়নি
+                </div>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  নতুন গার্মেন্টস ফ্যাক্টরি বা কর্পোরেট ক্লায়েন্টের সাথে চুক্তি যোগ করতে উপরের বাটন চাপুন।
+                </p>
+                <button
+                  type="button"
+                  onClick={openNewGarmentsModal}
+                  className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>+ Add New Contract</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3385,23 +4458,16 @@ export default function TransportManagementModule({
                     <label className="block mb-1 font-semibold">Select Truck *</label>
                     <select
                       value={tripTruckReg}
-                      onChange={(e) => {
-                        const reg = e.target.value;
-                        setTripTruckReg(reg);
-                        const v = allVehicles.find((veh) => veh.registrationNumber === reg);
-                        if (v?.driverName) {
-                          setTripDriverName(v.driverName);
-                          const d = allDrivers.find((dr) => dr.name.toLowerCase() === v.driverName?.toLowerCase());
-                          if (d?.phone) setTripDriverPhone(d.phone);
-                        }
-                      }}
+                      onChange={(e) => handleTruckSelectChange(e.target.value)}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                     >
                       {allVehicles.map((v) => {
                         const isBusy = allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'));
+                        const contract = getTruckAssignedGarments(v.registrationNumber);
+                        const contractLabel = contract ? ` [${(contract.clientName || 'Garments').split(' ')[0]} - ${contract.billingType === 'monthly' ? 'মাসিক' : 'দিন/ট্রিপ'}]` : '';
                         return (
                           <option key={v.id} value={v.registrationNumber}>
-                            {v.registrationNumber} {isBusy ? '— [On Active Trip]' : '— [Available]'} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                            {v.registrationNumber} {isBusy ? '— [On Active Trip]' : '— [Available]'}{contractLabel} ({v.truckBodyType || v.vehicleType || 'Truck'})
                           </option>
                         );
                       })}
@@ -5888,6 +6954,582 @@ export default function TransportManagementModule({
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: GARMENTS CONTRACT DETAILS & TRIP LEDGER ── */}
+      {selectedGarmentsForDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setSelectedGarmentsForDetails(null)}
+        >
+          <div
+            className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl border border-purple-200 dark:border-purple-900/60 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                    {selectedGarmentsForDetails.contract.tripOrVehicleCode}
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-purple-600" />
+                    <span>{selectedGarmentsForDetails.contract.clientName || selectedGarmentsForDetails.contract.customerName}</span>
+                  </h2>
+                </div>
+                <div className="text-xs text-slate-500 flex flex-wrap items-center gap-3">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{selectedGarmentsForDetails.contract.factoryLocation || selectedGarmentsForDetails.contract.origin || 'Industrial Area'}</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <UserCheck className="h-3.5 w-3.5 text-purple-500" />
+                    <span>{selectedGarmentsForDetails.contract.contactPerson || 'Logistics In-Charge'}</span>
+                  </span>
+                  {selectedGarmentsForDetails.contract.contactPhone && (
+                    <a
+                      href={`tel:${selectedGarmentsForDetails.contract.contactPhone}`}
+                      className="flex items-center gap-1 font-mono font-bold text-purple-600 hover:underline"
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      <span>{selectedGarmentsForDetails.contract.contactPhone}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedGarmentsForDetails(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Contract Type & Rate Banner */}
+            <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="space-y-0.5">
+                <div className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">
+                  চুক্তির ধরণ ও বিলিং মডেল (Billing Structure)
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>
+                    {selectedGarmentsForDetails.contract.billingType === 'monthly'
+                      ? 'মাসিক নির্ধারিত চুক্তি (Monthly Fixed Contract)'
+                      : 'দিন / প্রতি ট্রিপ অনুযায়ী চুক্তি (Day / Per-Trip Rate Contract)'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                    {formatBDT(selectedGarmentsForDetails.contract.agreedRate || 0)}{' '}
+                    {selectedGarmentsForDetails.contract.billingType === 'monthly' ? '/ Month' : '/ Trip'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-500 font-mono">
+                চুক্তি শুরু: {selectedGarmentsForDetails.contract.startDate || '২০২৬-০১-১০'} • স্ট্যাটাস:{' '}
+                <span className="font-bold text-emerald-600 uppercase">
+                  {selectedGarmentsForDetails.contract.contractStatus || 'Active'}
+                </span>
+              </div>
+            </div>
+
+            {/* 4 Financial KPI Boxes */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-center space-y-0.5">
+                <div className="text-[11px] text-slate-500 font-semibold">Total Trips Dispatched</div>
+                <div className="text-xl font-black font-mono text-slate-900 dark:text-white">
+                  {selectedGarmentsForDetails.totalTrips}
+                </div>
+                <div className="text-[10px] text-emerald-600 font-bold">
+                  {selectedGarmentsForDetails.activeTrips} Active Running
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-center space-y-0.5">
+                <div className="text-[11px] text-slate-500 font-semibold">Total Billed / Revenue</div>
+                <div className="text-xl font-black font-mono text-slate-900 dark:text-white">
+                  {formatBDT(selectedGarmentsForDetails.totalBilled)}
+                </div>
+                <div className="text-[10px] text-slate-400">Freight & Service Value</div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-center space-y-0.5">
+                <div className="text-[11px] text-slate-500 font-semibold">Advances Collected</div>
+                <div className="text-xl font-black font-mono text-emerald-600">
+                  {formatBDT(selectedGarmentsForDetails.totalAdvance)}
+                </div>
+                <div className="text-[10px] text-emerald-600 font-semibold">আদায়কৃত ক্যাশ/ব্যাংক</div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-center space-y-0.5">
+                <div className="text-[11px] text-slate-500 font-semibold">Outstanding Due</div>
+                <div className="text-xl font-black font-mono text-rose-600">
+                  {formatBDT(selectedGarmentsForDetails.totalDue)}
+                </div>
+                <div className="text-[10px] text-rose-600 font-semibold">বকেয়া পাওনা টাকা</div>
+              </div>
+            </div>
+
+            {/* Dedicated Assigned Fleet Section */}
+            <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">
+              <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Truck className="h-4 w-4 text-emerald-600" />
+                  <span>Dedicated Fleet Assigned ({selectedGarmentsForDetails.assignedTrucks.length} Trucks)</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  এই গার্মেন্টস কারখানায় নিয়োজিত নিজস্ব গাড়ি ও ড্রাইভার
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {selectedGarmentsForDetails.assignedTrucks.map((truckReg: string) => {
+                  const veh = allVehicles.find((v) => v.registrationNumber === truckReg);
+                  const isBusy = allTrips.some(
+                    (t) => t.registrationNumber === truckReg && (t.status === 'active' || t.status === 'running')
+                  );
+                  return (
+                    <div
+                      key={truckReg}
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">{truckReg}</span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            isBusy
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
+                          }`}
+                        >
+                          {isBusy ? 'On Trip' : 'Available'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {veh?.truckName || veh?.vehicleType} • {veh?.capacityTons ? `${veh.capacityTons} Ton` : ''}
+                      </div>
+                      <div className="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        <span>Driver: {veh?.driverName || 'Assigned'}</span>
+                        {veh?.driverPhone && <span className="font-mono">({veh.driverPhone})</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Trip Ledger Table */}
+            <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Navigation className="h-3.5 w-3.5 text-purple-600" />
+                  <span>Trip Ledger & History ({selectedGarmentsForDetails.clientTrips.length} Trips)</span>
+                </h3>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  All dispatches, challan slips & billing ledger
+                </span>
+              </div>
+
+              <div className="overflow-x-auto max-h-[35vh] border border-slate-200 dark:border-slate-700 rounded-xl">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase">
+                    <tr>
+                      <th className="py-2 px-2.5">Date & Code</th>
+                      <th className="py-2 px-2.5">Truck & Driver</th>
+                      <th className="py-2 px-2.5">Route & Cargo</th>
+                      <th className="py-2 px-2.5 text-right">Fare (ভাড়া)</th>
+                      <th className="py-2 px-2.5 text-right">Advance</th>
+                      <th className="py-2 px-2.5 text-right">Due (বকেয়া)</th>
+                      <th className="py-2 px-2.5 text-center">Status</th>
+                      <th className="py-2 px-2.5 text-center">Challan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                    {selectedGarmentsForDetails.clientTrips.map((t: ErpTransportOp, i: number) => {
+                      const fare = Number(t.tripRevenue || t.estimatedTripFare || 0);
+                      const adv = Number(t.advancePaid || 0);
+                      const due = Math.max(0, fare - adv);
+                      return (
+                        <tr key={t.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                          <td className="py-2 px-2.5 whitespace-nowrap font-mono">
+                            <div className="font-bold text-slate-900 dark:text-white">{t.tripOrVehicleCode}</div>
+                            <div className="text-[10px] text-slate-400">{t.date}</div>
+                          </td>
+                          <td className="py-2 px-2.5 whitespace-nowrap">
+                            <div className="font-bold font-mono text-slate-900 dark:text-white">{t.registrationNumber}</div>
+                            <div className="text-[10px] text-slate-500">{t.driverName}</div>
+                          </td>
+                          <td className="py-2 px-2.5">
+                            <div className="font-semibold text-slate-900 dark:text-white">
+                              {t.loadingLocation || t.origin} ➔ {t.deliveryLocation || t.destination}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{t.cargoDetails}</div>
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-mono font-bold text-slate-900 dark:text-white">
+                            {formatBDT(fare)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-mono text-emerald-600">
+                            {formatBDT(adv)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-mono font-black text-rose-600">
+                            {formatBDT(due)}
+                          </td>
+                          <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                t.status === 'completed'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              }`}
+                            >
+                              {t.status === 'completed' ? 'Completed' : 'Running'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => openTripChallanModal(t)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer"
+                              title="Print / View Challan Slip"
+                            >
+                              <Printer className="h-3 w-3 text-slate-500" />
+                              <span>Challan</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {selectedGarmentsForDetails.clientTrips.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="py-6 text-center text-slate-400 text-xs">
+                          এই গার্মেন্টসের অধীনে এখনও কোনো ট্রিপ এন্ট্রি করা হয়নি।
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  const contract = selectedGarmentsForDetails.contract;
+                  const assigned = selectedGarmentsForDetails.assignedTrucks;
+                  setSelectedGarmentsForDetails(null);
+                  resetTripFormState();
+                  if (assigned.length > 0) {
+                    handleTruckSelectChange(assigned[0]);
+                  }
+                  setTripCustomer(contract.clientName || contract.customerName || '');
+                  if (contract.factoryLocation || contract.origin) {
+                    setTripLoadLoc(contract.factoryLocation || contract.origin || '');
+                    setTripStartLoc(contract.factoryLocation || contract.origin || '');
+                  }
+                  if (contract.destination) {
+                    setTripDeliverLoc(contract.destination);
+                    setTripDestLoc(contract.destination);
+                  }
+                  if (contract.cargoDetails) {
+                    setTripCargo(contract.cargoDetails);
+                  }
+                  if (contract.agreedRate && contract.agreedRate > 0) {
+                    setTripFare(contract.agreedRate);
+                  }
+                  setShowAddTripModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ Dispatch Trip for this Factory</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedGarmentsForDetails(null)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: ADD / EDIT GARMENTS CONTRACT ── */}
+      {showAddGarmentsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowAddGarmentsModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-purple-600" />
+                  <span>{editingGarmentsContract ? 'Edit Garments Contract (চুক্তি সম্পাদনা)' : 'Add New Garments Contract (নতুন গার্মেন্টস চুক্তি)'}</span>
+                </h2>
+                <p className="text-xs text-slate-500">
+                  নির্দিষ্ট গার্মেন্টস ফ্যাক্টরির জন্য ডেডিকেটেড ট্রাক বরাদ্দ ও ট্রিপ/মাসিক বিলিং নির্ধারণ করুন
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddGarmentsModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveGarmentsContract} className="space-y-4 text-xs">
+              {/* Client & Factory Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Garments / Corporate Client Name * (গার্মেন্টস বা ক্লায়েন্টের নাম)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={garmentsClientName}
+                    onChange={(e) => setGarmentsClientName(e.target.value)}
+                    placeholder="যেমন: অনন্ত অ্যাপারেলস লিঃ / হা-মীম গ্রুপ / স্কয়ার ফ্যাশনস"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-bold text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Factory Address / Location (কারখানার ঠিকানা ও লোডিং পয়েন্ট)
+                  </label>
+                  <input
+                    type="text"
+                    value={garmentsLocation}
+                    onChange={(e) => setGarmentsLocation(e.target.value)}
+                    placeholder="যেমন: নিশ্চিন্তপুর, আশুলিয়া, সাভার"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Contact Person Name (যোগাযোগকারী কর্মকর্তা)
+                  </label>
+                  <input
+                    type="text"
+                    value={garmentsContactPerson}
+                    onChange={(e) => setGarmentsContactPerson(e.target.value)}
+                    placeholder="যেমন: মোঃ দেলোয়ার হোসেন (লজিস্টিকস হেড)"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Contact Phone Number (মোবাইল নম্বর)
+                  </label>
+                  <input
+                    type="text"
+                    value={garmentsContactPhone}
+                    onChange={(e) => setGarmentsContactPhone(e.target.value)}
+                    placeholder="যেমন: 01711-445566"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Contract Start Date (চুক্তি শুরুর তারিখ)
+                  </label>
+                  <input
+                    type="date"
+                    value={garmentsStartDate}
+                    onChange={(e) => setGarmentsStartDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              {/* Billing Model & Agreed Rate */}
+              <div className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-3">
+                <div className="text-[11px] font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 text-purple-600" />
+                  <span>বিলিং পদ্ধতি ও চুক্তিবদ্ধ রেট (Billing Model & Rates)</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block mb-1 font-bold text-slate-700 dark:text-slate-300">
+                      Payment / Billing Model * (টাকা কীভাবে দিবে?)
+                    </label>
+                    <select
+                      value={garmentsBillingType}
+                      onChange={(e) => setGarmentsBillingType(e.target.value as any)}
+                      className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-3 py-2 font-bold text-xs focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="day_trip">দিন / ট্রিপ অনুযায়ী (Day-Trip / Per-Trip Rate)</option>
+                      <option value="monthly">মাসিক ফিক্সড চুক্তি (Monthly Fixed Contract)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 font-bold text-slate-700 dark:text-slate-300">
+                      {garmentsBillingType === 'monthly'
+                        ? 'মাসিক ফিক্সড ভাড়া (টাকা) *'
+                        : 'প্রতি ট্রিপের নির্ধারিত ভাড়া (টাকা) *'}
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      value={garmentsAgreedRate}
+                      onChange={(e) => setGarmentsAgreedRate(Number(e.target.value))}
+                      placeholder={garmentsBillingType === 'monthly' ? '220000' : '15000'}
+                      className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-3 py-2 font-mono font-bold text-xs focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  {garmentsBillingType === 'monthly'
+                    ? '💡 মাসিক চুক্তি: নির্ধারিত গাড়িগুলো সার্বক্ষণিক এই গার্মেন্টসে থাকবে এবং মাসের শেষে ফিক্সড বিল হবে।'
+                    : '💡 দিন/ট্রিপ অনুযায়ী: গাড়ি যখনই কারখানা থেকে মাল নিয়ে বের হবে, প্রতি ট্রিপের হিসাব অনুযায়ী বিল তৈরি হবে।'}
+                </p>
+              </div>
+
+              {/* Dedicated Fleet Selection: 7 Fleet Trucks with Checkboxes */}
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Truck className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Assign Dedicated Trucks from Fleet (৭টি ট্রাক থেকে নির্বাচন করুন)</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-purple-600">
+                    {garmentsAssignedTrucks.length} Trucks Selected
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  যেসব ট্রাক সিলেক্ট করবেন, ট্রিপ এন্ট্রিতে সেগুলো সিলেক্ট করার সাথে সাথে ড্রাইভারের নাম, ফোন নম্বর, এবং এই গার্মেন্টসের ঠিকানা ও রেট নিজে থেকেই পূরণ হয়ে যাবে।
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {allVehicles.map((veh) => {
+                    const isChecked = garmentsAssignedTrucks.includes(veh.registrationNumber);
+                    return (
+                      <label
+                        key={veh.id}
+                        className={`flex items-start gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                          isChecked
+                            ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-200'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setGarmentsAssignedTrucks([...garmentsAssignedTrucks, veh.registrationNumber]);
+                            } else {
+                              setGarmentsAssignedTrucks(
+                                garmentsAssignedTrucks.filter((r) => r !== veh.registrationNumber)
+                              );
+                            }
+                          }}
+                          className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                        />
+                        <div className="space-y-0.5 flex-1 min-w-0">
+                          <div className="font-mono font-bold text-xs truncate">
+                            {veh.registrationNumber}
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate">
+                            {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''} ({veh.truckBodyType || 'covered'})
+                          </div>
+                          <div className="text-[10px] text-emerald-600 font-semibold truncate flex items-center gap-1">
+                            <Users className="h-2.5 w-2.5" />
+                            <span>{veh.driverName || 'Driver Assigned'}</span>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Status & Remarks */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Contract Status (চুক্তির অবস্থা)
+                  </label>
+                  <select
+                    value={garmentsStatus}
+                    onChange={(e) => setGarmentsStatus(e.target.value as any)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="active">Active (সক্রিয়)</option>
+                    <option value="paused">Paused (সাময়িক স্থগিত)</option>
+                    <option value="completed">Completed / Expired (সমাপ্ত)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Remarks / Payment Terms (চুক্তির শর্তাবলী বা মন্তব্য)
+                  </label>
+                  <input
+                    type="text"
+                    value={garmentsRemarks}
+                    onChange={(e) => setGarmentsRemarks(e.target.value)}
+                    placeholder="যেমন: চালান স্লিপ জমা দেওয়ার ৭ দিনের মধ্যে পেমেন্ট পরিশোধ"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddGarmentsModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>সংরক্ষণ হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>{editingGarmentsContract ? 'Update Contract' : 'Save Garments Contract'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
