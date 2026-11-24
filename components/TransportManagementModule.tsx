@@ -189,6 +189,10 @@ export default function TransportManagementModule({
   const [clientBillWalletId, setClientBillWalletId] = useState('');
   const [clientBillNotes, setClientBillNotes] = useState('');
 
+  // View Mode Toggles for Company-First presentation
+  const [truckViewMode, setTruckViewMode] = useState<'company' | 'list'>('company');
+  const [garmentsViewMode, setGarmentsViewMode] = useState<'companies' | 'trucks'>('companies');
+
   // Modals
   const [showAddTripModal, setShowAddTripModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -3462,33 +3466,108 @@ export default function TransportManagementModule({
 
             {/* Quick 2-Column Visual Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1 text-xs">
-              <div className="p-2.5 rounded-lg bg-purple-50/70 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 space-y-1">
+              <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/40 space-y-2">
                 <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-purple-600" />
-                    <span>Garments Dedicated Fleet:</span>
+                    <Building2 className="h-4 w-4 text-purple-600" />
+                    <span>Garments Dedicated Fleet by Company:</span>
                   </span>
-                  <span className="font-mono font-bold text-purple-700 dark:text-purple-400">5 Trucks</span>
+                  <span className="font-mono font-bold text-purple-700 dark:text-purple-400">
+                    {garmentsDedicatedTrucks.length} Trucks
+                  </span>
                 </div>
-                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
-                  <div>• <strong>Ananta Apparels Ltd. (Ashulia):</strong> 2 Trucks (Per Trip Rate: BDT 14,500)</div>
-                  <div>• <strong>Ha-Meem Denim & Garments (Konabari):</strong> 2 Trucks (Per Trip Rate: BDT 16,000)</div>
-                  <div>• <strong>Square Fashions Ltd. (Valuka):</strong> 1 Truck (Monthly Fixed: BDT 220,000)</div>
+                <div className="space-y-2">
+                  {garmentsStatsList.map((item) => {
+                    const c = item.contract;
+                    const assignedVehs = allVehicles.filter((v) =>
+                      item.assignedTrucks.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
+                    );
+                    return (
+                      <div
+                        key={c.id}
+                        className="p-2 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-purple-100 dark:border-purple-900/40 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                            <span className="text-purple-600">🏢</span>
+                            <span>{c.clientName || c.customerName}</span>
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-mono">
+                            {assignedVehs.length} Trucks
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {assignedVehs.map((v) => {
+                            const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                            const isBusy = activeInfo.isOnTrip;
+                            return (
+                              <span
+                                key={v.id}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border ${
+                                  isBusy
+                                    ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                }`}
+                                title={`${v.registrationNumber} • Driver: ${v.driverName} • Status: ${isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}`}
+                              >
+                                <span className="font-bold">{v.registrationNumber}</span>
+                                <span className="text-[9px] opacity-75">({v.driverName?.split(' ')[0] || 'Driver'})</span>
+                                <span>{isBusy ? '🚫' : '✓'}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-lg bg-sky-50/70 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 space-y-1">
+              <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-900/40 space-y-2">
                 <div className="font-bold text-sky-900 dark:text-sky-300 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Navigation className="h-3.5 w-3.5 text-sky-600" />
+                    <Navigation className="h-4 w-4 text-sky-600" />
                     <span>Open Market Fleet:</span>
                   </span>
-                  <span className="font-mono font-bold text-sky-700 dark:text-sky-400">2 Trucks</span>
+                  <span className="font-mono font-bold text-sky-700 dark:text-sky-400">
+                    {allVehicles.filter((v) => !getTruckAssignedGarments(v.registrationNumber)).length} Trucks
+                  </span>
                 </div>
-                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
-                  <div>• <strong>DHAKA-METRO-TA-16-7788 (Isuzu 14T Open):</strong> Driver Harunur Rashid (Open Fleet)</div>
-                  <div>• <strong>DHAKA-METRO-TA-17-8899 (Hino 22T Trailer):</strong> Driver Anowar Hossain (Open Fleet)</div>
-                  <div className="text-[10px] text-slate-400">💡 Available for general market freight, ad-hoc orders, and return cargo.</div>
+                <div className="space-y-1.5">
+                  {allVehicles
+                    .filter((v) => !getTruckAssignedGarments(v.registrationNumber))
+                    .map((v) => {
+                      const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                      const isBusy = activeInfo.isOnTrip;
+                      return (
+                        <div
+                          key={v.id}
+                          className="p-2 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/40 flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                              <span>🚚 {v.registrationNumber}</span>
+                              <span className="text-[10px] text-slate-400 font-sans font-normal">({v.truckName || v.vehicleType})</span>
+                            </div>
+                            <div className="text-[10px] text-sky-700 dark:text-sky-400 font-medium">
+                              Driver: {v.driverName} {v.driverPhone ? `(${v.driverPhone})` : ''}
+                            </div>
+                          </div>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              isBusy
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            }`}
+                          >
+                            {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  <div className="text-[10px] text-slate-400 pt-1">
+                    💡 Available for ad-hoc open market cargo, agricultural logistics, and return trips.
+                  </div>
                 </div>
               </div>
             </div>
@@ -3808,7 +3887,230 @@ export default function TransportManagementModule({
             )}
           </div>
 
-          <div className="overflow-x-auto max-h-[50vh]">
+          {/* View Mode Switcher: Company Allocation vs Flat List */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Display:</span>
+              <button
+                type="button"
+                onClick={() => setTruckViewMode('company')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  truckViewMode === 'company'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                <span>Company-Wise Allocation</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTruckViewMode('list')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  truckViewMode === 'list'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>All Trucks Table</span>
+              </button>
+            </div>
+            <span className="text-[11px] text-slate-400">
+              {truckViewMode === 'company'
+                ? 'Showing fleet trucks allocated under each corporate garment company'
+                : `Showing all ${filteredVehicles.length} registered trucks`}
+            </span>
+          </div>
+
+          {/* 1. If Company-Wise Allocation Mode */}
+          {truckViewMode === 'company' ? (
+            <div className="space-y-3.5">
+              {garmentsStatsList.map((item) => {
+                const contract = item.contract;
+                const assignedVehs = allVehicles.filter((v) =>
+                  item.assignedTrucks.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
+                );
+                return (
+                  <div
+                    key={contract.id}
+                    className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/20 dark:bg-purple-950/10 space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/40 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-purple-600" />
+                        <div>
+                          <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                            <span>{contract.clientName || contract.customerName}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-mono">
+                              {assignedVehs.length} Dedicated Trucks
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {contract.factoryLocation || 'Factory Depot'} • {contract.billingType === 'monthly' ? `Monthly Fixed: ${formatBDT(contract.agreedRate || 0)}/mo` : `Per Trip Rate: ${formatBDT(contract.agreedRate || 0)}/trip`}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openCollectClientBillModal(item)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <DollarSign className="h-3 w-3" />
+                          <span>+ Collect Bill</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('garments')}
+                          className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+                        >
+                          View Contract →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {assignedVehs.map((veh) => {
+                        const activeInfo = getTruckActiveTrip(veh.registrationNumber);
+                        const isBusy = activeInfo.isOnTrip;
+                        return (
+                          <div
+                            key={veh.id}
+                            className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2 shadow-2xs hover:border-purple-300 transition-all"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span
+                                onClick={() => {
+                                  setSelectedTruckForDetails(veh);
+                                  setTruckDetailsActiveTab('overview');
+                                }}
+                                className="font-mono font-bold text-xs text-slate-900 dark:text-white hover:text-purple-600 cursor-pointer flex items-center gap-1"
+                              >
+                                <span>{veh.registrationNumber}</span>
+                                <Eye className="h-3 w-3 text-slate-400" />
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                  isBusy
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                }`}
+                              >
+                                {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                              {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''}
+                            </div>
+                            <div className="text-[11px] text-purple-700 dark:text-purple-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                              <span>Driver: <strong>{veh.driverName}</strong></span>
+                              {veh.driverPhone && (
+                                <a href={`tel:${veh.driverPhone}`} className="font-mono text-[10px] text-slate-400 hover:text-purple-600">
+                                  {veh.driverPhone}
+                                </a>
+                              )}
+                            </div>
+                            <div className="pt-1">
+                              {isBusy ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-full py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 text-[10px] font-bold cursor-not-allowed text-center"
+                                >
+                                  On Trip until {activeInfo.returnDateFormatted}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => openQuickGarmentsDispatch(veh.registrationNumber)}
+                                  className="w-full py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold text-center cursor-pointer shadow-2xs"
+                                >
+                                  + Start Garments Trip
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {assignedVehs.length === 0 && (
+                        <div className="text-slate-400 text-xs italic p-3">No trucks allocated to this company yet.</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Open Market Fleet Group */}
+              {(() => {
+                const openVehs = allVehicles.filter((v) => !getTruckAssignedGarments(v.registrationNumber));
+                if (openVehs.length === 0) return null;
+                return (
+                  <div className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/20 dark:bg-sky-950/10 space-y-3">
+                    <div className="flex items-center justify-between border-b border-sky-100 dark:border-sky-900/40 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Navigation className="h-4 w-4 text-sky-600" />
+                        <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>Open Market Commercial Fleet</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 font-mono">
+                            {openVehs.length} Trucks
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs text-slate-400">Available for General Freight & Ad-hoc Trips</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {openVehs.map((veh) => {
+                        const activeInfo = getTruckActiveTrip(veh.registrationNumber);
+                        const isBusy = activeInfo.isOnTrip;
+                        return (
+                          <div
+                            key={veh.id}
+                            className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2 shadow-2xs hover:border-sky-300 transition-all"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span
+                                onClick={() => {
+                                  setSelectedTruckForDetails(veh);
+                                  setTruckDetailsActiveTab('overview');
+                                }}
+                                className="font-mono font-bold text-xs text-slate-900 dark:text-white hover:text-sky-600 cursor-pointer flex items-center gap-1"
+                              >
+                                <span>{veh.registrationNumber}</span>
+                                <Eye className="h-3 w-3 text-slate-400" />
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                  isBusy
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                }`}
+                              >
+                                {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                              {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''}
+                            </div>
+                            <div className="text-[11px] text-sky-700 dark:text-sky-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                              <span>Driver: <strong>{veh.driverName}</strong></span>
+                              {veh.driverPhone && (
+                                <a href={`tel:${veh.driverPhone}`} className="font-mono text-[10px] text-slate-400 hover:text-sky-600">
+                                  {veh.driverPhone}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-[50vh]">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
@@ -3964,8 +4266,9 @@ export default function TransportManagementModule({
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* ── TAB: GARMENTS & CORPORATE FLEET CONTRACTS ─── */}
       {activeTab === 'garments' && (
@@ -4083,159 +4386,198 @@ export default function TransportManagementModule({
             </div>
           </div>
 
-          {/* ── SECTION 1: DEDICATED GARMENTS TRUCKS (FROM ALL TRUCKS) ─── */}
-          <div className="p-4 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/20 dark:bg-purple-950/10 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/40 pb-2.5">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-purple-600" />
-                  <span>Garments Dedicated Trucks ({garmentsDedicatedTrucks.length} Trucks Allocated from Fleet)</span>
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  These 5 vehicles from your 7-truck fleet are dedicated to corporate garment factory transport.
-                </p>
-              </div>
-
-              <div className="text-xs font-mono text-purple-700 dark:text-purple-300 font-bold">
-                {garmentsDedicatedTrucks.filter((v) => getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Active On Trip • {garmentsDedicatedTrucks.filter((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Available
-              </div>
+          {/* View Mode Switcher: Company-Wise vs Dedicated Trucks Table */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/40 pb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Display:</span>
+              <button
+                type="button"
+                onClick={() => setGarmentsViewMode('companies')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  garmentsViewMode === 'companies'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                <span>Company-Wise Allocation ({filteredGarmentsContracts.length} Companies)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGarmentsViewMode('trucks')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  garmentsViewMode === 'trucks'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>Dedicated Trucks Table ({garmentsDedicatedTrucks.length} Trucks)</span>
+              </button>
             </div>
-
-            {/* Dedicated Trucks Table */}
-            <div className="overflow-x-auto border border-purple-100 dark:border-purple-900/40 rounded-xl bg-white dark:bg-slate-900">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300 text-[11px]">
-                  <tr>
-                    <th className="py-2.5 px-3">Truck & Specs</th>
-                    <th className="py-2.5 px-3">Crew & Driver</th>
-                    <th className="py-2.5 px-3">Dedicated Garments Client</th>
-                    <th className="py-2.5 px-3">Factory Loading Point</th>
-                    <th className="py-2.5 px-3">Billing Type & Rate</th>
-                    <th className="py-2.5 px-3">Standard Route</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
-                    <th className="py-2.5 px-3 text-center">Start Trip</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {garmentsDedicatedTrucks.map((v) => {
-                    const contract = getTruckAssignedGarments(v.registrationNumber);
-                    const activeTripInfo = getTruckActiveTrip(v.registrationNumber);
-                    const isBusy = activeTripInfo.isOnTrip;
-                    const cleanTruckName = (v.truckName || v.vehicleType || 'Heavy Truck').replace(/\(Price:\s*BDT\s*[,.\s]*\)/gi, '').trim();
-                    return (
-                      <tr key={v.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-950/20">
-                        {/* Truck & Specs */}
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <div
-                            onClick={() => {
-                              setSelectedTruckForDetails(v);
-                              setTruckDetailsActiveTab('overview');
-                            }}
-                            className="font-bold text-slate-900 dark:text-white font-mono hover:text-purple-600 cursor-pointer flex items-center gap-1.5 group"
-                            title="Click to view full truck profile"
-                          >
-                            <span>{v.registrationNumber}</span>
-                            <Eye className="h-3 w-3 text-slate-400 group-hover:text-purple-600" />
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-mono">
-                            {cleanTruckName} • {v.capacityTons ? `${v.capacityTons}T` : ''} ({v.truckBodyType || 'covered'})
-                          </div>
-                        </td>
-
-                        {/* Driver */}
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                            <Users className="h-3 w-3 text-purple-500" />
-                            <span>{v.driverName}</span>
-                          </div>
-                          {v.driverPhone && (
-                            <a href={`tel:${v.driverPhone}`} className="text-[10px] text-slate-400 font-mono hover:text-purple-600">
-                              {v.driverPhone}
-                            </a>
-                          )}
-                        </td>
-
-                        {/* Garments Client */}
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
-                            <Building2 className="h-2.5 w-2.5" />
-                            <span>{contract?.clientName || contract?.customerName || 'Garments Client'}</span>
-                          </span>
-                        </td>
-
-                        {/* Factory Location */}
-                        <td className="py-2.5 px-3">
-                          <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1 text-[11px]">
-                            <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[160px]">{contract?.factoryLocation || contract?.origin || 'Factory Depot'}</span>
-                          </div>
-                        </td>
-
-                        {/* Billing Type & Rate */}
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <div className="font-mono font-bold text-slate-900 dark:text-white">
-                            {formatBDT(contract?.agreedRate || 0)}
-                          </div>
-                          <div className="text-[10px] text-purple-600 font-medium">
-                            {contract?.billingType === 'monthly' ? 'Monthly Fixed' : 'Per Trip Rate'}
-                          </div>
-                        </td>
-
-                        {/* Route */}
-                        <td className="py-2.5 px-3">
-                          <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate max-w-[170px]" title={contract?.route || 'Factory ➔ Port'}>
-                            {contract?.route || `${contract?.origin || 'Factory'} ➔ ${contract?.destination || 'Port'}`}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate max-w-[170px]">{contract?.cargoDetails || 'RMG Export Goods'}</div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          {isBusy ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              <span>On Trip (Returns {activeTripInfo.returnDateFormatted})</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              <span>Available</span>
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          {isBusy ? (
-                            <button
-                              type="button"
-                              disabled={true}
-                              title={`Truck is busy on active trip until ${activeTripInfo.returnDateFormatted}. New trips cannot be dispatched.`}
-                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-[11px] font-bold opacity-60 cursor-not-allowed shadow-none"
-                            >
-                              <Clock className="h-3 w-3 text-slate-400" />
-                              <span>On Trip ({activeTripInfo.returnDateFormatted})</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openQuickGarmentsDispatch(v.registrationNumber)}
-                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                            >
-                              <Truck className="h-3 w-3" />
-                              <span>+ Start Trip</span>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <span className="text-[11px] text-slate-400">
+              {garmentsViewMode === 'companies'
+                ? 'Corporate clients, assigned dedicated fleet, and monthly billing collection'
+                : 'Showing flat table of all 5 garments-dedicated trucks'}
+            </span>
           </div>
 
-          {/* ── SECTION 2: CORPORATE CLIENT CONTRACTS & RATES ─── */}
+          {/* ── OPTION A: DEDICATED GARMENTS TRUCKS TABLE (FLAT LIST) ─── */}
+          {garmentsViewMode === 'trucks' && (
+            <div className="p-4 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/20 dark:bg-purple-950/10 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/40 pb-2.5">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-purple-600" />
+                    <span>Garments Dedicated Trucks ({garmentsDedicatedTrucks.length} Trucks Allocated from Fleet)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    These 5 vehicles from your 7-truck fleet are dedicated to corporate garment factory transport.
+                  </p>
+                </div>
+
+                <div className="text-xs font-mono text-purple-700 dark:text-purple-300 font-bold">
+                  {garmentsDedicatedTrucks.filter((v) => getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Active On Trip • {garmentsDedicatedTrucks.filter((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Available
+                </div>
+              </div>
+
+              {/* Dedicated Trucks Table */}
+              <div className="overflow-x-auto border border-purple-100 dark:border-purple-900/40 rounded-xl bg-white dark:bg-slate-900">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300 text-[11px]">
+                    <tr>
+                      <th className="py-2.5 px-3">Truck & Specs</th>
+                      <th className="py-2.5 px-3">Crew & Driver</th>
+                      <th className="py-2.5 px-3">Dedicated Garments Client</th>
+                      <th className="py-2.5 px-3">Factory Loading Point</th>
+                      <th className="py-2.5 px-3">Billing Type & Rate</th>
+                      <th className="py-2.5 px-3">Standard Route</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Start Trip</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {garmentsDedicatedTrucks.map((v) => {
+                      const contract = getTruckAssignedGarments(v.registrationNumber);
+                      const activeTripInfo = getTruckActiveTrip(v.registrationNumber);
+                      const isBusy = activeTripInfo.isOnTrip;
+                      const cleanTruckName = (v.truckName || v.vehicleType || 'Heavy Truck').replace(/\(Price:\s*BDT\s*[,.\s]*\)/gi, '').trim();
+                      return (
+                        <tr key={v.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-950/20">
+                          {/* Truck & Specs */}
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div
+                              onClick={() => {
+                                setSelectedTruckForDetails(v);
+                                setTruckDetailsActiveTab('overview');
+                              }}
+                              className="font-bold text-slate-900 dark:text-white font-mono hover:text-purple-600 cursor-pointer flex items-center gap-1.5 group"
+                              title="Click to view full truck profile"
+                            >
+                              <span>{v.registrationNumber}</span>
+                              <Eye className="h-3 w-3 text-slate-400 group-hover:text-purple-600" />
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              {cleanTruckName} • {v.capacityTons ? `${v.capacityTons}T` : ''} ({v.truckBodyType || 'covered'})
+                            </div>
+                          </td>
+
+                          {/* Driver */}
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                              <Users className="h-3 w-3 text-purple-500" />
+                              <span>{v.driverName}</span>
+                            </div>
+                            {v.driverPhone && (
+                              <a href={`tel:${v.driverPhone}`} className="text-[10px] text-slate-400 font-mono hover:text-purple-600">
+                                {v.driverPhone}
+                              </a>
+                            )}
+                          </td>
+
+                          {/* Garments Client */}
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                              <Building2 className="h-2.5 w-2.5" />
+                              <span>{contract?.clientName || contract?.customerName || 'Garments Client'}</span>
+                            </span>
+                          </td>
+
+                          {/* Factory Location */}
+                          <td className="py-2.5 px-3">
+                            <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1 text-[11px]">
+                              <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[160px]">{contract?.factoryLocation || contract?.origin || 'Factory Depot'}</span>
+                            </div>
+                          </td>
+
+                          {/* Billing Type & Rate */}
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div className="font-mono font-bold text-slate-900 dark:text-white">
+                              {formatBDT(contract?.agreedRate || 0)}
+                            </div>
+                            <div className="text-[10px] text-purple-600 font-medium">
+                              {contract?.billingType === 'monthly' ? 'Monthly Fixed' : 'Per Trip Rate'}
+                            </div>
+                          </td>
+
+                          {/* Route */}
+                          <td className="py-2.5 px-3">
+                            <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate max-w-[170px]" title={contract?.route || 'Factory ➔ Port'}>
+                              {contract?.route || `${contract?.origin || 'Factory'} ➔ ${contract?.destination || 'Port'}`}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate max-w-[170px]">{contract?.cargoDetails || 'RMG Export Goods'}</div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isBusy ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                <span>On Trip (Returns {activeTripInfo.returnDateFormatted})</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span>Available</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isBusy ? (
+                              <button
+                                type="button"
+                                disabled={true}
+                                title={`Truck is busy on active trip until ${activeTripInfo.returnDateFormatted}. New trips cannot be dispatched.`}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-[11px] font-bold opacity-60 cursor-not-allowed shadow-none"
+                              >
+                                <Clock className="h-3 w-3 text-slate-400" />
+                                <span>On Trip ({activeTripInfo.returnDateFormatted})</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openQuickGarmentsDispatch(v.registrationNumber)}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <Truck className="h-3 w-3" />
+                                <span>+ Start Trip</span>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── OPTION B: CORPORATE CLIENT CONTRACTS & FLEET ALLOCATION (DEFAULT PRIMARY VIEW) ─── */}
+          {garmentsViewMode === 'companies' && (
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div>
@@ -4717,6 +5059,7 @@ export default function TransportManagementModule({
               )}
             </div>
           </div>
+          )}
         </div>
       )}
 
