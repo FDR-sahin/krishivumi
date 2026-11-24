@@ -178,6 +178,16 @@ export default function TransportManagementModule({
   const [quickDispatchAdvance, setQuickDispatchAdvance] = useState<number>(0);
   const [quickDispatchKhoraki, setQuickDispatchKhoraki] = useState<number>(2000);
   const [quickDispatchCargo, setQuickDispatchCargo] = useState('RMG Garments Export Cartons');
+  const [quickDispatchChallanNo, setQuickDispatchChallanNo] = useState('');
+  const [quickDispatchOrderNo, setQuickDispatchOrderNo] = useState('');
+
+  // Collect Garments Client Monthly Bill Modal State
+  const [showCollectClientBillModal, setShowCollectClientBillModal] = useState(false);
+  const [targetClientForBill, setTargetClientForBill] = useState<any | null>(null);
+  const [clientBillPayAmount, setClientBillPayAmount] = useState<number>(0);
+  const [clientBillPayDate, setClientBillPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [clientBillWalletId, setClientBillWalletId] = useState('');
+  const [clientBillNotes, setClientBillNotes] = useState('');
 
   // Modals
   const [showAddTripModal, setShowAddTripModal] = useState(false);
@@ -1686,6 +1696,8 @@ export default function TransportManagementModule({
 
   // 7. Form State: + Add New Trip (Outgoing + Return + Expenses + Auto Calculation)
   const [tripTruckReg, setTripTruckReg] = useState(allVehicles[0]?.registrationNumber || 'DHAKA-METRO-T-12-3456');
+  const [tripChallanNo, setTripChallanNo] = useState('');
+  const [tripOrderNo, setTripOrderNo] = useState('');
   const [tripDriverName, setTripDriverName] = useState('Abdul Karim');
   const [tripDriverPhone, setTripDriverPhone] = useState('');
   const [tripHelperName, setTripHelperName] = useState('');
@@ -2022,6 +2034,10 @@ export default function TransportManagementModule({
 
   const handleOpenAddTripModal = () => {
     resetTripFormState();
+    const currentYear = new Date().getFullYear();
+    const nextSeq = allTrips.length + 1;
+    setTripOrderNo(`ORD-${currentYear}-${String(nextSeq).padStart(3, '0')}`);
+    setTripChallanNo(`CHAL-${currentYear}-${String(nextSeq).padStart(3, '0')}`);
     const firstAvail = allVehicles.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip) || allVehicles[0];
     if (firstAvail) {
       handleTruckSelectChange(firstAvail.registrationNumber);
@@ -2201,7 +2217,9 @@ export default function TransportManagementModule({
       const loadPoint = tripLoadLoc.trim() || tripStartLoc.trim() || 'Loading Point';
       const unloadPoint = tripDeliverLoc.trim() || tripDestLoc.trim() || 'Unloading Point';
 
-      const tripCode = `TRP-${Date.now().toString().slice(-5)}`;
+      const tripChallan = tripChallanNo.trim() || `CHAL-${new Date().getFullYear()}-${String(allTrips.length + 1).padStart(3, '0')}`;
+      const tripOrder = tripOrderNo.trim() || `ORD-${new Date().getFullYear()}-${String(allTrips.length + 1).padStart(3, '0')}`;
+      const tripCode = tripChallan;
       const returnLoad = tripHasReturn ? (tripReturnLoadLoc.trim() || unloadPoint) : '';
       const returnUnload = tripHasReturn ? (tripReturnUnloadLoc.trim() || loadPoint) : '';
       const routeStr = tripHasReturn && (tripReturnFare > 0 || returnLoad || returnUnload)
@@ -2221,7 +2239,8 @@ export default function TransportManagementModule({
       await createTransportOpRecord(
         {
           tripOrVehicleCode: tripCode,
-          orderNumber: (allTrips.length + 1).toString().padStart(2, '0'),
+          challanNumber: tripChallan,
+          orderNumber: tripOrder,
           recordType: 'trip',
           businessId: activeBusiness.id,
           registrationNumber: tripTruckReg,
@@ -2773,6 +2792,11 @@ export default function TransportManagementModule({
       '';
 
     setQuickDispatchTruck(regToUse);
+    const currentYear = new Date().getFullYear();
+    const nextSeq = allTrips.length + 1;
+    setQuickDispatchOrderNo(`ORD-${currentYear}-${String(nextSeq).padStart(3, '0')}`);
+    setQuickDispatchChallanNo(`CHAL-${currentYear}-${String(nextSeq).padStart(3, '0')}`);
+
     const contract = getTruckAssignedGarments(regToUse);
     if (contract) {
       setQuickDispatchFare(contract.agreedRate || 14500);
@@ -2815,14 +2839,18 @@ export default function TransportManagementModule({
     }
     setIsSubmitting(true);
     try {
-      const tripCode = 'TRIP-' + Math.floor(1000 + Math.random() * 9000);
+      const currentYear = new Date().getFullYear();
+      const tripChallan = quickDispatchChallanNo.trim() || `CHAL-${currentYear}-${String(allTrips.length + 1).padStart(3, '0')}`;
+      const tripOrder = quickDispatchOrderNo.trim() || `ORD-${currentYear}-${String(allTrips.length + 1).padStart(3, '0')}`;
+      const tripCode = tripChallan;
       const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
       const contract = getTruckAssignedGarments(quickDispatchTruck);
 
       await createTransportOpRecord(
         {
           tripOrVehicleCode: tripCode,
-          orderNumber: (allTrips.length + 1).toString().padStart(2, '0'),
+          challanNumber: tripChallan,
+          orderNumber: tripOrder,
           recordType: 'trip',
           businessId: activeBusiness.id,
           registrationNumber: quickDispatchTruck,
@@ -2906,10 +2934,100 @@ export default function TransportManagementModule({
         );
       }
 
-      triggerGlobalToast(`Trip ${tripCode} dispatched successfully for ${contract?.clientName || 'Garments'}! Truck is now On Trip. 🚚`, 'success');
+      triggerGlobalToast(`Trip ${tripChallan} dispatched successfully for ${contract?.clientName || 'Garments'}! Order: ${tripOrder}. Truck is now On Trip. 🚚`, 'success');
       setShowQuickGarmentsDispatchModal(false);
     } catch (err: any) {
       triggerGlobalToast(err?.message || 'Error dispatching trip', 'info');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Collect Garments Client Monthly Bill Handlers ──────────────────
+  const openCollectClientBillModal = (clientItem: any) => {
+    setTargetClientForBill(clientItem);
+    const suggestedAmount = clientItem.totalDue > 0
+      ? clientItem.totalDue
+      : (clientItem.contract?.agreedRate || 0);
+    setClientBillPayAmount(suggestedAmount);
+    setClientBillPayDate(new Date().toISOString().slice(0, 10));
+    setClientBillWalletId(treasuryWallets[0]?.id || accounts[0]?.id || '');
+    setClientBillNotes(`Monthly transport billing settlement for ${clientItem.contract?.clientName || clientItem.contract?.customerName}`);
+    setShowCollectClientBillModal(true);
+  };
+
+  const handleCollectGarmentsClientBill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetClientForBill) return;
+    if (clientBillPayAmount <= 0) {
+      triggerGlobalToast('Please enter a valid bill collection amount', 'error');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const companyName = targetClientForBill.contract?.clientName || targetClientForBill.contract?.customerName || 'Garments Client';
+      const recCode = `BILL-${Date.now().toString().slice(-6)}`;
+      const selectedWallet = treasuryWallets.find((w) => w.id === clientBillWalletId) || treasuryWallets[0] || accounts[0];
+      const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
+
+      // 1. If company has unpaid clientTrips, allocate payment towards settling their dues
+      let remainingAmountToAllocate = clientBillPayAmount;
+      const unpaidTrips = (targetClientForBill.clientTrips || [])
+        .filter((t: any) => Number(t.outstandingDue !== undefined ? t.outstandingDue : t.remainingDue || 0) > 0)
+        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      for (const trip of unpaidTrips) {
+        if (remainingAmountToAllocate <= 0) break;
+        const tripDue = Number(trip.outstandingDue !== undefined ? trip.outstandingDue : trip.remainingDue || 0);
+        const payForThisTrip = Math.min(tripDue, remainingAmountToAllocate);
+        const newDue = Math.max(0, tripDue - payForThisTrip);
+        const newAdv = Number(trip.advancePaid || trip.advanceReceived || 0) + payForThisTrip;
+
+        await updateTransportOpRecord(
+          trip,
+          {
+            advancePaid: newAdv,
+            advanceReceived: newAdv,
+            remainingDue: newDue,
+            outstandingDue: newDue,
+          },
+          actorEmail
+        );
+        remainingAmountToAllocate -= payForThisTrip;
+      }
+
+      // 2. Post Double Entry Transaction: Debit Treasury (Cash/Bank), Credit Revenue
+      if (selectedWallet && revAcc) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: recCode,
+            date: clientBillPayDate,
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'sale',
+            category: `Corporate Garments Monthly Bill Collection (${companyName})`,
+            description: `Collected ৳${clientBillPayAmount} monthly transport bill from ${companyName}. ${clientBillNotes}`,
+            debitAccountId: selectedWallet.id,
+            debitAccountName: selectedWallet.name,
+            creditAccountId: revAcc.id,
+            creditAccountName: revAcc.name,
+            amount: Number(clientBillPayAmount),
+            paymentStatus: 'paid',
+            dueAmount: 0,
+            counterpartyName: companyName,
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      triggerGlobalToast(`Successfully collected ৳${clientBillPayAmount.toLocaleString()} monthly bill from ${companyName}!`, 'success');
+      setShowCollectClientBillModal(false);
+      setTargetClientForBill(null);
+    } catch (err: any) {
+      console.error('Error collecting client bill:', err);
+      triggerGlobalToast(err?.message || 'Failed to record bill payment', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -4003,6 +4121,7 @@ export default function TransportManagementModule({
                     const contract = getTruckAssignedGarments(v.registrationNumber);
                     const activeTripInfo = getTruckActiveTrip(v.registrationNumber);
                     const isBusy = activeTripInfo.isOnTrip;
+                    const cleanTruckName = (v.truckName || v.vehicleType || 'Heavy Truck').replace(/\(Price:\s*BDT\s*[,.\s]*\)/gi, '').trim();
                     return (
                       <tr key={v.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-950/20">
                         {/* Truck & Specs */}
@@ -4019,7 +4138,7 @@ export default function TransportManagementModule({
                             <Eye className="h-3 w-3 text-slate-400 group-hover:text-purple-600" />
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono">
-                            {v.truckName || v.vehicleType} • {v.capacityTons ? `${v.capacityTons}T` : ''} ({v.truckBodyType || 'covered'})
+                            {cleanTruckName} • {v.capacityTons ? `${v.capacityTons}T` : ''} ({v.truckBodyType || 'covered'})
                           </div>
                         </td>
 
@@ -4161,6 +4280,176 @@ export default function TransportManagementModule({
                   <option value="monthly">Monthly Fixed Contract</option>
                 </select>
               </div>
+            </div>
+
+            {/* Corporate Clients Master Allocation & Monthly Billing Table */}
+            <div className="overflow-x-auto border border-purple-100 dark:border-purple-900/40 rounded-xl bg-white dark:bg-slate-900 shadow-2xs">
+              <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border-b border-purple-100 dark:border-purple-900/40 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-purple-600" />
+                  <span className="font-bold text-slate-900 dark:text-white text-xs">
+                    Corporate Client Fleet Allocation & Monthly Billing Roster
+                  </span>
+                </div>
+                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-semibold">
+                  1-Click Bill Collection & Dispatch per Company
+                </span>
+              </div>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300 text-[11px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Company & Factory</th>
+                    <th className="py-2.5 px-3">Fleet Count</th>
+                    <th className="py-2.5 px-3">Assigned Dedicated Trucks</th>
+                    <th className="py-2.5 px-3">Billing Model & Rate</th>
+                    <th className="py-2.5 px-3 text-center">Trips</th>
+                    <th className="py-2.5 px-3 text-right">Total Billed</th>
+                    <th className="py-2.5 px-3 text-right">Total Paid</th>
+                    <th className="py-2.5 px-3 text-right">Balance Due</th>
+                    <th className="py-2.5 px-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredGarmentsContracts.map((item) => {
+                    const contract = item.contract;
+                    const isMonthly = contract.billingType === 'monthly';
+                    const availTruck = item.assignedTrucks.find((t) => !getTruckActiveTrip(t).isOnTrip);
+
+                    return (
+                      <tr key={contract.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-950/20">
+                        {/* Company & Factory */}
+                        <td className="py-2.5 px-3">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                            <span>{contract.clientName || contract.customerName}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[180px]">{contract.factoryLocation || contract.origin || 'Industrial Area'}</span>
+                          </div>
+                        </td>
+
+                        {/* Dedicated Fleet Count */}
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50">
+                            <Truck className="h-3 w-3" />
+                            <span>{item.assignedTrucks.length} Trucks</span>
+                          </span>
+                        </td>
+
+                        {/* Assigned Dedicated Trucks */}
+                        <td className="py-2.5 px-3">
+                          <div className="flex flex-wrap gap-1 max-w-[280px]">
+                            {item.assignedTrucks.map((truckReg) => {
+                              const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(truckReg));
+                              const activeInfo = getTruckActiveTrip(truckReg);
+                              const isBusy = activeInfo.isOnTrip;
+                              return (
+                                <div
+                                  key={truckReg}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border ${
+                                    isBusy
+                                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300'
+                                      : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                                  }`}
+                                  title={`${truckReg} • Driver: ${veh?.driverName || 'Driver'}${veh?.driverPhone ? ` (${veh.driverPhone})` : ''} • Status: ${isBusy ? `On Trip until ${activeInfo.returnDateFormatted}` : 'Available'}`}
+                                >
+                                  <span className="font-bold">{truckReg}</span>
+                                  <span className="text-[9px] opacity-75">({veh?.driverName?.split(' ')[0] || 'Driver'})</span>
+                                  <span className="text-[9px] font-bold">
+                                    {isBusy ? '🚫' : '✓'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {item.assignedTrucks.length === 0 && (
+                              <span className="text-slate-400 italic text-[11px]">No trucks assigned</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Billing Model & Rate */}
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <div className="font-mono font-bold text-slate-900 dark:text-white">
+                            {formatBDT(contract.agreedRate || 0)}
+                          </div>
+                          <div className="text-[10px] font-bold text-purple-600">
+                            {isMonthly ? 'Monthly Fixed Rate' : 'Per Trip Rate'}
+                          </div>
+                        </td>
+
+                        {/* Total Trips */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                            {item.totalTrips}
+                          </span>
+                        </td>
+
+                        {/* Total Billed */}
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap font-mono font-bold text-slate-900 dark:text-white">
+                          {formatBDT(item.totalBilled)}
+                        </td>
+
+                        {/* Total Paid */}
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatBDT(item.totalAdvance)}
+                        </td>
+
+                        {/* Balance Due */}
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap font-mono font-black text-rose-600 dark:text-rose-400">
+                          {formatBDT(item.totalDue)}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openCollectClientBillModal(item)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                              title="Collect Monthly Bill / Settle Dues"
+                            >
+                              <DollarSign className="h-3 w-3" />
+                              <span>+ Collect Bill</span>
+                            </button>
+
+                            {availTruck ? (
+                              <button
+                                type="button"
+                                onClick={() => openQuickGarmentsDispatch(availTruck)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                title="Start Trip for this Company"
+                              >
+                                <Truck className="h-3 w-3" />
+                                <span>+ Start Trip</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={true}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 text-[11px] font-bold opacity-60 cursor-not-allowed"
+                                title="All trucks assigned to this factory are currently on trip"
+                              >
+                                <Clock className="h-3 w-3 text-slate-400" />
+                                <span>Fleet Busy</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGarmentsForDetails(item)}
+                              className="p-1 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                              title="View Trip History & Ledger"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
             {/* List of Garments Contracts Cards */}
@@ -4361,6 +4650,18 @@ export default function TransportManagementModule({
                         </button>
                       </div>
 
+                      {/* Collect Monthly Bill & Dispatch Trip Buttons */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openCollectClientBillModal(item)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                          title="Collect Monthly Bill from this Corporate Client"
+                        >
+                          <DollarSign className="h-3 w-3" />
+                          <span>+ Collect Bill</span>
+                        </button>
+
                       {/* Dispatch Trip Button */}
                       {(() => {
                         const availTruck = item.assignedTrucks.find((t) => !getTruckActiveTrip(t).isOnTrip);
@@ -4389,6 +4690,7 @@ export default function TransportManagementModule({
                           </button>
                         );
                       })()}
+                      </div>
                     </div>
                   </div>
                 );
@@ -4506,9 +4808,18 @@ export default function TransportManagementModule({
                             <span className="font-mono text-[10px] font-black text-slate-500 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">
                               {String(index + 1).padStart(2, '0')}
                             </span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">{t.tripOrVehicleCode}</span>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white">
+                              {t.challanNumber || t.tripOrVehicleCode}
+                            </span>
                           </div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{t.date}</div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono mt-0.5">
+                            <span className="text-slate-400">{t.date}</span>
+                            {t.orderNumber && (
+                              <span className="px-1 py-0.2 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold">
+                                {t.orderNumber}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           <div className="font-bold text-emerald-700 dark:text-emerald-400">{t.registrationNumber}</div>
@@ -5121,6 +5432,47 @@ export default function TransportManagementModule({
             </div>
 
             <form onSubmit={handleSaveTrip} className="space-y-4 text-xs">
+              {/* AUTO-GENERATED CHALLAN & ORDER NUMBER */}
+              <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                      Challan Number *
+                    </label>
+                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      ✨ Auto-Generated
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={tripChallanNo}
+                    onChange={(e) => setTripChallanNo(e.target.value)}
+                    placeholder="e.g. CHAL-2026-001"
+                    className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-purple-700 dark:text-purple-300 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                      Order Number *
+                    </label>
+                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                      ✨ Auto-Generated
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={tripOrderNo}
+                    onChange={(e) => setTripOrderNo(e.target.value)}
+                    placeholder="e.g. ORD-2026-001"
+                    className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
               {/* SECTION 1: VEHICLE & DRIVER ASSIGNMENT */}
               <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2.5">
                 <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
@@ -8001,6 +8353,47 @@ export default function TransportManagementModule({
             </div>
 
             <form onSubmit={handleSaveQuickGarmentsDispatch} className="space-y-3.5 text-xs">
+              {/* Auto Challan Number & Order Number */}
+              <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                      Challan Number *
+                    </label>
+                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      ✨ Auto-Generated
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={quickDispatchChallanNo}
+                    onChange={(e) => setQuickDispatchChallanNo(e.target.value)}
+                    placeholder="e.g. CHAL-2026-001"
+                    className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-purple-700 dark:text-purple-300 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                      Order Number *
+                    </label>
+                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                      ✨ Auto-Generated
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={quickDispatchOrderNo}
+                    onChange={(e) => setQuickDispatchOrderNo(e.target.value)}
+                    placeholder="e.g. ORD-2026-001"
+                    className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
               {/* 1. Select Dedicated Truck */}
               <div>
                 <label className="block mb-1 font-bold text-slate-700 dark:text-slate-300">
@@ -8295,6 +8688,174 @@ export default function TransportManagementModule({
                       <span>Confirm & Start Trip</span>
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: COLLECT GARMENTS CLIENT MONTHLY BILL ── */}
+      {showCollectClientBillModal && targetClientForBill && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowCollectClientBillModal(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 p-5 sm:p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Collect Corporate Client Bill
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Receive monthly transport bill payment from corporate garment factory
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCollectClientBillModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCollectGarmentsClientBill} className="space-y-3.5 text-xs">
+              {/* Client & Contract Info Summary */}
+              <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/30 dark:bg-purple-950/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-slate-900 dark:text-white">
+                    {targetClientForBill.contract?.clientName || targetClientForBill.contract?.customerName}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                    {targetClientForBill.contract?.billingType === 'monthly' ? 'Monthly Fixed Contract' : 'Per-Trip Rate Basis'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-purple-100 dark:border-purple-900/40 text-center">
+                  <div className="p-1.5 rounded-lg bg-white/70 dark:bg-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Total Billed</span>
+                    <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
+                      {formatBDT(targetClientForBill.totalBilled)}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white/70 dark:bg-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Already Paid</span>
+                    <span className="font-mono font-bold text-xs text-emerald-600">
+                      {formatBDT(targetClientForBill.totalAdvance)}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white/70 dark:bg-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Outstanding Due</span>
+                    <span className="font-mono font-black text-xs text-rose-600">
+                      {formatBDT(targetClientForBill.totalDue)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Amount */}
+              <div>
+                <label className="block mb-1 font-bold text-slate-700 dark:text-slate-300">
+                  Payment Amount Received (BDT) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 font-bold text-slate-400 text-xs">৳</span>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={clientBillPayAmount}
+                    onChange={(e) => setClientBillPayAmount(Number(e.target.value))}
+                    placeholder="0"
+                    className="w-full pl-7 pr-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                {targetClientForBill.totalDue > 0 && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-[10px] text-slate-400">Quick Fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => setClientBillPayAmount(targetClientForBill.totalDue)}
+                      className="text-[10px] px-2 py-0.5 rounded border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold cursor-pointer"
+                    >
+                      Pay Full Due ({formatBDT(targetClientForBill.totalDue)})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Date & Wallet */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Payment Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={clientBillPayDate}
+                    onChange={(e) => setClientBillPayDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Deposit To Wallet / Bank *
+                  </label>
+                  <select
+                    value={clientBillWalletId}
+                    onChange={(e) => setClientBillWalletId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-semibold text-xs focus:outline-none focus:border-emerald-500"
+                  >
+                    {treasuryWallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({formatBDT(w.balance || 0)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  Payment Notes / Cheque / Transaction Ref
+                </label>
+                <input
+                  type="text"
+                  value={clientBillNotes}
+                  onChange={(e) => setClientBillNotes(e.target.value)}
+                  placeholder="e.g. Bank transfer ref / Cheque #109282"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCollectClientBillModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+                  <span>Confirm Bill Collection</span>
                 </button>
               </div>
             </form>

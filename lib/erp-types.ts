@@ -291,6 +291,7 @@ export interface ErpTransportOp {
   driverPhone?: string;
   receiverPhone?: string;
   orderNumber?: string;
+  challanNumber?: string;
   driverAddress?: string;
   driverNid?: string;
   driverLicense?: string;

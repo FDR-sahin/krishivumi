@@ -210,8 +210,9 @@ export default function TripChallanModal({
 ========================================
 ${businessName} - Freight Consignment Challan & Work Order
 ========================================
-Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP (যাওয়া ও আসা)' : 'ONE WAY / SINGLE TRIP (একমুখী ট্রিপ)'}
-Order No: ${orderNumberFormatted}
+Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP' : 'ONE WAY / SINGLE TRIP'}
+Challan No: ${trip.challanNumber || trip.tripOrVehicleCode || `CHAL-${orderNumberFormatted}`}
+Order No: ${trip.orderNumber || `ORD-${orderNumberFormatted}`}
 Work Order No: ${trip.tripOrVehicleCode}
 Vehicle No: ${trip.registrationNumber} (${trip.vehicleType || 'Heavy Truck'})
 Driver: ${resolvedDriverName}${driverPhone ? ` (${driverPhone})` : ''}
@@ -332,10 +333,18 @@ Date: ${trip.date}
               <div className="p-4 space-y-2 bg-white dark:bg-slate-900/50 print:bg-white">
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    ORDER NO
+                    CHALLAN NO
                   </span>
                   <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 print:text-black w-3/5 text-right sm:text-left text-sm">
-                    : {orderNumberFormatted}
+                    : {trip.challanNumber || trip.tripOrVehicleCode || `CHAL-${orderNumberFormatted}`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    ORDER NO
+                  </span>
+                  <span className="font-mono font-bold text-purple-700 dark:text-purple-400 print:text-black w-3/5 text-right sm:text-left text-sm">
+                    : {trip.orderNumber || `ORD-${orderNumberFormatted}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
