@@ -168,6 +168,12 @@ export default function TransportManagementModule({
   const [quickDispatchTruck, setQuickDispatchTruck] = useState('');
   const [quickDispatchDest, setQuickDispatchDest] = useState('Chittagong Port (Incoterm CFS)');
   const [quickDispatchDate, setQuickDispatchDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [quickDispatchDurationDays, setQuickDispatchDurationDays] = useState<number>(2);
+  const [quickDispatchReturnDate, setQuickDispatchReturnDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().slice(0, 10);
+  });
   const [quickDispatchFare, setQuickDispatchFare] = useState<number>(14500);
   const [quickDispatchAdvance, setQuickDispatchAdvance] = useState<number>(0);
   const [quickDispatchKhoraki, setQuickDispatchKhoraki] = useState<number>(2000);
@@ -625,6 +631,70 @@ export default function TransportManagementModule({
     return ops.filter((op) => op.recordType === 'trip' || (!op.recordType && op.origin));
   }, [ops]);
 
+  // Helper to determine if a truck is currently on an active trip and when it is expected to return
+  const getTruckActiveTrip = useCallback(
+    (reg?: string | null) => {
+      if (!reg) return { isOnTrip: false, returnDateFormatted: '', expectedReturnDate: '' };
+      const targetNorm = normalizeReg(reg);
+      if (!targetNorm) return { isOnTrip: false, returnDateFormatted: '', expectedReturnDate: '' };
+
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Find an active trip for this vehicle that has not been marked completed/returned
+      const activeTrip = allTrips.find((t) => {
+        if (normalizeReg(t.registrationNumber) !== targetNorm) return false;
+        if (t.status !== 'active' && t.status !== 'running') return false;
+        if (t.actualReturnDate) return false;
+        return true;
+      });
+
+      if (!activeTrip) return { isOnTrip: false, returnDateFormatted: '', expectedReturnDate: '' };
+
+      // Determine expected return date (default 2 days for round trip / up-down)
+      let retDateStr = activeTrip.expectedReturnDate;
+      if (!retDateStr && activeTrip.date) {
+        try {
+          const d = new Date(activeTrip.date);
+          d.setDate(d.getDate() + 2);
+          retDateStr = d.toISOString().slice(0, 10);
+        } catch {
+          retDateStr = activeTrip.date;
+        }
+      }
+
+      // If today is past the return date, automatically release lock per user request
+      if (retDateStr && today > retDateStr) {
+        return { isOnTrip: false, returnDateFormatted: '', expectedReturnDate: retDateStr };
+      }
+
+      // Format return date for human display (e.g., "26 Nov")
+      let formatted = retDateStr || 'On Trip';
+      if (retDateStr) {
+        try {
+          const parts = retDateStr.split('-');
+          if (parts.length === 3) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const mIdx = parseInt(parts[1], 10) - 1;
+            formatted = `${parseInt(parts[2], 10)} ${months[mIdx] || parts[1]}`;
+          }
+        } catch {
+          formatted = retDateStr;
+        }
+      }
+
+      return {
+        isOnTrip: true,
+        trip: activeTrip,
+        startDate: activeTrip.date,
+        expectedReturnDate: retDateStr,
+        returnDateFormatted: formatted,
+        route: activeTrip.route || `${activeTrip.origin || ''} ➔ ${activeTrip.destination || ''}`,
+        clientName: activeTrip.customerName || activeTrip.clientName,
+      };
+    },
+    [allTrips, normalizeReg]
+  );
+
   const allFuelLogs = useMemo(() => {
     return ops.filter((op) => op.recordType === 'fuel' || (op.fuelLitres && op.fuelLitres > 0) || (op.fuelCost && op.fuelCost > 0));
   }, [ops]);
@@ -1000,8 +1070,13 @@ export default function TransportManagementModule({
 
   // 3. Dynamically Selected Currently Running Trucks (Supports 5+ fleet trucks)
   const runningTrips = useMemo(() => {
-    return allTrips.filter((t) => t.status === 'active' || t.status === 'running');
-  }, [allTrips]);
+    return allTrips.filter((t) => {
+      if (t.status !== 'active' && t.status !== 'running') return false;
+      if (t.actualReturnDate) return false;
+      const tripInfo = getTruckActiveTrip(t.registrationNumber);
+      return tripInfo.isOnTrip;
+    });
+  }, [allTrips, getTruckActiveTrip]);
 
   const fourRunningTrucks = useMemo(() => {
     // Show all distinct trucks that are currently running (support 5+ trucks)
@@ -1536,7 +1611,7 @@ export default function TransportManagementModule({
   // 5. Dashboard Top Summary KPIs (with Today's figures first)
   const dashboardKpis = useMemo(() => {
     const totalTrucks = allVehicles.length;
-    const runningCount = runningTrips.length;
+    const runningCount = allVehicles.filter((v) => getTruckActiveTrip(v.registrationNumber).isOnTrip).length;
     const maintenanceCount = Math.max(
       allVehicles.filter((v) => v.status === 'maintenance' || v.status === 'workshop' || v.status === 'repair').length,
       activeMaintenanceList.filter((m) => m.status.includes('Under Workshop Repair')).length
@@ -1585,7 +1660,7 @@ export default function TransportManagementModule({
       monthlyExpenses: totalMonthlyExpenses,
       monthlyNetProfit,
     };
-  }, [allVehicles, runningTrips, allDrivers, allTrips, ops, selectedMonth, selectedYear, todayIncomeData, todayExpenseData, activeMaintenanceList]);
+  }, [allVehicles, runningTrips, allDrivers, allTrips, ops, selectedMonth, selectedYear, todayIncomeData, todayExpenseData, activeMaintenanceList, getTruckActiveTrip]);
 
   // 6. Form State: + Add New Vehicle
   const [newVehReg, setNewVehReg] = useState('DHAKA-METRO-T-12-3456');
@@ -1947,6 +2022,10 @@ export default function TransportManagementModule({
 
   const handleOpenAddTripModal = () => {
     resetTripFormState();
+    const firstAvail = allVehicles.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip) || allVehicles[0];
+    if (firstAvail) {
+      handleTruckSelectChange(firstAvail.registrationNumber);
+    }
     setShowAddTripModal(true);
   };
 
@@ -2133,6 +2212,12 @@ export default function TransportManagementModule({
       const totalRecv = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
       const dueRemaining = Math.max(0, totalIncome - totalRecv);
 
+      const activeCheck = getTruckActiveTrip(tripTruckReg);
+      if (activeCheck.isOnTrip) {
+        triggerGlobalToast(`Cannot start trip: Truck ${tripTruckReg} is currently on a trip until ${activeCheck.returnDateFormatted}!`, 'info');
+        return;
+      }
+
       await createTransportOpRecord(
         {
           tripOrVehicleCode: tripCode,
@@ -2193,20 +2278,25 @@ export default function TransportManagementModule({
       );
 
       // Financial Integration: Advance Payment Received
-      // Update vehicle assigned driver so the truck immediately reflects the driver's name everywhere
+      // Update vehicle assigned driver & active status so the truck immediately reflects active status everywhere
       const targetVeh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(tripTruckReg));
-      if (targetVeh && tripDriverName.trim() && tripDriverName.trim().toLowerCase() !== 'unassigned') {
+      if (targetVeh) {
         try {
+          const vehUpdate: Partial<ErpTransportOp> = {
+            status: 'active',
+            expectedReturnDate: tripExpectedReturn,
+          };
+          if (tripDriverName.trim() && tripDriverName.trim().toLowerCase() !== 'unassigned') {
+            vehUpdate.driverName = tripDriverName.trim();
+            vehUpdate.driverPhone = tripDriverPhone.trim() || targetVeh.driverPhone || '';
+          }
           await updateTransportOpRecord(
             targetVeh,
-            {
-              driverName: tripDriverName.trim(),
-              driverPhone: tripDriverPhone.trim() || targetVeh.driverPhone || '',
-            },
+            vehUpdate,
             actorEmail
           );
         } catch (e) {
-          console.warn('Auto-updating vehicle driver name', e);
+          console.warn('Auto-updating vehicle driver name and status', e);
         }
       }
 
@@ -2289,8 +2379,22 @@ export default function TransportManagementModule({
         },
         actorEmail
       );
+      const targetVeh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(trip.registrationNumber));
+      if (targetVeh) {
+        try {
+          await updateTransportOpRecord(
+            targetVeh,
+            {
+              status: 'available',
+            },
+            actorEmail
+          );
+        } catch (e) {
+          console.warn('Resetting vehicle to available status', e);
+        }
+      }
       triggerGlobalToast(
-        `Trip ${trip.tripOrVehicleCode} marked as completed!`,
+        `Trip ${trip.tripOrVehicleCode} marked as completed! Truck is now Available. ✅`,
         'success'
       );
     } catch (err: any) {
@@ -2649,11 +2753,25 @@ export default function TransportManagementModule({
 
   // ── Quick Garments Dispatch Handlers ────────────────────────────────
   const openQuickGarmentsDispatch = (truckReg?: string) => {
+    if (truckReg) {
+      const activeInfo = getTruckActiveTrip(truckReg);
+      if (activeInfo.isOnTrip) {
+        triggerGlobalToast(
+          `Truck ${truckReg} is currently on a trip (Expected return: ${activeInfo.returnDateFormatted}). Please wait until it returns or complete the trip first.`,
+          'info'
+        );
+        return;
+      }
+    }
+    const availDedicated = garmentsDedicatedTrucks.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip);
+    const availAny = allVehicles.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip);
     const regToUse =
-      truckReg ||
-      garmentsDedicatedTrucks[0]?.registrationNumber ||
+      (truckReg && !getTruckActiveTrip(truckReg).isOnTrip ? truckReg : null) ||
+      availDedicated?.registrationNumber ||
+      availAny?.registrationNumber ||
       allVehicles[0]?.registrationNumber ||
       '';
+
     setQuickDispatchTruck(regToUse);
     const contract = getTruckAssignedGarments(regToUse);
     if (contract) {
@@ -2665,7 +2783,12 @@ export default function TransportManagementModule({
     }
     setQuickDispatchAdvance(0);
     setQuickDispatchKhoraki(2000);
-    setQuickDispatchDate(new Date().toISOString().slice(0, 10));
+    const today = new Date().toISOString().slice(0, 10);
+    setQuickDispatchDate(today);
+    setQuickDispatchDurationDays(2);
+    const retD = new Date();
+    retD.setDate(retD.getDate() + 2);
+    setQuickDispatchReturnDate(retD.toISOString().slice(0, 10));
     setShowQuickGarmentsDispatchModal(true);
   };
 
@@ -2682,7 +2805,12 @@ export default function TransportManagementModule({
   const handleSaveQuickGarmentsDispatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickDispatchTruck) {
-      triggerGlobalToast('Please select a truck to dispatch', 'info');
+      triggerGlobalToast('Please select a truck to start trip', 'info');
+      return;
+    }
+    const activeCheck = getTruckActiveTrip(quickDispatchTruck);
+    if (activeCheck.isOnTrip) {
+      triggerGlobalToast(`Cannot dispatch: Truck ${quickDispatchTruck} is currently on a trip until ${activeCheck.returnDateFormatted}!`, 'info');
       return;
     }
     setIsSubmitting(true);
@@ -2723,6 +2851,7 @@ export default function TransportManagementModule({
           taxTokenExpiry: '2027-12-31',
           nextServiceDate: '2027-06-30',
           date: quickDispatchDate,
+          expectedReturnDate: quickDispatchReturnDate,
           status: 'active',
           fuelCost: 0,
           tollCost: 0,
@@ -2732,6 +2861,22 @@ export default function TransportManagementModule({
         ownerId,
         actorEmail
       );
+
+      // Auto-update vehicle record status to 'active' and expectedReturnDate
+      if (veh) {
+        try {
+          await updateTransportOpRecord(
+            veh,
+            {
+              status: 'active',
+              expectedReturnDate: quickDispatchReturnDate,
+            },
+            actorEmail
+          );
+        } catch (err) {
+          console.warn('Failed to update vehicle active status:', err);
+        }
+      }
 
       const targetWallet = treasuryWallets[0] || accounts[0];
       const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
@@ -3629,21 +3774,30 @@ export default function TransportManagementModule({
                       {v.fitnessExpiry || '—'}
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          v.status === 'active' || v.status === 'running'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : v.status === 'available'
-                            ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                        }`}
-                      >
-                        {v.status === 'active' || v.status === 'running'
-                          ? 'On Trip'
-                          : v.status === 'available'
-                          ? 'Available'
-                          : 'Maintenance'}
-                      </span>
+                      {(() => {
+                        const tripInfo = getTruckActiveTrip(v.registrationNumber);
+                        if (tripInfo.isOnTrip) {
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              <span>On Trip (Returns {tripInfo.returnDateFormatted})</span>
+                            </span>
+                          );
+                        }
+                        if (v.status === 'maintenance' || v.status === 'workshop' || v.status === 'repair') {
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                              <span>In Workshop</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span>Available</span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
@@ -3741,7 +3895,7 @@ export default function TransportManagementModule({
             <div className="space-y-1">
               <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <span className="text-purple-600 text-sm">💡</span>
-                <span>How Garments Fleet & Trips Work (সহজ কাজের নিয়ম):</span>
+                <span>How Garments Fleet & Trips Work:</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 1. <strong>Dedicated Fleet:</strong> 5 of your 7 trucks are assigned to garment factories.<br />
@@ -3825,7 +3979,7 @@ export default function TransportManagementModule({
               </div>
 
               <div className="text-xs font-mono text-purple-700 dark:text-purple-300 font-bold">
-                {garmentsDedicatedTrucks.filter((v) => allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'))).length} Active On Trip • {garmentsDedicatedTrucks.filter((v) => !allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'))).length} Available
+                {garmentsDedicatedTrucks.filter((v) => getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Active On Trip • {garmentsDedicatedTrucks.filter((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Available
               </div>
             </div>
 
@@ -3847,9 +4001,8 @@ export default function TransportManagementModule({
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {garmentsDedicatedTrucks.map((v) => {
                     const contract = getTruckAssignedGarments(v.registrationNumber);
-                    const isBusy = allTrips.some(
-                      (t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running')
-                    );
+                    const activeTripInfo = getTruckActiveTrip(v.registrationNumber);
+                    const isBusy = activeTripInfo.isOnTrip;
                     return (
                       <tr key={v.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-950/20">
                         {/* Truck & Specs */}
@@ -3919,27 +4072,41 @@ export default function TransportManagementModule({
 
                         {/* Status */}
                         <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isBusy
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
-                            }`}
-                          >
-                            {isBusy ? 'On Trip' : 'Available'}
-                          </span>
+                          {isBusy ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              <span>On Trip (Returns {activeTripInfo.returnDateFormatted})</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>Available</span>
+                            </span>
+                          )}
                         </td>
 
                         {/* Actions */}
                         <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => openQuickGarmentsDispatch(v.registrationNumber)}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                          >
-                            <Truck className="h-3 w-3" />
-                            <span>+ Start Trip</span>
-                          </button>
+                          {isBusy ? (
+                            <button
+                              type="button"
+                              disabled={true}
+                              title={`Truck is busy on active trip until ${activeTripInfo.returnDateFormatted}. New trips cannot be dispatched.`}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-[11px] font-bold opacity-60 cursor-not-allowed shadow-none"
+                            >
+                              <Clock className="h-3 w-3 text-slate-400" />
+                              <span>On Trip ({activeTripInfo.returnDateFormatted})</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => openQuickGarmentsDispatch(v.registrationNumber)}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                            >
+                              <Truck className="h-3 w-3" />
+                              <span>+ Start Trip</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -4080,10 +4247,9 @@ export default function TransportManagementModule({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                         {item.assignedTrucks.map((truckReg) => {
-                          const veh = allVehicles.find((v) => v.registrationNumber === truckReg);
-                          const isBusy = allTrips.some(
-                            (t) => t.registrationNumber === truckReg && (t.status === 'active' || t.status === 'running')
-                          );
+                          const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(truckReg));
+                          const activeInfo = getTruckActiveTrip(truckReg);
+                          const isBusy = activeInfo.isOnTrip;
                           return (
                             <div
                               key={truckReg}
@@ -4096,11 +4262,11 @@ export default function TransportManagementModule({
                                 <span
                                   className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
                                     isBusy
-                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                      : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
+                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                      : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                                   }`}
                                 >
-                                  {isBusy ? 'On Trip' : 'Available'}
+                                  {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
                                 </span>
                               </div>
                               <div className="text-[10px] text-slate-500 truncate">
@@ -4196,14 +4362,33 @@ export default function TransportManagementModule({
                       </div>
 
                       {/* Dispatch Trip Button */}
-                      <button
-                        type="button"
-                        onClick={() => openQuickGarmentsDispatch(item.assignedTrucks[0])}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                      >
-                        <Truck className="h-3.5 w-3.5" />
-                        <span>+ Start Trip</span>
-                      </button>
+                      {(() => {
+                        const availTruck = item.assignedTrucks.find((t) => !getTruckActiveTrip(t).isOnTrip);
+                        const allBusy = !availTruck;
+                        if (allBusy) {
+                          return (
+                            <button
+                              type="button"
+                              disabled={true}
+                              title="All assigned trucks for this factory are currently on trip."
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 text-xs font-bold opacity-60 cursor-not-allowed shadow-none"
+                            >
+                              <Clock className="h-3.5 w-3.5 text-slate-400" />
+                              <span>All Fleet on Trip</span>
+                            </button>
+                          );
+                        }
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => openQuickGarmentsDispatch(availTruck)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Truck className="h-3.5 w-3.5" />
+                            <span>+ Start Trip</span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -4951,12 +5136,18 @@ export default function TransportManagementModule({
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                     >
                       {allVehicles.map((v) => {
-                        const isBusy = allTrips.some((t) => t.registrationNumber === v.registrationNumber && (t.status === 'active' || t.status === 'running'));
+                        const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                        const isBusy = activeInfo.isOnTrip;
                         const contract = getTruckAssignedGarments(v.registrationNumber);
                         const contractLabel = contract ? ` [${(contract.clientName || 'Garments').split(' ')[0]} - ${contract.billingType === 'monthly' ? 'Monthly' : 'Per-Trip'}]` : '';
                         return (
-                          <option key={v.id} value={v.registrationNumber}>
-                            {v.registrationNumber} {isBusy ? '— [On Active Trip]' : '— [Available]'}{contractLabel} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                          <option
+                            key={v.id}
+                            value={v.registrationNumber}
+                            disabled={isBusy}
+                            className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
+                          >
+                            {v.registrationNumber} {isBusy ? `— [BUSY: On Trip until ${activeInfo.returnDateFormatted}] 🚫` : '— [Available]'}{contractLabel} ({v.truckBodyType || v.vehicleType || 'Truck'})
                           </option>
                         );
                       })}
@@ -5023,13 +5214,52 @@ export default function TransportManagementModule({
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-semibold">Expected Return</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-semibold">Expected Return *</label>
+                      <span className="text-[10px] text-slate-400">Duration</span>
+                    </div>
                     <input
                       type="date"
+                      required
                       value={tripExpectedReturn}
+                      min={tripStartDate}
                       onChange={(e) => setTripExpectedReturn(e.target.value)}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
+                    <div className="flex items-center gap-1 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date(tripStartDate);
+                          setTripExpectedReturn(d.toISOString().slice(0, 10));
+                        }}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold"
+                      >
+                        1 Day
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date(tripStartDate);
+                          d.setDate(d.getDate() + 2);
+                          setTripExpectedReturn(d.toISOString().slice(0, 10));
+                        }}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300 font-bold"
+                      >
+                        2 Days (Up-Down)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date(tripStartDate);
+                          d.setDate(d.getDate() + 3);
+                          setTripExpectedReturn(d.toISOString().slice(0, 10));
+                        }}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold"
+                      >
+                        3 Days
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block mb-1 font-semibold">Loading Point *</label>
@@ -7577,10 +7807,9 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                 {selectedGarmentsForDetails.assignedTrucks.map((truckReg: string) => {
-                  const veh = allVehicles.find((v) => v.registrationNumber === truckReg);
-                  const isBusy = allTrips.some(
-                    (t) => t.registrationNumber === truckReg && (t.status === 'active' || t.status === 'running')
-                  );
+                  const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(truckReg));
+                  const activeInfo = getTruckActiveTrip(truckReg);
+                  const isBusy = activeInfo.isOnTrip;
                   return (
                     <div
                       key={truckReg}
@@ -7591,11 +7820,11 @@ export default function TransportManagementModule({
                         <span
                           className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                             isBusy
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                           }`}
                         >
-                          {isBusy ? 'On Trip' : 'Available'}
+                          {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500">
@@ -7711,13 +7940,14 @@ export default function TransportManagementModule({
                 type="button"
                 onClick={() => {
                   const assigned = selectedGarmentsForDetails.assignedTrucks;
+                  const avail = assigned.find((t: string) => !getTruckActiveTrip(t).isOnTrip);
                   setSelectedGarmentsForDetails(null);
-                  openQuickGarmentsDispatch(assigned[0]);
+                  openQuickGarmentsDispatch(avail || assigned[0]);
                 }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
               >
                 <Truck className="h-3.5 w-3.5" />
-                <span>+ Quick Dispatch for this Factory</span>
+                <span>+ Start Trip for this Factory</span>
               </button>
 
               <button
@@ -7732,7 +7962,7 @@ export default function TransportManagementModule({
         </div>
       )}
 
-      {/* ── MODAL: QUICK GARMENTS DISPATCH ── */}
+      {/* ── MODAL: QUICK GARMENTS TRIP ── */}
       {showQuickGarmentsDispatchModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
@@ -7750,7 +7980,7 @@ export default function TransportManagementModule({
                     <Truck className="h-4 w-4" />
                   </div>
                   <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Quick Garments Dispatch
+                    Start Garments Trip
                   </h2>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                     Fast 1-Click
@@ -7784,10 +8014,17 @@ export default function TransportManagementModule({
                 >
                   <option value="">-- Choose Truck from Dedicated Fleet --</option>
                   {allVehicles.map((v) => {
+                    const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                    const isBusy = activeInfo.isOnTrip;
                     const c = getTruckAssignedGarments(v.registrationNumber);
                     return (
-                      <option key={v.id} value={v.registrationNumber}>
-                        {v.registrationNumber} — {v.driverName} {c ? `(${c.clientName} • ৳${c.agreedRate || 15000})` : '(Open Fleet)'}
+                      <option
+                        key={v.id}
+                        value={v.registrationNumber}
+                        disabled={isBusy}
+                        className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
+                      >
+                        {v.registrationNumber} — {v.driverName} {isBusy ? `[BUSY: On Trip until ${activeInfo.returnDateFormatted}] 🚫` : `[AVAILABLE] ${c ? `(${c.clientName})` : ''}`}
                       </option>
                     );
                   })}
@@ -7915,6 +8152,91 @@ export default function TransportManagementModule({
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs text-emerald-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
+              </div>
+
+              {/* Trip Duration & Expected Return Date */}
+              <div className="p-3 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/30 dark:bg-sky-950/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-sky-600" />
+                    <span>Trip Duration & Expected Return Date *</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-sky-700 dark:text-sky-300">
+                    Returns: <strong className="font-mono">{quickDispatchReturnDate}</strong>
+                  </span>
+                </div>
+
+                {/* Duration Quick-Select Pills */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickDispatchDurationDays(1);
+                      const d = new Date(quickDispatchDate);
+                      setQuickDispatchReturnDate(d.toISOString().slice(0, 10));
+                    }}
+                    className={`p-2 rounded-lg border text-center transition-all cursor-pointer ${
+                      quickDispatchDurationDays === 1
+                        ? 'border-emerald-500 bg-white dark:bg-slate-800 shadow-2xs ring-1 ring-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">1 Day</div>
+                    <div className="text-[10px] text-slate-500">Same Day Delivery</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickDispatchDurationDays(2);
+                      const d = new Date(quickDispatchDate);
+                      d.setDate(d.getDate() + 2);
+                      setQuickDispatchReturnDate(d.toISOString().slice(0, 10));
+                    }}
+                    className={`p-2 rounded-lg border text-center transition-all cursor-pointer ${
+                      quickDispatchDurationDays === 2
+                        ? 'border-emerald-500 bg-white dark:bg-slate-800 shadow-2xs ring-1 ring-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">2 Days (Up-Down)</div>
+                    <div className="text-[10px] text-slate-500">Round Trip / Return</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickDispatchDurationDays(3);
+                      const d = new Date(quickDispatchDate);
+                      d.setDate(d.getDate() + 3);
+                      setQuickDispatchReturnDate(d.toISOString().slice(0, 10));
+                    }}
+                    className={`p-2 rounded-lg border text-center transition-all cursor-pointer ${
+                      quickDispatchDurationDays === 3
+                        ? 'border-emerald-500 bg-white dark:bg-slate-800 shadow-2xs ring-1 ring-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">3 Days</div>
+                    <div className="text-[10px] text-slate-500">Long Route / Border</div>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 text-[11px]">
+                  <span className="text-slate-500 shrink-0">Custom Return Date:</span>
+                  <input
+                    type="date"
+                    required
+                    value={quickDispatchReturnDate}
+                    min={quickDispatchDate}
+                    onChange={(e) => {
+                      setQuickDispatchReturnDate(e.target.value);
+                      setQuickDispatchDurationDays(0);
+                    }}
+                    className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  🔒 This truck will be locked as <strong>On Trip</strong> until this date. Starting new trips on it will be disabled.
+                </p>
               </div>
 
               {/* 5. Driver Khoraki Cash & Cargo Details */}
