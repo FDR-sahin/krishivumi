@@ -135,6 +135,15 @@ export default function TransportManagementModule({
   const [driverTruckFilter, setDriverTruckFilter] = useState('ALL');
   const [driverStatusFilter, setDriverStatusFilter] = useState('ALL');
 
+  // Fleet / Truck Table Filters
+  const [truckSearchQuery, setTruckSearchQuery] = useState('');
+  const [truckStatusFilter, setTruckStatusFilter] = useState('ALL');
+  const [truckBodyTypeFilter, setTruckBodyTypeFilter] = useState('ALL');
+
+  // Truck Details Profile Modal State
+  const [selectedTruckForDetails, setSelectedTruckForDetails] = useState<ErpTransportOp | null>(null);
+  const [truckDetailsActiveTab, setTruckDetailsActiveTab] = useState<'overview' | 'trips' | 'fuel' | 'maintenance'>('overview');
+
   // Modals
   const [showAddTripModal, setShowAddTripModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -330,6 +339,83 @@ export default function TransportManagementModule({
       return true;
     });
   }, [allDrivers, driverTruckFilter, driverStatusFilter, driverSearchQuery]);
+
+  // Filtered Vehicles for Fleet Management
+  const filteredVehicles = useMemo(() => {
+    return allVehicles.filter((v) => {
+      if (truckStatusFilter !== 'ALL' && v.status !== truckStatusFilter) return false;
+      if (truckBodyTypeFilter !== 'ALL' && (v.truckBodyType || 'open') !== truckBodyTypeFilter) return false;
+      if (truckSearchQuery.trim()) {
+        const q = truckSearchQuery.toLowerCase();
+        const matchReg = (v.registrationNumber || '').toLowerCase().includes(q);
+        const matchDriver = (v.driverName || '').toLowerCase().includes(q);
+        const matchModel = (v.vehicleType || v.truckName || '').toLowerCase().includes(q);
+        const matchChassis = (v.chassisNumber || '').toLowerCase().includes(q);
+        const matchCode = (v.tripOrVehicleCode || '').toLowerCase().includes(q);
+        if (!matchReg && !matchDriver && !matchModel && !matchChassis && !matchCode) return false;
+      }
+      return true;
+    });
+  }, [allVehicles, truckStatusFilter, truckBodyTypeFilter, truckSearchQuery]);
+
+  // Detailed Analytics & Financial Statistics for Selected Truck Profile Modal
+  const selectedTruckStats = useMemo(() => {
+    if (!selectedTruckForDetails) return null;
+    const reg = selectedTruckForDetails.registrationNumber;
+    const truckTrips = allTrips.filter((t) => t.registrationNumber === reg);
+    const totalRevenue = truckTrips.reduce((s, t) => s + Number(t.tripRevenue || 0), 0);
+    const totalTripExpenses = truckTrips.reduce((s, t) => {
+      const exp = Number(t.tripExpense || 0) > 0
+        ? Number(t.tripExpense)
+        : Number(t.fuelCost || 0) +
+          Number(t.tollCost || 0) +
+          Number(t.ferryCost || 0) +
+          Number(t.driverKhoraki || t.driverAllowance || 0) +
+          Number(t.policeRoadCost || 0) +
+          Number(t.labourLoadingCost || 0) +
+          Number(t.driverCommission || 0) +
+          Number(t.commission || 0) +
+          Number(t.maintenanceCost || 0);
+      return s + exp;
+    }, 0);
+
+    const truckFuelLogs = ops.filter((o) => o.recordType === 'fuel' && o.registrationNumber === reg);
+    const standaloneFuelCost = truckFuelLogs.reduce((s, f) => s + Number(f.fuelCost || 0), 0);
+    const totalFuelLitres = truckFuelLogs.reduce((s, f) => s + Number(f.fuelLitres || 0), 0);
+
+    const truckMaintLogs = ops.filter(
+      (o) => (o.recordType === 'maintenance' || o.recordType === 'vehicle_maintenance') && o.registrationNumber === reg
+    );
+    const totalMaintenanceCost = truckMaintLogs.reduce((s, m) => s + Number(m.maintenanceCost || m.partsCost || 0), 0);
+
+    const grandTotalExpenses = totalTripExpenses + standaloneFuelCost + totalMaintenanceCost;
+    const netProfit = totalRevenue - grandTotalExpenses;
+    const totalKm = truckTrips.reduce((s, t) => s + Number(t.distanceKm || 0), 0) || Number(selectedTruckForDetails.currentOdometer || 0);
+    const completedTrips = truckTrips.filter((t) => t.status === 'completed').length;
+    const activeTrips = truckTrips.filter((t) => t.status === 'active' || t.status === 'running').length;
+
+    // Assigned driver info
+    const assignedDriver = allDrivers.find(
+      (d) => d.name.toLowerCase() === (selectedTruckForDetails.driverName || '').toLowerCase() || d.truck === reg
+    );
+
+    return {
+      truckTrips,
+      truckFuelLogs,
+      truckMaintLogs,
+      totalRevenue,
+      totalTripExpenses,
+      standaloneFuelCost,
+      totalFuelLitres,
+      totalMaintenanceCost,
+      grandTotalExpenses,
+      netProfit,
+      totalKm,
+      completedTrips,
+      activeTrips,
+      assignedDriver,
+    };
+  }, [selectedTruckForDetails, allTrips, ops, allDrivers]);
 
   // Cash & Bank Wallets for Financial Payments
   const treasuryWallets = useMemo(() => {
@@ -2294,25 +2380,97 @@ export default function TransportManagementModule({
       {/* ── TAB 2: TRUCK / VEHICLE MANAGEMENT (ALL TRUCKS) ─────────── */}
       {activeTab === 'vehicles' && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-2xs">
+          {/* Header & Control Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Truck className="h-4 w-4 text-emerald-600" />
-                <span>All Registered Fleet Vehicles ({allVehicles.length})</span>
+                <span>All Registered Fleet Vehicles ({allVehicles.length} Trucks)</span>
               </h2>
               <p className="text-xs text-slate-500">
-                'BRTA documentation, tax tokens, route permits, and odometer readings'
+                BRTA documentation, tax tokens, route permits, odometer readings, and truck income-expense ledger
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAddVehicleModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>+ Add Truck</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 text-xs font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-[11px]">Available:</span>
+                <span className="font-bold text-sky-700 dark:text-sky-300">
+                  {allVehicles.filter((v) => v.status === 'available').length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-sans text-[11px]">On Trip:</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                  {runningTrips.length}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddVehicleModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ Add Truck</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar for Trucks */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs">
+            <div className="flex items-center gap-2 flex-1 flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ট্রাক নম্বর, ড্রাইভার, মডেল বা চেসিস খুঁজুন..."
+                  value={truckSearchQuery}
+                  onChange={(e) => setTruckSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Status Filter Dropdown */}
+              <select
+                value={truckStatusFilter}
+                onChange={(e) => setTruckStatusFilter(e.target.value)}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+              >
+                <option value="ALL">All Status (সব স্ট্যাটাস)</option>
+                <option value="available">Available (প্রস্তুত)</option>
+                <option value="active">On Trip (চলমান)</option>
+                <option value="maintenance">Maintenance (গ্যারেজে)</option>
+              </select>
+
+              {/* Body Type Filter Dropdown */}
+              <select
+                value={truckBodyTypeFilter}
+                onChange={(e) => setTruckBodyTypeFilter(e.target.value)}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+              >
+                <option value="ALL">All Body Types (সব ধরনের বডি)</option>
+                <option value="covered">Covered Van (কাভার্ডভ্যান)</option>
+                <option value="open">Open Truck (খোলা ট্রাক)</option>
+                <option value="trailer">Trailer (ট্রেইলার)</option>
+                <option value="pickup">Pickup (পিকআপ)</option>
+              </select>
+            </div>
+
+            {(truckSearchQuery || truckStatusFilter !== 'ALL' || truckBodyTypeFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTruckSearchQuery('');
+                  setTruckStatusFilter('ALL');
+                  setTruckBodyTypeFilter('ALL');
+                }}
+                className="text-[11px] font-bold text-rose-600 hover:underline px-2 py-1"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto max-h-[50vh]">
@@ -2329,10 +2487,20 @@ export default function TransportManagementModule({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {allVehicles.map((v) => (
+                {filteredVehicles.map((v) => (
                   <tr key={v.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="font-bold text-slate-900 dark:text-white font-mono">{v.registrationNumber}</div>
+                      <div
+                        onClick={() => {
+                          setSelectedTruckForDetails(v);
+                          setTruckDetailsActiveTab('overview');
+                        }}
+                        className="font-bold text-slate-900 dark:text-white font-mono hover:text-emerald-600 cursor-pointer flex items-center gap-1.5 group"
+                        title="Click to view detailed truck profile & financial ledger"
+                      >
+                        <span>{v.registrationNumber}</span>
+                        <Eye className="h-3 w-3 text-slate-400 group-hover:text-emerald-600" />
+                      </div>
                       <div className="text-[10px] text-slate-400 font-mono">
                         {v.tripOrVehicleCode}
                         {v.chassisNumber ? ` • Chassis: ${v.chassisNumber}` : ''}
@@ -2376,6 +2544,18 @@ export default function TransportManagementModule({
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTruckForDetails(v);
+                            setTruckDetailsActiveTab('overview');
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                          title="View Detailed Truck Profile, Trips & Income-Expense Ledger (ট্রাকের বিস্তারিত খতিয়ান)"
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span>Details</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleOpenEditVehicle(v)}
@@ -5087,6 +5267,511 @@ export default function TransportManagementModule({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: TRUCK DETAILS & FINANCIAL LEDGER PROFILE ── */}
+      {selectedTruckForDetails && selectedTruckStats && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setSelectedTruckForDetails(null)}
+        >
+          <div
+            className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <Truck className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-extrabold text-lg text-slate-900 dark:text-white font-mono">
+                      {selectedTruckForDetails.registrationNumber}
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        selectedTruckForDetails.status === 'active' || selectedTruckForDetails.status === 'running'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : selectedTruckForDetails.status === 'available'
+                          ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                      }`}
+                    >
+                      {selectedTruckForDetails.status === 'active' || selectedTruckForDetails.status === 'running'
+                        ? '🚚 On Highway Trip'
+                        : selectedTruckForDetails.status === 'available'
+                        ? 'Ready for Trip'
+                        : 'In Workshop / Repair'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {selectedTruckForDetails.vehicleType} • {selectedTruckForDetails.truckBodyType || 'Covered'} • বহরে যুক্ত:{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {selectedTruckForDetails.date || 'বহর উদ্বোধনের সময় থেকে'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const veh = selectedTruckForDetails;
+                    setSelectedTruckForDetails(null);
+                    handleOpenEditVehicle(veh);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  ✏ Edit Truck
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTruckForDetails(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Financial & Telemetry Performance Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs font-mono">
+              <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-sans font-bold flex items-center justify-between">
+                  <span>মোট ট্রিপ আয় (Revenue)</span>
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                </div>
+                <div className="text-lg font-black text-emerald-700 dark:text-emerald-400">
+                  {formatBDT(selectedTruckStats.totalRevenue)}
+                </div>
+                <div className="text-[10px] text-emerald-600 font-sans">
+                  {selectedTruckStats.truckTrips.length} টি ট্রিপ থেকে মোট ভাড়া
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 space-y-1">
+                <div className="text-[11px] text-rose-800 dark:text-rose-300 font-sans font-bold flex items-center justify-between">
+                  <span>মোট খরচ (Total Expenses)</span>
+                  <DollarSign className="h-3.5 w-3.5 text-rose-600" />
+                </div>
+                <div className="text-lg font-black text-rose-700 dark:text-rose-400">
+                  {formatBDT(selectedTruckStats.grandTotalExpenses)}
+                </div>
+                <div className="text-[10px] text-rose-600 font-sans truncate">
+                  তেল, টোল, খোরাকি, কমিশন ও মেরামত
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+                <div className="text-[11px] text-slate-700 dark:text-slate-300 font-sans font-bold flex items-center justify-between">
+                  <span>নিট লাভ / লোকসান (Net Margin)</span>
+                  <Percent className="h-3.5 w-3.5 text-slate-500" />
+                </div>
+                <div
+                  className={`text-lg font-black ${
+                    selectedTruckStats.netProfit >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {formatBDT(selectedTruckStats.netProfit)}
+                </div>
+                <div className="text-[10px] text-slate-500 font-sans">
+                  {selectedTruckStats.netProfit >= 0 ? 'লাভজনক যানবাহন' : 'খরচ বেশি হয়েছে'}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 space-y-1">
+                <div className="text-[11px] text-sky-800 dark:text-sky-300 font-sans font-bold flex items-center justify-between">
+                  <span>মোট দূরত্ব ও ট্রিপ</span>
+                  <Navigation className="h-3.5 w-3.5 text-sky-600" />
+                </div>
+                <div className="text-lg font-black text-sky-700 dark:text-sky-400">
+                  {selectedTruckStats.totalKm.toLocaleString()} KM
+                </div>
+                <div className="text-[10px] text-sky-600 font-sans">
+                  {selectedTruckStats.completedTrips} সম্পন্ন ট্রিপ ({selectedTruckStats.activeTrips} রানিং)
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Tabs Bar */}
+            <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setTruckDetailsActiveTab('overview')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                  truckDetailsActiveTab === 'overview'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                }`}
+              >
+                সাধারণ তথ্য ও ড্রাইভার
+              </button>
+              <button
+                type="button"
+                onClick={() => setTruckDetailsActiveTab('trips')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                  truckDetailsActiveTab === 'trips'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                }`}
+              >
+                ট্রিপ খতিয়ান ({selectedTruckStats.truckTrips.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTruckDetailsActiveTab('fuel')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                  truckDetailsActiveTab === 'fuel'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                }`}
+              >
+                জ্বালানি খরচ ({selectedTruckStats.truckFuelLogs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTruckDetailsActiveTab('maintenance')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                  truckDetailsActiveTab === 'maintenance'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                }`}
+              >
+                গ্যারেজ ও মেরামত ({selectedTruckStats.truckMaintLogs.length})
+              </button>
+            </div>
+
+            {/* Sub-Tab 1: Overview */}
+            {truckDetailsActiveTab === 'overview' && (
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Truck Technical Specifications */}
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-1.5">
+                      <Truck className="h-4 w-4 text-emerald-600" />
+                      <span>গাড়ির স্পেসিফিকেশন ও পরিচয়</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-slate-700 dark:text-slate-300">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">রেজিস্ট্রেশন নম্বর:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">{selectedTruckForDetails.registrationNumber}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">ট্রাক কোড / আইডি:</span>
+                        <span className="font-mono font-semibold">{selectedTruckForDetails.tripOrVehicleCode}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">মডেল ও ব্র্যান্ড:</span>
+                        <span className="font-semibold">{selectedTruckForDetails.vehicleType}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">বডি টাইপ:</span>
+                        <span className="font-semibold uppercase">{selectedTruckForDetails.truckBodyType || 'Covered'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">ধারণক্ষমতা (টন):</span>
+                        <span className="font-bold text-emerald-600">{selectedTruckForDetails.capacityTons || 15} Ton</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">বর্তমান ওডোমিটার:</span>
+                        <span className="font-mono font-bold">{selectedTruckForDetails.currentOdometer || selectedTruckForDetails.distanceKm || 0} KM</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">ইঞ্জিন নম্বর:</span>
+                        <span className="font-mono text-[11px]">{selectedTruckForDetails.engineNumber || 'ENG-HINO-883921'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">চেসিস নম্বর:</span>
+                        <span className="font-mono text-[11px]">{selectedTruckForDetails.chassisNumber || 'CHS-500-772910'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">যানবাহনের ক্রয়মূল্য:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">
+                          {selectedTruckForDetails.purchasePrice ? formatBDT(selectedTruckForDetails.purchasePrice) : '৳ ২৮,০০,০০০'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">বহরে যুক্ত হওয়ার তারিখ:</span>
+                        <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                          {selectedTruckForDetails.date || '২০২৬-১১-০১'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Driver & Legal Documents */}
+                  <div className="space-y-3">
+                    {/* Driver Box */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-1.5">
+                        <Users className="h-4 w-4 text-purple-600" />
+                        <span>নিযুক্ত চালক (Assigned Driver)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">চালকের নাম:</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-sm">
+                            {selectedTruckForDetails.driverName || 'চালকের নাম সেট নেই'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">মোবাইল নম্বর:</span>
+                          <span className="font-mono font-semibold text-emerald-600">
+                            {selectedTruckStats.assignedDriver?.phone || selectedTruckForDetails.driverPhone || '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">ড্রাইভিং লাইসেন্স:</span>
+                          <span className="font-mono text-slate-700 dark:text-slate-300">
+                            {selectedTruckStats.assignedDriver?.license || 'BRTA Verified Professional'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">মাসিক মূল বেতন:</span>
+                          <span className="font-mono font-bold text-purple-700 dark:text-purple-300">
+                            {formatBDT(selectedTruckStats.assignedDriver?.salary || 5000)} / মাস
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BRTA Documents Expiry Strip */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-1.5">
+                        <ShieldCheck className="h-4 w-4 text-sky-600" />
+                        <span>বিআরটিএ আইনি নথিপত্রের মেয়াদ</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-sans">ট্যাক্স টোকেন:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedTruckForDetails.taxTokenExpiry || '2027-06-30'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-sans">ফিটনেস সনদ:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedTruckForDetails.fitnessExpiry || '2027-05-31'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-sans">বীমা (Insurance):</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedTruckForDetails.insuranceExpiry || '2027-08-31'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-sans">রুট পারমিট:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedTruckForDetails.routePermitExpiry || '2027-12-31'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 2: Trips Ledger */}
+            {truckDetailsActiveTab === 'trips' && (
+              <div className="space-y-2">
+                <div className="overflow-x-auto max-h-[45vh] border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase">
+                      <tr>
+                        <th className="py-2 px-2.5">Date & Code</th>
+                        <th className="py-2 px-2.5">Route & Customer</th>
+                        <th className="py-2 px-2.5">Cargo</th>
+                        <th className="py-2 px-2.5 text-right">Freight Fare</th>
+                        <th className="py-2 px-2.5 text-right">Trip Expense</th>
+                        <th className="py-2 px-2.5 text-right">Net Profit</th>
+                        <th className="py-2 px-2.5 text-center">Status</th>
+                        <th className="py-2 px-2.5 text-center">Challan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                      {selectedTruckStats.truckTrips.map((t, i) => {
+                        const tripCost = Number(t.tripExpense || 0);
+                        const profit = Number(t.tripRevenue || 0) - tripCost;
+                        return (
+                          <tr key={t.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2 px-2.5 whitespace-nowrap font-mono">
+                              <div className="font-bold text-slate-900 dark:text-white">{t.tripOrVehicleCode}</div>
+                              <div className="text-[10px] text-slate-400">{t.date}</div>
+                            </td>
+                            <td className="py-2 px-2.5">
+                              <div className="font-semibold text-slate-900 dark:text-white">
+                                {t.loadingLocation || t.origin} ➔ {t.deliveryLocation || t.destination}
+                              </div>
+                              <div className="text-[10px] text-slate-400">{t.customerName || 'Party'}</div>
+                            </td>
+                            <td className="py-2 px-2.5 text-slate-600 dark:text-slate-300 max-w-[140px] truncate">
+                              {t.cargoDetails}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-600">
+                              {formatBDT(t.tripRevenue)}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-mono text-rose-600">
+                              {formatBDT(tripCost)}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                              {formatBDT(profit)}
+                            </td>
+                            <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  t.status === 'completed'
+                                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                }`}
+                              >
+                                {t.status === 'completed' ? 'Completed' : 'Running'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-2.5 text-center whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTripChallan(t)}
+                                className="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold cursor-pointer"
+                              >
+                                Slip
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {selectedTruckStats.truckTrips.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="py-6 text-center text-slate-400 text-xs">
+                            এই ট্রাকের কোনো ট্রিপ এখনও রেকর্ড করা হয়নি।
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 3: Fuel History */}
+            {truckDetailsActiveTab === 'fuel' && (
+              <div className="space-y-2">
+                <div className="overflow-x-auto max-h-[45vh] border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase">
+                      <tr>
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Filling Station / Location</th>
+                        <th className="py-2 px-3 text-right">Litres</th>
+                        <th className="py-2 px-3 text-right">Price/L</th>
+                        <th className="py-2 px-3 text-right">Total Cost</th>
+                        <th className="py-2 px-3 text-right">Odometer</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                      {selectedTruckStats.truckFuelLogs.map((f, i) => (
+                        <tr key={f.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                          <td className="py-2 px-3 font-mono">{f.date}</td>
+                          <td className="py-2 px-3 font-semibold">{f.fuelStation || f.origin || 'Filling Station'}</td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-sky-600">{f.fuelLitres || 0} L</td>
+                          <td className="py-2 px-3 text-right font-mono">৳{f.fuelRate || 108}</td>
+                          <td className="py-2 px-3 text-right font-mono font-black text-rose-600">{formatBDT(f.fuelCost)}</td>
+                          <td className="py-2 px-3 text-right font-mono">{f.startOdometer || 0} KM</td>
+                        </tr>
+                      ))}
+                      {selectedTruckStats.truckFuelLogs.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-slate-400 text-xs">
+                            এই ট্রাকের কোনো পৃথক জ্বালানি লগ পাওয়া যায়নি।
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 4: Maintenance History */}
+            {truckDetailsActiveTab === 'maintenance' && (
+              <div className="space-y-2">
+                <div className="overflow-x-auto max-h-[45vh] border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase">
+                      <tr>
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Garage & Mechanic</th>
+                        <th className="py-2 px-3">Problem & Parts Replaced</th>
+                        <th className="py-2 px-3 text-right">Parts Cost</th>
+                        <th className="py-2 px-3 text-right">Labour</th>
+                        <th className="py-2 px-3 text-right">Total Cost</th>
+                        <th className="py-2 px-3">Warranty</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                      {selectedTruckStats.truckMaintLogs.map((m, i) => (
+                        <tr key={m.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                          <td className="py-2 px-3 font-mono">{m.date}</td>
+                          <td className="py-2 px-3">
+                            <div className="font-semibold">{m.garageName || m.origin || 'Workshop'}</div>
+                            <div className="text-[10px] text-slate-400">{m.mechanicName || m.driverName}</div>
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="font-semibold">{m.cargoDetails || m.maintenanceDetails}</div>
+                            {m.partsReplaced && <div className="text-[10px] text-amber-600 font-bold">Parts: {m.partsReplaced}</div>}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono">{formatBDT(m.partsCost || 0)}</td>
+                          <td className="py-2 px-3 text-right font-mono">{formatBDT(m.labourCost || 0)}</td>
+                          <td className="py-2 px-3 text-right font-mono font-black text-rose-600">{formatBDT(m.maintenanceCost)}</td>
+                          <td className="py-2 px-3 font-mono text-[11px] text-emerald-600 font-bold">{m.warrantyExpiryDate || '—'}</td>
+                        </tr>
+                      ))}
+                      {selectedTruckStats.truckMaintLogs.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-6 text-center text-slate-400 text-xs">
+                            এই ট্রাকের কোনো গ্যারেজ মেরামত রেকর্ড নেই। গাড়ি সম্পূর্ণ ফিট।
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  const reg = selectedTruckForDetails.registrationNumber;
+                  setSelectedTruckForDetails(null);
+                  resetTripFormState();
+                  setTripTruckReg(reg);
+                  setShowAddTripModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ Start Trip for {selectedTruckForDetails.registrationNumber}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedTruckForDetails(null)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
