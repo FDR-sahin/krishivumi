@@ -197,11 +197,36 @@ function getBusinessAccent(templateType?: string) {
   }
 }
 
+const KRISHI_ERP_CACHE_KEY = 'krishi_erp_cache_v3';
+const KRISHI_AUTH_CACHE_KEY = 'krishi_auth_cache_v3';
+
+function getInitialCachedUser(): AuthenticatedErpUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(KRISHI_AUTH_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getInitialCachedData<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = localStorage.getItem(KRISHI_ERP_CACHE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed[key] ? (parsed[key] as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function AgroErpApp() {
-  const [user, setUser] = useState<AuthenticatedErpUser | null>(null);
+  const [user, setUser] = useState<AuthenticatedErpUser | null>(() => getInitialCachedUser());
   const [hasSuperAdmin, setHasSuperAdmin] = useState<boolean>(true);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const [authReady, setAuthReady] = useState(false);
+  const [authReady, setAuthReady] = useState(() => (typeof window !== 'undefined' ? Boolean(localStorage.getItem(KRISHI_AUTH_CACHE_KEY)) : false));
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [seedingData, setSeedingData] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -241,8 +266,8 @@ export default function AgroErpApp() {
   });
 
   // RBAC Simulation Context
-  const [userRole, setUserRole] = useState<UserRole>('super_admin');
-  const [assignedBusinessFilter, setAssignedBusinessFilter] = useState<string>('ALL');
+  const [userRole, setUserRole] = useState<UserRole>(() => getInitialCachedUser()?.role || 'super_admin');
+  const [assignedBusinessFilter, setAssignedBusinessFilter] = useState<string>(() => getInitialCachedUser()?.assignedBusinesses || 'ALL');
 
   // Search, Filter, Sort & Pagination for Business Grid
   const [globalSearch, setGlobalSearch] = useState('');
@@ -252,19 +277,19 @@ export default function AgroErpApp() {
   const pageSize = 8;
 
   // Live Firestore Collections State
-  const [businesses, setBusinesses] = useState<ErpBusiness[]>([]);
-  const [accounts, setAccounts] = useState<ErpAccount[]>([]);
-  const [journalEntries, setJournalEntries] = useState<ErpJournalEntry[]>([]);
-  const [inventoryItems, setInventoryItems] = useState<ErpInventoryItem[]>([]);
-  const [stockMovements, setStockMovements] = useState<ErpStockMovement[]>([]);
-  const [stakeholders, setStakeholders] = useState<ErpStakeholder[]>([]);
-  const [poultryBatches, setPoultryBatches] = useState<ErpPoultryBatch[]>([]);
-  const [livestockRecords, setLivestockRecords] = useState<ErpLivestockRecord[]>([]);
-  const [fishCycles, setFishCycles] = useState<ErpFishCycle[]>([]);
-  const [transportOps, setTransportOps] = useState<ErpTransportOp[]>([]);
-  const [notifications, setNotifications] = useState<ErpNotification[]>([]);
-  const [auditLogs, setAuditLogs] = useState<ErpAuditLog[]>([]);
-  const [erpUsers, setErpUsers] = useState<ErpUser[]>([]);
+  const [businesses, setBusinesses] = useState<ErpBusiness[]>(() => getInitialCachedData('businesses', []));
+  const [accounts, setAccounts] = useState<ErpAccount[]>(() => getInitialCachedData('accounts', []));
+  const [journalEntries, setJournalEntries] = useState<ErpJournalEntry[]>(() => getInitialCachedData('journalEntries', []));
+  const [inventoryItems, setInventoryItems] = useState<ErpInventoryItem[]>(() => getInitialCachedData('inventoryItems', []));
+  const [stockMovements, setStockMovements] = useState<ErpStockMovement[]>(() => getInitialCachedData('stockMovements', []));
+  const [stakeholders, setStakeholders] = useState<ErpStakeholder[]>(() => getInitialCachedData('stakeholders', []));
+  const [poultryBatches, setPoultryBatches] = useState<ErpPoultryBatch[]>(() => getInitialCachedData('poultryBatches', []));
+  const [livestockRecords, setLivestockRecords] = useState<ErpLivestockRecord[]>(() => getInitialCachedData('livestockRecords', []));
+  const [fishCycles, setFishCycles] = useState<ErpFishCycle[]>(() => getInitialCachedData('fishCycles', []));
+  const [transportOps, setTransportOps] = useState<ErpTransportOp[]>(() => getInitialCachedData('transportOps', []));
+  const [notifications, setNotifications] = useState<ErpNotification[]>(() => getInitialCachedData('notifications', []));
+  const [auditLogs, setAuditLogs] = useState<ErpAuditLog[]>(() => getInitialCachedData('auditLogs', []));
+  const [erpUsers, setErpUsers] = useState<ErpUser[]>(() => getInitialCachedData('erpUsers', []));
   const [viewingProfile, setViewingProfile] = useState<UserProfileData | null>(null);
 
   const openActorProfile = useCallback(
@@ -465,11 +490,18 @@ export default function AgroErpApp() {
     try {
       const res = await fetch('/api/erp/bootstrap', { cache: 'no-store' });
       if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem(KRISHI_ERP_CACHE_KEY);
+            localStorage.removeItem(KRISHI_AUTH_CACHE_KEY);
+          } catch {}
+        }
         setUser(null);
         return;
       }
       const json = (await res.json()) as {
         ok?: boolean;
+        hasSuperAdmin?: boolean;
         user?: AuthenticatedErpUser;
         data?: {
           businesses: ErpBusiness[];
@@ -488,6 +520,17 @@ export default function AgroErpApp() {
         };
       };
       if (json.ok && json.data) {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(KRISHI_ERP_CACHE_KEY, JSON.stringify(json.data));
+            if (json.user) {
+              localStorage.setItem(KRISHI_AUTH_CACHE_KEY, JSON.stringify(json.user));
+            }
+          } catch {}
+        }
+        if (json.hasSuperAdmin !== undefined) {
+          setHasSuperAdmin(Boolean(json.hasSuperAdmin));
+        }
         setBusinesses(json.data.businesses || []);
         setAccounts(json.data.accounts || []);
         setJournalEntries(json.data.journalEntries || []);
@@ -582,6 +625,9 @@ export default function AgroErpApp() {
 
   useEffect(() => {
     let active = true;
+    // Fast parallel fetch: bootstrap data immediately on mount
+    void loadBootstrapData();
+
     (async () => {
       try {
         const res = await fetch('/api/auth/status', { cache: 'no-store' });
@@ -606,8 +652,19 @@ export default function AgroErpApp() {
           setUser(userWithPhoto);
           setUserRole(userWithPhoto.role);
           setAssignedBusinessFilter(userWithPhoto.assignedBusinesses || 'ALL');
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(KRISHI_AUTH_CACHE_KEY, JSON.stringify(userWithPhoto));
+            } catch {}
+          }
         } else {
           setUser(null);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem(KRISHI_AUTH_CACHE_KEY);
+              localStorage.removeItem(KRISHI_ERP_CACHE_KEY);
+            } catch {}
+          }
         }
         if (json.error) setAuthError(json.error);
       } catch {
@@ -616,31 +673,22 @@ export default function AgroErpApp() {
         if (active) setAuthReady(true);
       }
     })();
+
+    const unsubscribe = subscribeErpDataChanged(() => {
+      if (active) void loadBootstrapData();
+    });
+
     return () => {
       active = false;
+      unsubscribe();
     };
-  }, []);
+  }, [loadBootstrapData]);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.classList.toggle('dark', darkMode);
     }
   }, [darkMode]);
-
-  useEffect(() => {
-    if (!authReady || !user?.id) return;
-    let active = true;
-    Promise.resolve().then(() => {
-      if (active) void loadBootstrapData();
-    });
-    const unsubscribe = subscribeErpDataChanged(() => {
-      if (active) void loadBootstrapData();
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [authReady, user?.id, loadBootstrapData]);
 
   const handleOpenAuthModal = async () => {
     setIsSigningIn(true);

@@ -25,6 +25,8 @@ interface TripChallanModalProps {
   businessName?: string;
   businessPhone?: string;
   allTrips?: ErpTransportOp[];
+  allVehicles?: ErpTransportOp[];
+  allDrivers?: any[];
   lang?: 'bn' | 'en';
 }
 
@@ -72,6 +74,8 @@ export default function TripChallanModal({
   businessName = 'RegardsAgro Enterprise',
   businessPhone = '',
   allTrips = [],
+  allVehicles = [],
+  allDrivers = [],
   lang = 'en',
 }: TripChallanModalProps) {
   const bn = false;
@@ -101,6 +105,42 @@ export default function TripChallanModal({
 
   const orderNumberFormatted = String(orderIndex).padStart(2, '0');
   const serialNumberFormatted = '01'; // Clean "01" without any "#" symbol
+
+  // Dynamically resolve driver name from trip, assigned vehicle, or fleet driver roster
+  const resolvedDriverName = useMemo(() => {
+    if (!trip) return 'Unassigned';
+    if (trip.driverName && trip.driverName.trim() && trip.driverName.toLowerCase() !== 'unassigned') {
+      return trip.driverName.trim();
+    }
+    if (trip.registrationNumber && allVehicles && allVehicles.length > 0) {
+      const veh = allVehicles.find((v) => v.registrationNumber === trip.registrationNumber);
+      if (veh?.driverName && veh.driverName.trim() && veh.driverName.toLowerCase() !== 'unassigned') {
+        return veh.driverName.trim();
+      }
+    }
+    if (trip.registrationNumber && allDrivers && allDrivers.length > 0) {
+      const drv = allDrivers.find((d: any) => d.truck === trip.registrationNumber);
+      if (drv?.name && drv.name.trim() && drv.name.toLowerCase() !== 'unassigned') {
+        return drv.name.trim();
+      }
+    }
+    return trip.driverName || 'Unassigned';
+  }, [trip, allVehicles, allDrivers]);
+
+  // Real phone numbers entered by user with driver roster fallback
+  const driverPhone = useMemo(() => {
+    if (!trip) return '';
+    if (trip.driverPhone?.trim()) return trip.driverPhone.trim();
+    if (allDrivers && allDrivers.length > 0) {
+      const drv = allDrivers.find(
+        (d: any) =>
+          d.name?.toLowerCase() === resolvedDriverName.toLowerCase() ||
+          d.truck === trip.registrationNumber
+      );
+      if (drv?.phone) return drv.phone;
+    }
+    return '';
+  }, [trip, resolvedDriverName, allDrivers]);
 
   if (!isOpen || !trip) return null;
 
@@ -148,8 +188,6 @@ export default function TripChallanModal({
 
   const netTripProfit = totalFare - totalTripCost;
 
-  // Real phone numbers entered by user (NO fake hardcoded fallback!)
-  const driverPhone = trip.driverPhone?.trim() || '';
   const receiverPhone =
     (trip as any).receiverPhone?.trim() ||
     (trip as any).customerPhone?.trim() ||
@@ -176,7 +214,7 @@ Trip Type: ${hasReturnLeg ? 'ROUND / RETURN TRIP (যাওয়া ও আসা)
 Order No: ${orderNumberFormatted}
 Work Order No: ${trip.tripOrVehicleCode}
 Vehicle No: ${trip.registrationNumber} (${trip.vehicleType || 'Heavy Truck'})
-Driver: ${trip.driverName}${driverPhone ? ` (${driverPhone})` : ''}
+Driver: ${resolvedDriverName}${driverPhone ? ` (${driverPhone})` : ''}
 Consignor (Origin): ${trip.loadingLocation || trip.origin || '—'}
 Consignee (Destination): ${trip.customerName || 'Wholesale Terminal'} (${trip.deliveryLocation || trip.destination || '—'})${receiverPhone ? ` [Phone: ${receiverPhone}]` : ''}
 Distance: ${trip.distanceKm} KM
@@ -329,7 +367,7 @@ Date: ${trip.date}
                     CONTACT PERSON
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.driverName || '—'} (Driver & In-Charge)
+                    : {resolvedDriverName || '—'} (Driver & In-Charge)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
@@ -490,7 +528,7 @@ Date: ${trip.date}
                         {trip.loadingLocation || trip.origin} ➔ {trip.deliveryLocation || trip.destination}
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono">
-                        {trip.registrationNumber} · {trip.driverName}
+                        {trip.registrationNumber} · {resolvedDriverName}
                       </div>
                     </td>
                     <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold">
@@ -550,7 +588,7 @@ Date: ${trip.date}
                           {trip.returnLoadingPoint || trip.destination} ➔ {trip.returnUnloadingPoint || trip.origin}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono">
-                          {trip.registrationNumber} · {trip.driverName}
+                          {trip.registrationNumber} · {resolvedDriverName}
                         </div>
                       </td>
                       <td className="py-3 px-3 border-r border-slate-300 dark:border-slate-700 print:border-black text-center font-mono font-bold text-sky-800 dark:text-sky-300 print:text-black">
@@ -704,7 +742,7 @@ Date: ${trip.date}
                 PREPARED BY
               </div>
               <div className="text-[10px] text-slate-500 print:text-slate-600">
-                {trip.driverName} (Driver / In-Charge)
+                {resolvedDriverName} (Driver / In-Charge)
               </div>
             </div>
 

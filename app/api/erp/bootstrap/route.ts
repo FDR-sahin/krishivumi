@@ -63,12 +63,13 @@ export async function GET() {
       db.collection('livestock_records').find(ownerFilter).toArray(),
       db.collection('fish_cycles').find(ownerFilter).toArray(),
       db.collection('transport_ops').find(ownerFilter).toArray(),
-      db.collection('notifications').find(ownerFilter).sort({ createdAt: -1 }).toArray(),
+      db.collection('notifications').find(ownerFilter).sort({ createdAt: -1 }).limit(100).toArray(),
       db.collection('audit_logs').find(ownerFilter).sort({ createdAt: -1 }).limit(200).toArray(),
       db.collection('users').find({ $or: [ownerFilter, { email: sessionUser.email }] }).toArray(),
     ]);
 
     const isSuperAdmin = sessionUser.role === 'super_admin';
+    const hasSuperAdmin = isSuperAdmin || Boolean((erpUsers as any[]).some((u) => u.role === 'super_admin'));
     const assignedIds =
       sessionUser.assignedBusinesses === 'ALL'
         ? null
@@ -109,18 +110,11 @@ export async function GET() {
         : String(b.code || b.templateType || b.name || b.id).trim().toUpperCase();
 
       if (seenBizKeys.has(key) || String(b.code || '').toUpperCase() === 'BIZ-TRAN-06') {
-        const deleteId = b._id || b.id;
-        if (deleteId) {
-          db.collection('businesses').deleteOne({ _id: deleteId as unknown as never }).catch(() => {});
-        }
         continue;
       }
       seenBizKeys.add(key);
       filteredBusinesses.push(b);
     }
-
-    // Clean up any historical duplicate transport records directly from DB
-    db.collection('businesses').deleteMany({ code: 'BIZ-TRAN-06' }).catch(() => {});
 
     const visibleUsers = canManageUsers
       ? serializeDocs(erpUsers as Record<string, unknown>[])
@@ -163,6 +157,7 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
+      hasSuperAdmin,
       user: sessionUser,
       data: {
         businesses: sanitizedBusinesses,

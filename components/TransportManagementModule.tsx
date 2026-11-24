@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Truck,
   Plus,
@@ -175,6 +175,8 @@ export default function TransportManagementModule({
   const [editTripOrigin, setEditTripOrigin] = useState('');
   const [editTripDestination, setEditTripDestination] = useState('');
   const [editTripCargo, setEditTripCargo] = useState('');
+  const [editTripDriver, setEditTripDriver] = useState('');
+  const [editTripDriverPhone, setEditTripDriverPhone] = useState('');
   const [editTripRemarks, setEditTripRemarks] = useState('');
   const [editTripDistanceKm, setEditTripDistanceKm] = useState<number>(0);
 
@@ -357,6 +359,52 @@ export default function TransportManagementModule({
       return true;
     });
   }, [allVehicles, truckStatusFilter, truckBodyTypeFilter, truckSearchQuery]);
+
+  // Helper to dynamically resolve driver name and phone across trips, vehicles & driver rosters
+  const resolveTripDriverName = useCallback(
+    (t: ErpTransportOp): string => {
+      if (t.driverName && t.driverName.trim() && t.driverName.toLowerCase() !== 'unassigned') {
+        return t.driverName.trim();
+      }
+      const veh = allVehicles.find((v) => v.registrationNumber === t.registrationNumber);
+      if (veh?.driverName && veh.driverName.trim() && veh.driverName.toLowerCase() !== 'unassigned') {
+        return veh.driverName.trim();
+      }
+      const drv = allDrivers.find((d) => d.truck === t.registrationNumber);
+      if (drv?.name && drv.name.trim() && drv.name.toLowerCase() !== 'unassigned') {
+        return drv.name.trim();
+      }
+      return t.driverName || 'Unassigned';
+    },
+    [allVehicles, allDrivers]
+  );
+
+  const resolveTripDriverPhone = useCallback(
+    (t: ErpTransportOp): string => {
+      if (t.driverPhone && t.driverPhone.trim()) {
+        return t.driverPhone.trim();
+      }
+      const dName = resolveTripDriverName(t);
+      const drv = allDrivers.find(
+        (d) => d.name.toLowerCase() === dName.toLowerCase() || d.truck === t.registrationNumber
+      );
+      return drv?.phone || '';
+    },
+    [resolveTripDriverName, allDrivers]
+  );
+
+  const openTripChallanModal = useCallback(
+    (t: ErpTransportOp) => {
+      const dName = resolveTripDriverName(t);
+      const dPhone = resolveTripDriverPhone(t);
+      setSelectedTripChallan({
+        ...t,
+        driverName: dName,
+        driverPhone: dPhone || t.driverPhone,
+      });
+    },
+    [resolveTripDriverName, resolveTripDriverPhone]
+  );
 
   // Detailed Analytics & Financial Statistics for Selected Truck Profile Modal
   const selectedTruckStats = useMemo(() => {
@@ -1148,6 +1196,9 @@ export default function TransportManagementModule({
     setEditTripOrigin(trip.loadingLocation || trip.origin || '');
     setEditTripDestination(trip.deliveryLocation || trip.destination || '');
     setEditTripCargo(trip.cargoDetails || '');
+    const initialDriver = resolveTripDriverName(trip);
+    setEditTripDriver(initialDriver);
+    setEditTripDriverPhone(trip.driverPhone || resolveTripDriverPhone(trip));
     setEditTripRemarks(trip.remarks || '');
     setEditTripDistanceKm(Number(trip.distanceKm || 0));
     setShowEditTripModal(true);
@@ -1183,6 +1234,8 @@ export default function TransportManagementModule({
           otherCosts: editTripOther,
           tripExpense: totalExpense,
           customerName: editTripCustomer.trim(),
+          driverName: editTripDriver.trim() || 'Unassigned',
+          driverPhone: editTripDriverPhone.trim() || undefined,
           origin: editTripOrigin.trim() || editingTrip.origin,
           destination: editTripDestination.trim() || editingTrip.destination,
           loadingLocation: editTripOrigin.trim() || editingTrip.loadingLocation || editingTrip.origin,
@@ -1228,12 +1281,13 @@ export default function TransportManagementModule({
     if (!editingVehicle) return;
     setIsSubmitting(true);
     try {
+      const updatedDriverName = editVehDriver.trim() || 'Unassigned';
       await updateTransportOpRecord(
         editingVehicle,
         {
           registrationNumber: editVehReg.trim(),
           truckName: editVehName.trim(),
-          driverName: editVehDriver.trim() || 'Unassigned',
+          driverName: updatedDriverName,
           currentOdometer: editVehOdometer,
           capacityTons: editVehCapacity,
           truckBodyType: editVehBodyType,
@@ -1245,6 +1299,31 @@ export default function TransportManagementModule({
         },
         actorEmail
       );
+
+      // Auto-synchronize driver name with any active or running trips for this truck
+      const activeTripsOfVehicle = allTrips.filter(
+        (t) =>
+          (t.registrationNumber === editingVehicle.registrationNumber ||
+            t.registrationNumber === editVehReg.trim()) &&
+          (t.status === 'active' || t.status === 'running')
+      );
+      const drvObj = allDrivers.find((d) => d.name.toLowerCase() === updatedDriverName.toLowerCase());
+      for (const tr of activeTripsOfVehicle) {
+        try {
+          await updateTransportOpRecord(
+            tr,
+            {
+              driverName: updatedDriverName,
+              ...(drvObj?.phone ? { driverPhone: drvObj.phone } : {}),
+              ...(drvObj?.license ? { driverLicense: drvObj.license } : {}),
+            },
+            actorEmail
+          );
+        } catch (e) {
+          console.warn('Error auto-syncing trip driver:', e);
+        }
+      }
+
       setShowEditVehicleModal(false);
       setEditingVehicle(null);
       triggerGlobalToast(`ট্রাক ${editVehReg} সফলভাবে আপডেট হয়েছে! ✅`, 'success');
@@ -2295,7 +2374,7 @@ export default function TransportManagementModule({
                         <div className="mt-2 space-y-1 text-xs">
                           <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                             <span className="text-[10px] text-slate-400">Driver:</span>
-                            <span className="font-semibold">{trip.driverName}</span>
+                            <span className="font-semibold">{resolveTripDriverName(trip)}</span>
                           </div>
 
                           <div className="flex items-center justify-between text-slate-700 dark:text-slate-200">
@@ -2323,7 +2402,7 @@ export default function TransportManagementModule({
                       {/* Action Button */}
                       <button
                         type="button"
-                        onClick={() => setSelectedTripChallan(trip)}
+                        onClick={() => openTripChallanModal(trip)}
                         className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 text-center inline-flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Eye className="h-3 w-3" />
@@ -2686,7 +2765,7 @@ export default function TransportManagementModule({
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           <div className="font-bold text-emerald-700 dark:text-emerald-400">{t.registrationNumber}</div>
-                          <div className="text-[10px] text-slate-500">{t.driverName}</div>
+                          <div className="text-[10px] text-slate-500">{resolveTripDriverName(t)}</div>
                         </td>
                         <td className="py-2 px-3 max-w-[240px]">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -2774,7 +2853,7 @@ export default function TransportManagementModule({
 
                             <button
                               type="button"
-                              onClick={() => setSelectedTripChallan(t)}
+                              onClick={() => openTripChallanModal(t)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
                               title="View Official Consignment Challan & Income Slip"
                             >
@@ -4621,6 +4700,8 @@ export default function TransportManagementModule({
           businessName={activeBusiness.nameBn || activeBusiness.name}
           businessPhone={activeBusiness.contactPhone}
           allTrips={allTrips}
+          allVehicles={allVehicles}
+          allDrivers={allDrivers}
           lang={lang}
         />
       )}
@@ -4744,7 +4825,7 @@ export default function TransportManagementModule({
                                 type="button"
                                 onClick={() => {
                                   setShowTodayIncomeModal(false);
-                                  setSelectedTripChallan(item.trip!);
+                                  openTripChallanModal(item.trip!);
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold shadow-2xs cursor-pointer"
                                 title="View Consignment Challan & Income Slip"
@@ -5057,6 +5138,41 @@ export default function TransportManagementModule({
                 <div>
                   <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">আনলোডিং পয়েন্ট (Unloading Point / Destination) *</label>
                   <input type="text" value={editTripDestination} onChange={(e) => setEditTripDestination(e.target.value)} placeholder="e.g. Chittagong Port" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    চালকের নাম (Assigned Driver)
+                  </label>
+                  <input
+                    type="text"
+                    list="edit-trip-driver-list"
+                    value={editTripDriver}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditTripDriver(val);
+                      const match = allDrivers.find((d) => d.name.toLowerCase() === val.toLowerCase());
+                      if (match?.phone) setEditTripDriverPhone(match.phone);
+                    }}
+                    placeholder="e.g. Abdul Karim"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-900 dark:text-white"
+                  />
+                  <datalist id="edit-trip-driver-list">
+                    {allDrivers.map((d) => (
+                      <option key={d.name} value={d.name} />
+                    ))}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    চালকের মোবাইল নম্বর (Driver Phone)
+                  </label>
+                  <input
+                    type="text"
+                    value={editTripDriverPhone}
+                    onChange={(e) => setEditTripDriverPhone(e.target.value)}
+                    placeholder="e.g. 01700-000000"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
+                  />
                 </div>
                 <div>
                   <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">কাস্টমার / কনসাইনি</label>
@@ -5639,7 +5755,7 @@ export default function TransportManagementModule({
                             <td className="py-2 px-2.5 text-center whitespace-nowrap">
                               <button
                                 type="button"
-                                onClick={() => setSelectedTripChallan(t)}
+                                onClick={() => openTripChallanModal(t)}
                                 className="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-bold cursor-pointer"
                               >
                                 Slip
