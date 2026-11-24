@@ -163,6 +163,16 @@ export default function TransportManagementModule({
   const [garmentsStatus, setGarmentsStatus] = useState<'active' | 'paused' | 'completed'>('active');
   const [garmentsRemarks, setGarmentsRemarks] = useState('');
 
+  // ── Quick Garments Dispatch Modal State ────────────────────────────────
+  const [showQuickGarmentsDispatchModal, setShowQuickGarmentsDispatchModal] = useState(false);
+  const [quickDispatchTruck, setQuickDispatchTruck] = useState('');
+  const [quickDispatchDest, setQuickDispatchDest] = useState('Chittagong Port (Incoterm CFS)');
+  const [quickDispatchDate, setQuickDispatchDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [quickDispatchFare, setQuickDispatchFare] = useState<number>(14500);
+  const [quickDispatchAdvance, setQuickDispatchAdvance] = useState<number>(0);
+  const [quickDispatchKhoraki, setQuickDispatchKhoraki] = useState<number>(2000);
+  const [quickDispatchCargo, setQuickDispatchCargo] = useState('RMG Garments Export Cartons');
+
   // Modals
   const [showAddTripModal, setShowAddTripModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -222,19 +232,14 @@ export default function TransportManagementModule({
   const [showMonthlyRevenueModal, setShowMonthlyRevenueModal] = useState(false);
   const [showMonthlyExpenseModal, setShowMonthlyExpenseModal] = useState(false);
 
+  // Helper to normalize registration numbers (merges DHAKA-METRO-T-12-3456 and DHAKA-METRO-TA-12-3456)
+  const normalizeReg = useCallback((reg?: string | null): string => {
+    if (!reg) return '';
+    return reg.toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9]/g, '').replace('METROT', 'METROTA');
+  }, []);
+
   // 2. Extracted Data Partitions (Vehicles, Trips, Fuel, Maintenance, Drivers, Expenses)
   const allVehicles = useMemo(() => {
-    // Collect distinct vehicle registrations from ops or vehicle records
-    const vehicleMap = new Map<string, ErpTransportOp>();
-    for (const op of ops) {
-      if (op.registrationNumber) {
-        const reg = op.registrationNumber.trim();
-        if (!vehicleMap.has(reg) || op.recordType === 'vehicle') {
-          vehicleMap.set(reg, op);
-        }
-      }
-    }
-
     // Default 7 Fleet Trucks (User specified fleet of 7 trucks)
     const default7Fleet: ErpTransportOp[] = [
       {
@@ -442,14 +447,32 @@ export default function TransportManagementModule({
       ...v,
     } as ErpTransportOp));
 
+    const vehicleMap = new Map<string, ErpTransportOp>();
+
+    // 1. Seed the default 7 fleet trucks
     for (const defTruck of default7Fleet) {
-      if (!vehicleMap.has(defTruck.registrationNumber)) {
-        vehicleMap.set(defTruck.registrationNumber, defTruck);
+      vehicleMap.set(normalizeReg(defTruck.registrationNumber), defTruck);
+    }
+
+    // 2. Overlay vehicle records from ops (if user edited driver name, phone, etc.)
+    for (const op of ops) {
+      if (op.registrationNumber && op.recordType === 'vehicle') {
+        const norm = normalizeReg(op.registrationNumber);
+        if (vehicleMap.has(norm)) {
+          vehicleMap.set(norm, {
+            ...vehicleMap.get(norm)!,
+            ...op,
+            registrationNumber: vehicleMap.get(norm)!.registrationNumber,
+          });
+        } else {
+          // Additional custom vehicle registered by user via Add Truck
+          vehicleMap.set(norm, op);
+        }
       }
     }
 
     return Array.from(vehicleMap.values());
-  }, [ops, activeBusiness.id]);
+  }, [ops, activeBusiness.id, ownerId, normalizeReg]);
 
   const defaultGarmentsContracts: ErpTransportOp[] = useMemo(() => [
     {
@@ -559,15 +582,21 @@ export default function TransportManagementModule({
 
   const allGarmentsContracts = useMemo(() => {
     const fromOps = ops.filter((op) => op.recordType === 'garments_contract');
-    if (fromOps.length > 0) {
-      return fromOps;
+    // Combine fromOps with defaultGarmentsContracts without duplicates
+    const contractMap = new Map<string, ErpTransportOp>();
+    for (const def of defaultGarmentsContracts) {
+      contractMap.set(def.tripOrVehicleCode || def.id, def);
     }
-    return defaultGarmentsContracts;
+    for (const op of fromOps) {
+      contractMap.set(op.tripOrVehicleCode || op.id, op);
+    }
+    return Array.from(contractMap.values());
   }, [ops, defaultGarmentsContracts]);
 
   // Helper to retrieve which Garments a truck is assigned to
   const getTruckAssignedGarments = useCallback(
     (reg: string) => {
+      const targetNorm = normalizeReg(reg);
       for (const c of allGarmentsContracts) {
         let trucks: string[] = [];
         if (Array.isArray(c.assignedTrucks)) {
@@ -583,13 +612,13 @@ export default function TransportManagementModule({
         } else if (c.registrationNumber) {
           trucks = [c.registrationNumber];
         }
-        if (trucks.includes(reg)) {
+        if (trucks.some((t) => normalizeReg(t) === targetNorm)) {
           return c;
         }
       }
       return null;
     },
-    [allGarmentsContracts]
+    [allGarmentsContracts, normalizeReg]
   );
 
   const allTrips = useMemo(() => {
@@ -2580,6 +2609,129 @@ export default function TransportManagementModule({
     }
   };
 
+  // ── Quick Garments Dispatch Handlers ────────────────────────────────
+  const openQuickGarmentsDispatch = (truckReg?: string) => {
+    const regToUse =
+      truckReg ||
+      garmentsDedicatedTrucks[0]?.registrationNumber ||
+      allVehicles[0]?.registrationNumber ||
+      '';
+    setQuickDispatchTruck(regToUse);
+    const contract = getTruckAssignedGarments(regToUse);
+    if (contract) {
+      setQuickDispatchFare(contract.agreedRate || 14500);
+      if (contract.destination) setQuickDispatchDest(contract.destination);
+      if (contract.cargoDetails) setQuickDispatchCargo(contract.cargoDetails);
+    } else {
+      setQuickDispatchFare(15000);
+    }
+    setQuickDispatchAdvance(0);
+    setQuickDispatchKhoraki(2000);
+    setQuickDispatchDate(new Date().toISOString().slice(0, 10));
+    setShowQuickGarmentsDispatchModal(true);
+  };
+
+  const handleQuickTruckChange = (reg: string) => {
+    setQuickDispatchTruck(reg);
+    const contract = getTruckAssignedGarments(reg);
+    if (contract) {
+      setQuickDispatchFare(contract.agreedRate || 14500);
+      if (contract.destination) setQuickDispatchDest(contract.destination);
+      if (contract.cargoDetails) setQuickDispatchCargo(contract.cargoDetails);
+    }
+  };
+
+  const handleSaveQuickGarmentsDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickDispatchTruck) {
+      triggerGlobalToast('Please select a truck to dispatch', 'info');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const tripCode = 'TRIP-' + Math.floor(1000 + Math.random() * 9000);
+      const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
+      const contract = getTruckAssignedGarments(quickDispatchTruck);
+
+      await createTransportOpRecord(
+        {
+          tripOrVehicleCode: tripCode,
+          orderNumber: (allTrips.length + 1).toString().padStart(2, '0'),
+          recordType: 'trip',
+          businessId: activeBusiness.id,
+          registrationNumber: quickDispatchTruck,
+          vehicleType: veh?.vehicleType || 'Covered Van',
+          driverName: veh?.driverName || 'Driver Assigned',
+          driverPhone: veh?.driverPhone || undefined,
+          origin: contract?.factoryLocation || contract?.origin || 'Ashulia, Savar',
+          destination: quickDispatchDest || 'Chittagong Port',
+          loadingLocation: contract?.factoryLocation || contract?.origin || 'Ashulia, Savar',
+          deliveryLocation: quickDispatchDest || 'Chittagong Port',
+          route: `${contract?.factoryLocation || 'Ashulia'} ➔ ${quickDispatchDest}`,
+          cargoDetails: quickDispatchCargo || 'RMG Garments Export Cartons',
+          customerName: contract?.clientName || contract?.customerName || 'Garments Client',
+          clientName: contract?.clientName || contract?.customerName || 'Garments Client',
+          distanceKm: 260,
+          tripRevenue: Number(quickDispatchFare || 0),
+          advancePaid: Number(quickDispatchAdvance || 0),
+          advanceReceived: Number(quickDispatchAdvance || 0),
+          remainingDue: Math.max(0, Number(quickDispatchFare || 0) - Number(quickDispatchAdvance || 0)),
+          outstandingDue: Math.max(0, Number(quickDispatchFare || 0) - Number(quickDispatchAdvance || 0)),
+          driverKhoraki: Number(quickDispatchKhoraki || 0),
+          tripExpense: Number(quickDispatchKhoraki || 0),
+          netIncome: Number(quickDispatchFare || 0) - Number(quickDispatchKhoraki || 0),
+          insuranceExpiry: '2027-12-31',
+          fitnessExpiry: '2027-12-31',
+          taxTokenExpiry: '2027-12-31',
+          nextServiceDate: '2027-06-30',
+          date: quickDispatchDate,
+          status: 'active',
+          fuelCost: 0,
+          tollCost: 0,
+          maintenanceCost: 0,
+          maintenanceDetails: '',
+        },
+        ownerId,
+        actorEmail
+      );
+
+      const targetWallet = treasuryWallets[0] || accounts[0];
+      const revAcc = accounts.find((a) => a.accountType === 'revenue') || accounts[0];
+      const remainingDue = Math.max(0, Number(quickDispatchFare || 0) - Number(quickDispatchAdvance || 0));
+      if (targetWallet && revAcc && Number(quickDispatchAdvance) > 0) {
+        await postDoubleEntryTransaction(
+          {
+            referenceNo: `ADV-${tripCode}`,
+            date: quickDispatchDate,
+            businessId: activeBusiness.id,
+            businessName: activeBusiness.name,
+            transactionType: 'sale',
+            category: `Garments Trip Advance (${quickDispatchTruck})`,
+            description: `${quickDispatchTruck} — Advance: ৳${quickDispatchAdvance} for ${tripCode} (${contract?.clientName || 'Garments'})`,
+            debitAccountId: targetWallet.id,
+            debitAccountName: targetWallet.name,
+            creditAccountId: revAcc.id,
+            creditAccountName: revAcc.name,
+            amount: Number(quickDispatchAdvance),
+            paymentStatus: remainingDue > 0 ? 'partial' : 'paid',
+            dueAmount: remainingDue,
+            counterpartyName: contract?.clientName || contract?.customerName || 'Garments Client',
+          },
+          accounts,
+          ownerId,
+          actorEmail
+        );
+      }
+
+      triggerGlobalToast(`Trip ${tripCode} dispatched successfully for ${contract?.clientName || 'Garments'}! Truck is now On Trip. 🚚`, 'success');
+      setShowQuickGarmentsDispatchModal(false);
+    } catch (err: any) {
+      triggerGlobalToast(err?.message || 'Error dispatching trip', 'info');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const openNewGarmentsModal = () => {
     setEditingGarmentsContract(null);
     setGarmentsClientName('');
@@ -2742,7 +2894,7 @@ export default function TransportManagementModule({
         <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 dark:border-slate-800 pt-2.5 text-xs font-bold">
           {[
             { id: 'dashboard', labelBn: 'Dashboard', labelEn: 'Dashboard', icon: Gauge },
-            { id: 'vehicles', labelBn: 'All Trucks (7)', labelEn: 'All Trucks (7)', icon: Truck },
+            { id: 'vehicles', labelBn: `All Trucks (${allVehicles.length})`, labelEn: `All Trucks (${allVehicles.length})`, icon: Truck },
             { id: 'garments', labelBn: 'Garments & Contracts', labelEn: 'Garments & Contracts', icon: Building2 },
             { id: 'trips', labelBn: 'Trip Ledger', labelEn: 'Trip Ledger', icon: Navigation },
             { id: 'fuel', labelBn: 'Fuel Logs', labelEn: 'Fuel Logs', icon: Fuel },
@@ -3529,26 +3681,20 @@ export default function TransportManagementModule({
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={openNewGarmentsModal}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                onClick={() => openQuickGarmentsDispatch()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>+ New Contract</span>
+                <Truck className="h-3.5 w-3.5" />
+                <span>+ Quick Garments Dispatch</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  resetTripFormState();
-                  if (garmentsDedicatedTrucks.length > 0) {
-                    handleTruckSelectChange(garmentsDedicatedTrucks[0].registrationNumber);
-                  }
-                  setShowAddTripModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                onClick={openNewGarmentsModal}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>+ Dispatch Trip</span>
+                <span>+ New Contract</span>
               </button>
             </div>
           </div>
@@ -3728,15 +3874,11 @@ export default function TransportManagementModule({
                         <td className="py-2.5 px-3 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            onClick={() => {
-                              resetTripFormState();
-                              handleTruckSelectChange(v.registrationNumber);
-                              setShowAddTripModal(true);
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                            onClick={() => openQuickGarmentsDispatch(v.registrationNumber)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                           >
-                            <Plus className="h-3 w-3" />
-                            <span>Dispatch</span>
+                            <Truck className="h-3 w-3" />
+                            <span>Quick Dispatch</span>
                           </button>
                         </td>
                       </tr>
@@ -3996,32 +4138,11 @@ export default function TransportManagementModule({
                       {/* Dispatch Trip Button */}
                       <button
                         type="button"
-                        onClick={() => {
-                          resetTripFormState();
-                          if (item.assignedTrucks.length > 0) {
-                            handleTruckSelectChange(item.assignedTrucks[0]);
-                          }
-                          setTripCustomer(contract.clientName || contract.customerName || '');
-                          if (contract.factoryLocation || contract.origin) {
-                            setTripLoadLoc(contract.factoryLocation || contract.origin || '');
-                            setTripStartLoc(contract.factoryLocation || contract.origin || '');
-                          }
-                          if (contract.destination) {
-                            setTripDeliverLoc(contract.destination);
-                            setTripDestLoc(contract.destination);
-                          }
-                          if (contract.cargoDetails) {
-                            setTripCargo(contract.cargoDetails);
-                          }
-                          if (contract.agreedRate && contract.agreedRate > 0) {
-                            setTripFare(contract.agreedRate);
-                          }
-                          setShowAddTripModal(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                        onClick={() => openQuickGarmentsDispatch(item.assignedTrucks[0])}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
                       >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span>+ Dispatch Trip</span>
+                        <Truck className="h-3.5 w-3.5" />
+                        <span>+ Quick Dispatch</span>
                       </button>
                     </div>
                   </div>
@@ -7529,34 +7650,14 @@ export default function TransportManagementModule({
               <button
                 type="button"
                 onClick={() => {
-                  const contract = selectedGarmentsForDetails.contract;
                   const assigned = selectedGarmentsForDetails.assignedTrucks;
                   setSelectedGarmentsForDetails(null);
-                  resetTripFormState();
-                  if (assigned.length > 0) {
-                    handleTruckSelectChange(assigned[0]);
-                  }
-                  setTripCustomer(contract.clientName || contract.customerName || '');
-                  if (contract.factoryLocation || contract.origin) {
-                    setTripLoadLoc(contract.factoryLocation || contract.origin || '');
-                    setTripStartLoc(contract.factoryLocation || contract.origin || '');
-                  }
-                  if (contract.destination) {
-                    setTripDeliverLoc(contract.destination);
-                    setTripDestLoc(contract.destination);
-                  }
-                  if (contract.cargoDetails) {
-                    setTripCargo(contract.cargoDetails);
-                  }
-                  if (contract.agreedRate && contract.agreedRate > 0) {
-                    setTripFare(contract.agreedRate);
-                  }
-                  setShowAddTripModal(true);
+                  openQuickGarmentsDispatch(assigned[0]);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>+ Dispatch Trip for this Factory</span>
+                <Truck className="h-3.5 w-3.5" />
+                <span>+ Quick Dispatch for this Factory</span>
               </button>
 
               <button
@@ -7567,6 +7668,254 @@ export default function TransportManagementModule({
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: QUICK GARMENTS DISPATCH ── */}
+      {showQuickGarmentsDispatchModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowQuickGarmentsDispatchModal(false)}
+        >
+          <div
+            className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+                    <Truck className="h-4 w-4" />
+                  </div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Quick Garments Dispatch
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    Fast 1-Click
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Select a dedicated truck to auto-fill factory address, driver and agreed rate.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowQuickGarmentsDispatchModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickGarmentsDispatch} className="space-y-3.5 text-xs">
+              {/* 1. Select Dedicated Truck */}
+              <div>
+                <label className="block mb-1 font-bold text-slate-700 dark:text-slate-300">
+                  Select Dedicated Fleet Truck *
+                </label>
+                <select
+                  required
+                  value={quickDispatchTruck}
+                  onChange={(e) => handleQuickTruckChange(e.target.value)}
+                  className="w-full rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-950/20 px-3 py-2.5 font-mono font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">-- Choose Truck from Dedicated Fleet --</option>
+                  {allVehicles.map((v) => {
+                    const c = getTruckAssignedGarments(v.registrationNumber);
+                    return (
+                      <option key={v.id} value={v.registrationNumber}>
+                        {v.registrationNumber} — {v.driverName} {c ? `(${c.clientName} • ৳${c.agreedRate || 15000})` : '(Open Fleet)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* 2. Auto-filled Summary Box */}
+              {(() => {
+                const c = getTruckAssignedGarments(quickDispatchTruck);
+                const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
+                return (
+                  <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-1.5 text-xs">
+                    <div className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>Auto-Filled from Contract</span>
+                      <span className="font-mono text-emerald-600 font-bold">
+                        {c?.billingType === 'monthly' ? 'Monthly Contract' : 'Per Trip Rate'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Client / Factory:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {c?.clientName || 'General Client'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Factory Loading Point:</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate block">
+                          {c?.factoryLocation || c?.origin || 'Ashulia, Savar'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Assigned Driver:</span>
+                        <span className="font-semibold text-emerald-600">
+                          {veh?.driverName || 'Driver Assigned'} {veh?.driverPhone ? `(${veh.driverPhone})` : ''}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Agreed Freight Rate:</span>
+                        <span className="font-mono font-bold text-purple-700 dark:text-purple-400">
+                          {formatBDT(c?.agreedRate || quickDispatchFare || 15000)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 3. Destination (Unloading Point) with Quick-Pills */}
+              <div>
+                <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                  Unloading Point / Delivery Destination *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickDispatchDest}
+                  onChange={(e) => setQuickDispatchDest(e.target.value)}
+                  placeholder="e.g. Chittagong Port (Incoterm CFS)"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-medium"
+                />
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] text-slate-400">Quick Pick:</span>
+                  {[
+                    'Chittagong Port (In-Bond / CFS)',
+                    'Dhaka Airport Cargo Village',
+                    'Benapole Land Port',
+                    'DEPZ Savar Depot',
+                  ].map((dest) => (
+                    <button
+                      key={dest}
+                      type="button"
+                      onClick={() => setQuickDispatchDest(dest)}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                        quickDispatchDest === dest
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      {dest.split(' ')[0]} {dest.split(' ')[1] || ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Fare, Date & Advances */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Dispatch Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={quickDispatchDate}
+                    onChange={(e) => setQuickDispatchDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Trip Fare (BDT) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    value={quickDispatchFare}
+                    onChange={(e) => setQuickDispatchFare(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-purple-700 dark:text-purple-300 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Advance Collected (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={quickDispatchAdvance}
+                    onChange={(e) => setQuickDispatchAdvance(Number(e.target.value))}
+                    placeholder="0"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs text-emerald-600 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* 5. Driver Khoraki Cash & Cargo Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Driver Road Khoraki (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={quickDispatchKhoraki}
+                    onChange={(e) => setQuickDispatchKhoraki(Number(e.target.value))}
+                    placeholder="2000"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Cargo / Load Details
+                  </label>
+                  <input
+                    type="text"
+                    value={quickDispatchCargo}
+                    onChange={(e) => setQuickDispatchCargo(e.target.value)}
+                    placeholder="e.g. RMG Garments Export Cartons"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickGarmentsDispatchModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Confirm & Dispatch Trip</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
