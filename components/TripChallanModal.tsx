@@ -193,6 +193,11 @@ export default function TripChallanModal({
     (trip as any).customerPhone?.trim() ||
     '';
 
+  const isCorporateClientTrip =
+    Boolean(trip.clientName && trip.clientName.trim() !== '') ||
+    trip.recordType === 'contract' ||
+    Boolean((trip as any).garmentsContractId);
+
   // Estimated delivery calculation (typically 1-2 days after departure)
   const departureDate = trip.date || new Date().toISOString().split('T')[0];
   const deliveryDateObj = new Date(departureDate);
@@ -403,22 +408,26 @@ Date: ${trip.date}
                 </div>
               </div>
 
-              {/* Right Column: Supplier / Company, Broker & Consignee */}
+              {/* Right Column: Supplier / Consignor, Customer / Consignee, Broker & Carrier */}
               <div className="p-4 space-y-2 bg-emerald-50/30 dark:bg-slate-900/50 print:bg-white">
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
-                    SUPPLIER / COMPANY
+                    {isCorporateClientTrip ? 'CLIENT / SHIPPER' : 'SUPPLIER / SENDER'}
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.customerName || trip.clientName || '—'}
+                    : {isCorporateClientTrip
+                      ? (trip.clientName || trip.customerName || 'Corporate Client')
+                      : `${businessName} (RegardsAgro Enterprise)`}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
-                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    BROKER / AGENT
+                  <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
+                    {isCorporateClientTrip ? 'CONSIGNEE / PORT' : 'BUYER / CONSIGNEE'}
                   </span>
-                  <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.brokerName || 'Direct (No Broker)'}
+                  <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {isCorporateClientTrip
+                      ? (trip.deliveryLocation || trip.destination || 'Chittagong Port (CFS / In-Bond)')
+                      : (trip.customerName || 'Wholesale Client / Receiver')}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -427,6 +436,14 @@ Date: ${trip.date}
                   </span>
                   <span className="font-medium text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
                     : {businessName} (RegardsAgro Logistics Fleet)
+                  </span>
+                </div>
+                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
+                    BROKER / AGENT
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
+                    : {trip.brokerName || (isCorporateClientTrip ? 'Direct (Factory Dedicated)' : 'Direct (No Broker)')}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
@@ -442,7 +459,7 @@ Date: ${trip.date}
                     ORIGIN ADDRESS (CONSIGNOR)
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100 print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.loadingLocation || trip.origin || '—'}
+                    : {trip.loadingLocation || trip.origin || (isCorporateClientTrip ? 'Factory Premises' : 'Central Agro Logistics Hub, Savar')}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5">

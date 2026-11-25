@@ -62,6 +62,7 @@ import {
 } from '@/lib/erp-service';
 import TripChallanModal from './TripChallanModal';
 import CorporateTransportBillModal from './CorporateTransportBillModal';
+import MonthlyTruckStatementModal from './MonthlyTruckStatementModal';
 import { triggerGlobalToast, triggerConfirmDelete } from './GlobalToastAndConfirmModal';
 
 interface TransportManagementModuleProps {
@@ -107,23 +108,177 @@ const MONTH_NAMES = [
   { code: '12', nameEn: 'December', nameBn: 'December' },
 ];
 
+interface GeoCoordinate {
+  lat: number;
+  lng: number;
+  name: string;
+}
+
+const BANGLADESH_LOCATIONS: Record<string, GeoCoordinate> = {
+  // Micro / Suburban Dhaka & Savar
+  khagan: { lat: 23.8690, lng: 90.3195, name: 'Khagan Bazar (Birulia/Savar)' },
+  birulia: { lat: 23.8690, lng: 90.3195, name: 'Birulia, Savar' },
+  daffodil: { lat: 23.8690, lng: 90.3195, name: 'Daffodil / Khagan' },
+  mirpur: { lat: 23.8070, lng: 90.3685, name: 'Mirpur, Dhaka' },
+  savar: { lat: 23.8583, lng: 90.2667, name: 'Savar, Dhaka' },
+  ashulia: { lat: 23.8967, lng: 90.3200, name: 'Ashulia, Savar' },
+  depz: { lat: 23.9312, lng: 90.2831, name: 'DEPZ / Baipail' },
+  baipail: { lat: 23.9312, lng: 90.2831, name: 'Baipail, Savar' },
+  nischintapur: { lat: 23.9015, lng: 90.3015, name: 'Nischintapur, Ashulia' },
+  gabtoli: { lat: 23.7845, lng: 90.3475, name: 'Gabtoli, Dhaka' },
+  tejgaon: { lat: 23.7594, lng: 90.3920, name: 'Tejgaon, Dhaka' },
+  uttara: { lat: 23.8759, lng: 90.3795, name: 'Uttara, Dhaka' },
+  tongi: { lat: 23.8983, lng: 90.4042, name: 'Tongi' },
+  gazipur: { lat: 23.9999, lng: 90.4203, name: 'Gazipur' },
+  konabari: { lat: 24.0150, lng: 90.3320, name: 'Konabari, Gazipur' },
+  valuka: { lat: 24.3820, lng: 90.3790, name: 'Valuka / Seedstor' },
+  narayanganj: { lat: 23.6238, lng: 90.5000, name: 'Narayanganj' },
+  // Major Districts & Ports
+  chittagong: { lat: 22.3475, lng: 91.8123, name: 'Chittagong Port' },
+  benapole: { lat: 23.0422, lng: 88.8965, name: 'Benapole Land Port' },
+  bogra: { lat: 24.8465, lng: 89.3730, name: 'Bogra' },
+  sylhet: { lat: 24.8949, lng: 91.8687, name: 'Sylhet' },
+  khulna: { lat: 22.8456, lng: 89.5403, name: 'Khulna' },
+  barisal: { lat: 22.7010, lng: 90.3535, name: 'Barisal' },
+  rajshahi: { lat: 24.3745, lng: 88.6042, name: 'Rajshahi' },
+  rangpur: { lat: 25.7439, lng: 89.2752, name: 'Rangpur' },
+  mymensingh: { lat: 24.7471, lng: 90.4203, name: 'Mymensingh' },
+  comilla: { lat: 23.4607, lng: 91.1809, name: 'Comilla' },
+  feni: { lat: 23.0159, lng: 91.3976, name: 'Feni' },
+  coxsbazar: { lat: 21.4272, lng: 92.0058, name: "Cox's Bazar" },
+  tangail: { lat: 24.2513, lng: 89.9167, name: 'Tangail' },
+  sirajganj: { lat: 24.4534, lng: 89.7008, name: 'Sirajganj' },
+  jessore: { lat: 23.1664, lng: 89.2081, name: 'Jessore' },
+  dinajpur: { lat: 25.6279, lng: 88.6332, name: 'Dinajpur' },
+  kushtia: { lat: 23.9013, lng: 89.1205, name: 'Kushtia' },
+  faridpur: { lat: 23.6071, lng: 89.8429, name: 'Faridpur' },
+  pabna: { lat: 24.0044, lng: 89.2372, name: 'Pabna' },
+  natore: { lat: 24.4206, lng: 89.0003, name: 'Natore' },
+  habiganj: { lat: 24.3749, lng: 91.4155, name: 'Habiganj' },
+  moulvibazar: { lat: 24.4829, lng: 91.7774, name: 'Moulvibazar' },
+  sreemangal: { lat: 24.3065, lng: 91.7296, name: 'Sreemangal' },
+  brahmanbaria: { lat: 23.9571, lng: 91.1119, name: 'Brahmanbaria' },
+  noakhali: { lat: 22.8696, lng: 91.0994, name: 'Noakhali' },
+};
+
+function getHaversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export const calculateHighwayDistance = (origin: string, destination: string): { km: number; routeName: string } => {
   const o = (origin || '').toLowerCase().trim();
   const d = (destination || '').toLowerCase().trim();
   if (!o || !d) return { km: 260, routeName: 'National Highway Route' };
 
-  const isAshulia = o.includes('ashulia') || o.includes('savar') || o.includes('depz') || o.includes('nischintapur') || o.includes('epz');
-  const isGazipur = o.includes('gazipur') || o.includes('konabari') || o.includes('tongi') || o.includes('joydebpur');
+  // Explicit pairs (Highest precision):
+  const isKhagan = o.includes('khagan') || o.includes('khagon') || o.includes('birulia') || o.includes('daffodil') || o.includes('diu');
+  const isKhaganDest = d.includes('khagan') || d.includes('khagon') || d.includes('birulia') || d.includes('daffodil') || d.includes('diu');
+
+  const isMirpur = o.includes('mirpur') || o.includes('pallabi') || o.includes('kazipara') || o.includes('shewrapara');
+  const isMirpurDest = d.includes('mirpur') || d.includes('pallabi') || d.includes('kazipara') || d.includes('shewrapara');
+
+  const isAshulia = o.includes('ashulia') || o.includes('savar') || o.includes('depz') || o.includes('nischintapur') || o.includes('epz') || o.includes('baipail') || o.includes('hemayetpur');
+  const isAshuliaDest = d.includes('ashulia') || d.includes('savar') || d.includes('depz') || d.includes('nischintapur') || d.includes('epz') || d.includes('baipail') || d.includes('hemayetpur');
+
+  const isGazipur = o.includes('gazipur') || o.includes('konabari') || o.includes('tongi') || o.includes('joydebpur') || o.includes('kasimpur');
+  const isGazipurDest = d.includes('gazipur') || d.includes('konabari') || d.includes('tongi') || d.includes('joydebpur') || d.includes('kasimpur');
+
   const isValuka = o.includes('valuka') || o.includes('bhaluka') || o.includes('seedstor') || o.includes('mymensingh');
-  const isDhaka = o.includes('dhaka') || o.includes('tejgaon') || o.includes('airport') || o.includes('kallayanpur');
+  const isValukaDest = d.includes('valuka') || d.includes('bhaluka') || d.includes('seedstor') || d.includes('mymensingh');
+
+  const isDhaka = o.includes('dhaka') || o.includes('tejgaon') || o.includes('kallayanpur') || o.includes('farmgate') || o.includes('dhanmondi') || o.includes('mohammadpur') || o.includes('motijheel') || o.includes('jatrabari');
+  const isDhakaDest = d.includes('dhaka') || d.includes('tejgaon') || d.includes('kallayanpur') || d.includes('farmgate') || d.includes('dhanmondi') || d.includes('mohammadpur') || d.includes('motijheel') || d.includes('jatrabari');
+
+  const isUttara = o.includes('uttara') || o.includes('airport') || o.includes('khilkhet') || o.includes('nikunja') || o.includes('abdullahpur');
+  const isUttaraDest = d.includes('uttara') || d.includes('airport') || d.includes('khilkhet') || d.includes('nikunja') || d.includes('abdullahpur');
+
+  const isGabtoli = o.includes('gabtoli') || o.includes('aminbazar');
+  const isGabtoliDest = d.includes('gabtoli') || d.includes('aminbazar');
 
   const isCtgPort = d.includes('chittagong') || d.includes('chattogram') || d.includes('ctg') || d.includes('port') || d.includes('ocl') || d.includes('cfs') || d.includes('patenga') || d.includes('agrabad');
+  const isCtgPortOrig = o.includes('chittagong') || o.includes('chattogram') || o.includes('ctg') || o.includes('port') || o.includes('ocl') || o.includes('cfs') || o.includes('patenga') || o.includes('agrabad');
+
   const isBenapole = d.includes('benapole') || d.includes('jessore') || d.includes('jashore');
+  const isBenapoleOrig = o.includes('benapole') || o.includes('jessore') || o.includes('jashore');
+
   const isBogra = d.includes('bogra') || d.includes('bogura') || d.includes('sirajganj') || d.includes('rangpur');
+  const isBograOrig = o.includes('bogra') || o.includes('bogura') || o.includes('sirajganj') || o.includes('rangpur');
+
   const isSylhet = d.includes('sylhet') || d.includes('habiganj') || d.includes('moulvibazar') || d.includes('sreemangal');
+  const isSylhetOrig = o.includes('sylhet') || o.includes('habiganj') || o.includes('moulvibazar') || o.includes('sreemangal');
+
   const isKhulna = d.includes('khulna') || d.includes('mongla');
   const isComilla = d.includes('comilla') || d.includes('cumilla') || d.includes('feni');
 
+  // 1. Direct Khagan Bazar Local Routes
+  if ((isKhagan && isMirpurDest) || (isMirpur && isKhaganDest)) {
+    return { km: 15, routeName: 'Khagan Bazar ➔ Mirpur (via Birulia Bridge & Beribadh Road)' };
+  }
+  if ((isKhagan && isAshuliaDest) || (isAshulia && isKhaganDest)) {
+    return { km: 10, routeName: 'Khagan Bazar ➔ Savar/Ashulia (via Ashulia Road)' };
+  }
+  if ((isKhagan && isGabtoliDest) || (isGabtoli && isKhaganDest)) {
+    return { km: 14, routeName: 'Khagan Bazar ➔ Gabtoli (via Beribadh Highway)' };
+  }
+  if ((isKhagan && isUttaraDest) || (isUttara && isKhaganDest)) {
+    return { km: 18, routeName: 'Khagan Bazar ➔ Uttara / Airport (via Beribadh / Abdullahpur)' };
+  }
+  if ((isKhagan && isDhakaDest) || (isDhaka && isKhaganDest)) {
+    return { km: 22, routeName: 'Khagan Bazar ➔ Dhaka Tejgaon (via Beribadh / Mirpur)' };
+  }
+  if ((isKhagan && isGazipurDest) || (isGazipur && isKhaganDest)) {
+    return { km: 24, routeName: 'Khagan Bazar ➔ Gazipur / Konabari' };
+  }
+  if ((isKhagan && isCtgPort) || (isCtgPortOrig && isKhaganDest)) {
+    return { km: 280, routeName: 'Khagan Bazar ➔ Chittagong Port (via N1 Highway)' };
+  }
+  if ((isKhagan && isBenapole) || (isBenapoleOrig && isKhaganDest)) {
+    return { km: 250, routeName: 'Khagan Bazar ➔ Benapole Land Port (via Padma Bridge)' };
+  }
+  if ((isKhagan && isBogra) || (isBograOrig && isKhaganDest)) {
+    return { km: 195, routeName: 'Khagan Bazar ➔ Bogra (via Bangabandhu Bridge)' };
+  }
+
+  // 2. Direct Mirpur Local & Highway Routes
+  if ((isMirpur && isDhakaDest) || (isDhaka && isMirpurDest)) {
+    return { km: 10, routeName: 'Mirpur ➔ Dhaka Tejgaon (via Begum Rokeya Sarani)' };
+  }
+  if ((isMirpur && isUttaraDest) || (isUttara && isMirpurDest)) {
+    return { km: 15, routeName: 'Mirpur ➔ Uttara (via Kalshi Flyover / Airport Road)' };
+  }
+  if ((isMirpur && isGabtoliDest) || (isGabtoli && isMirpurDest)) {
+    return { km: 6, routeName: 'Mirpur ➔ Gabtoli Terminal' };
+  }
+  if ((isMirpur && isAshuliaDest) || (isAshulia && isMirpurDest)) {
+    return { km: 18, routeName: 'Mirpur ➔ Savar / Ashulia (via Gabtoli - Aminbazar)' };
+  }
+  if ((isMirpur && isGazipurDest) || (isGazipur && isMirpurDest)) {
+    return { km: 26, routeName: 'Mirpur ➔ Gazipur / Konabari (via Abdullahpur)' };
+  }
+  if ((isMirpur && isCtgPort) || (isCtgPortOrig && isMirpurDest)) {
+    return { km: 268, routeName: 'Mirpur ➔ Chittagong Port (via Mayor Hanif Flyover / N1)' };
+  }
+  if ((isMirpur && isBenapole) || (isBenapoleOrig && isMirpurDest)) {
+    return { km: 235, routeName: 'Mirpur ➔ Benapole (via Babubazar / Padma Bridge)' };
+  }
+  if ((isMirpur && isBogra) || (isBograOrig && isMirpurDest)) {
+    return { km: 205, routeName: 'Mirpur ➔ Bogra (via Gabtoli / N5 Highway)' };
+  }
+  if ((isMirpur && isSylhet) || (isSylhetOrig && isMirpurDest)) {
+    return { km: 248, routeName: 'Mirpur ➔ Sylhet (via Kuril / N2 Highway)' };
+  }
+
+  // 3. Port & Major Highway Routes
   if (isAshulia && isCtgPort) return { km: 275, routeName: 'Ashulia ➔ Chittagong Port (via N1 Highway)' };
   if (isGazipur && isCtgPort) return { km: 290, routeName: 'Konabari/Gazipur ➔ Chittagong Port (via N1 Highway)' };
   if (isValuka && isCtgPort) return { km: 315, routeName: 'Valuka Seedstor ➔ Chittagong Port/OCL (via N1 Highway)' };
@@ -149,7 +304,24 @@ export const calculateHighwayDistance = (origin: string, destination: string): {
   if (isGazipur && isDhaka) return { km: 38, routeName: 'Gazipur ➔ Dhaka Tejgaon' };
   if (isValuka && isDhaka) return { km: 90, routeName: 'Valuka ➔ Dhaka Tejgaon' };
 
-  if (o === d) return { km: 40, routeName: 'Intra-City Logistics (Local Transfer)' };
+  if (o === d) return { km: 15, routeName: `${origin} (Intra-Zone Transfer)` };
+
+  // 4. Intelligent Coordinate Lookup for other Bangladesh pairs
+  let coordOrig: GeoCoordinate | null = null;
+  let coordDest: GeoCoordinate | null = null;
+
+  for (const [key, geo] of Object.entries(BANGLADESH_LOCATIONS)) {
+    if (!coordOrig && o.includes(key)) coordOrig = geo;
+    if (!coordDest && d.includes(key)) coordDest = geo;
+    if (coordOrig && coordDest) break;
+  }
+
+  if (coordOrig && coordDest) {
+    const aerialKm = getHaversineKm(coordOrig.lat, coordOrig.lng, coordDest.lat, coordDest.lng);
+    const roadFactor = aerialKm < 40 ? 1.65 : 1.30;
+    const roadDist = Math.max(8, Math.round(aerialKm * roadFactor));
+    return { km: roadDist, routeName: `${coordOrig.name} ➔ ${coordDest.name} (National Highway)` };
+  }
 
   return { km: 260, routeName: `${origin} ➔ ${destination} (National Highway)` };
 };
@@ -247,6 +419,12 @@ export default function TransportManagementModule({
   const [clientBillPayDate, setClientBillPayDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [clientBillWalletId, setClientBillWalletId] = useState('');
   const [clientBillNotes, setClientBillNotes] = useState('');
+
+  // Monthly Truck Statement Modal State (Per-Truck Month Filter & PDF Statement)
+  const [showTruckMonthlyStatementModal, setShowTruckMonthlyStatementModal] = useState(false);
+  const [selectedTruckForStatement, setSelectedTruckForStatement] = useState<ErpTransportOp | null>(null);
+  const [statementSelectedMonth, setStatementSelectedMonth] = useState<string>('ALL');
+  const [truckDetailsSelectedMonth, setTruckDetailsSelectedMonth] = useState<string>('ALL');
 
   // View Mode Toggles for Garments Presentation
   const [garmentsViewMode, setGarmentsViewMode] = useState<'companies' | 'trucks'>('companies');
@@ -1178,8 +1356,54 @@ export default function TransportManagementModule({
   const selectedTruckStats = useMemo(() => {
     if (!selectedTruckForDetails) return null;
     const reg = selectedTruckForDetails.registrationNumber;
-    const truckTrips = allTrips.filter((t) => t.registrationNumber === reg);
-    const totalRevenue = truckTrips.reduce((s, t) => s + Number(t.tripRevenue || 0), 0);
+    const allTruckTrips = allTrips.filter((t) => t.registrationNumber === reg);
+
+    // Available months from all trips and logs
+    const monthSet = new Set<string>();
+    for (const t of allTruckTrips) {
+      if (t.date) {
+        const d = new Date(t.date);
+        if (!isNaN(d.getTime())) {
+          monthSet.add(d.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase());
+        }
+      }
+    }
+    const allTruckFuelLogs = ops.filter((o) => o.recordType === 'fuel' && o.registrationNumber === reg);
+    for (const f of allTruckFuelLogs) {
+      if (f.date) {
+        const d = new Date(f.date);
+        if (!isNaN(d.getTime())) {
+          monthSet.add(d.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase());
+        }
+      }
+    }
+    const allTruckMaintLogs = ops.filter(
+      (o) => (o.recordType === 'maintenance' || o.recordType === 'vehicle_maintenance') && o.registrationNumber === reg
+    );
+    for (const m of allTruckMaintLogs) {
+      if (m.date) {
+        const d = new Date(m.date);
+        if (!isNaN(d.getTime())) {
+          monthSet.add(d.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase());
+        }
+      }
+    }
+    const availableMonths = Array.from(monthSet);
+
+    // Filter by truckDetailsSelectedMonth
+    const truckTrips = truckDetailsSelectedMonth === 'ALL'
+      ? allTruckTrips
+      : allTruckTrips.filter((t) => {
+          if (!t.date) return false;
+          const d = new Date(t.date);
+          if (isNaN(d.getTime())) return false;
+          return d.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase() === truckDetailsSelectedMonth;
+        });
+
+    const totalRevenue = truckTrips.reduce((s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0), 0);
+    const totalDemurrage = truckTrips.reduce((s, t) => s + Number(t.demurrageAmount || 0), 0);
+    const grossIncome = totalRevenue + totalDemurrage;
+
     const totalTripExpenses = truckTrips.reduce((s, t) => {
       const exp = Number(t.tripExpense || 0) > 0
         ? Number(t.tripExpense)
@@ -1195,18 +1419,30 @@ export default function TransportManagementModule({
       return s + exp;
     }, 0);
 
-    const truckFuelLogs = ops.filter((o) => o.recordType === 'fuel' && o.registrationNumber === reg);
+    const truckFuelLogs = truckDetailsSelectedMonth === 'ALL'
+      ? allTruckFuelLogs
+      : allTruckFuelLogs.filter((f) => {
+          if (!f.date) return false;
+          const d = new Date(f.date);
+          if (isNaN(d.getTime())) return false;
+          return d.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase() === truckDetailsSelectedMonth;
+        });
     const standaloneFuelCost = truckFuelLogs.reduce((s, f) => s + Number(f.fuelCost || 0), 0);
     const totalFuelLitres = truckFuelLogs.reduce((s, f) => s + Number(f.fuelLitres || 0), 0);
 
-    const truckMaintLogs = ops.filter(
-      (o) => (o.recordType === 'maintenance' || o.recordType === 'vehicle_maintenance') && o.registrationNumber === reg
-    );
+    const truckMaintLogs = truckDetailsSelectedMonth === 'ALL'
+      ? allTruckMaintLogs
+      : allTruckMaintLogs.filter((m) => {
+          if (!m.date) return false;
+          const d = new Date(m.date);
+          if (isNaN(d.getTime())) return false;
+          return d.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase() === truckDetailsSelectedMonth;
+        });
     const totalMaintenanceCost = truckMaintLogs.reduce((s, m) => s + Number(m.maintenanceCost || m.partsCost || 0), 0);
 
     const grandTotalExpenses = totalTripExpenses + standaloneFuelCost + totalMaintenanceCost;
-    const netProfit = totalRevenue - grandTotalExpenses;
-    const totalKm = truckTrips.reduce((s, t) => s + Number(t.distanceKm || 0), 0) || Number(selectedTruckForDetails.currentOdometer || 0);
+    const netProfit = grossIncome - grandTotalExpenses;
+    const totalKm = truckTrips.reduce((s, t) => s + Number(t.distanceKm || 0), 0) || (truckDetailsSelectedMonth === 'ALL' ? Number(selectedTruckForDetails.currentOdometer || 0) : 0);
     const completedTrips = truckTrips.filter((t) => t.status === 'completed').length;
     const activeTrips = truckTrips.filter((t) => t.status === 'active' || t.status === 'running').length;
 
@@ -1216,10 +1452,13 @@ export default function TransportManagementModule({
     );
 
     return {
+      allTimeTripsCount: allTruckTrips.length,
+      availableMonths,
       truckTrips,
       truckFuelLogs,
       truckMaintLogs,
-      totalRevenue,
+      totalRevenue: grossIncome,
+      totalDemurrage,
       totalTripExpenses,
       standaloneFuelCost,
       totalFuelLitres,
@@ -1231,7 +1470,7 @@ export default function TransportManagementModule({
       activeTrips,
       assignedDriver,
     };
-  }, [selectedTruckForDetails, allTrips, ops, allDrivers]);
+  }, [selectedTruckForDetails, allTrips, ops, allDrivers, truckDetailsSelectedMonth]);
 
   // Garments & Corporate Contracts Analytics & Aggregated Ledger
   const garmentsStatsList = useMemo(() => {
@@ -4292,6 +4531,19 @@ export default function TransportManagementModule({
 
               <button
                 type="button"
+                onClick={() => {
+                  setSelectedTruckForStatement(allVehicles[0] || null);
+                  setShowTruckMonthlyStatementModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold hover:bg-purple-100 dark:hover:bg-purple-900/60 shadow-2xs cursor-pointer"
+                title="Download or Print Monthly Performance & Income Statement PDF"
+              >
+                <FileText className="h-3.5 w-3.5 text-purple-600" />
+                <span>Monthly Statement (PDF)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setShowAddVehicleModal(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs cursor-pointer"
               >
@@ -4573,6 +4825,18 @@ export default function TransportManagementModule({
                           }
                           return null;
                         })()}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTruckForStatement(v);
+                            setShowTruckMonthlyStatementModal(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                          title="Monthly Performance & Income Statement (PDF)"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>Statement</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -6137,19 +6401,33 @@ export default function TransportManagementModule({
                   <div className="font-bold text-slate-900 dark:text-white text-xs">{rep.title}</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">{rep.desc}</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleExportCsv(
-                      rep.title,
-                      ['Code', 'Registration', 'Driver', 'Date', 'Amount', 'Status'],
-                      allTrips.map((t) => [t.tripOrVehicleCode, t.registrationNumber, t.driverName, t.date, t.tripRevenue, t.status])
-                    );
-                  }}
-                  className="w-full py-1 text-center rounded border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer"
-                >
-                  Download CSV
-                </button>
+                <div className="space-y-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExportCsv(
+                        rep.title,
+                        ['Code', 'Registration', 'Driver', 'Date', 'Amount', 'Status'],
+                        allTrips.map((t) => [t.tripOrVehicleCode, t.registrationNumber, t.driverName, t.date, t.tripRevenue, t.status])
+                      );
+                    }}
+                    className="w-full py-1 text-center rounded border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer"
+                  >
+                    Download CSV
+                  </button>
+                  {(rep.id === 'truck_history' || rep.id === 'truck_pnl' || rep.id === 'all_trucks') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTruckForStatement(allVehicles[0] || null);
+                        setShowTruckMonthlyStatementModal(true);
+                      }}
+                      className="w-full py-1 text-center rounded border border-purple-200 text-purple-700 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-600 hover:text-white text-[11px] font-bold transition-colors cursor-pointer"
+                    >
+                      Print Statement (PDF)
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -8443,6 +8721,19 @@ export default function TransportManagementModule({
                 <button
                   type="button"
                   onClick={() => {
+                    setSelectedTruckForStatement(selectedTruckForDetails);
+                    setStatementSelectedMonth(truckDetailsSelectedMonth);
+                    setShowTruckMonthlyStatementModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold hover:bg-purple-100 dark:hover:bg-purple-900/60 shadow-2xs cursor-pointer"
+                  title="Download or Print Monthly Performance & Income Statement PDF"
+                >
+                  <FileText className="h-3.5 w-3.5 text-purple-600" />
+                  <span>Monthly Statement (PDF)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     const veh = selectedTruckForDetails;
                     setSelectedTruckForDetails(null);
                     handleOpenEditVehicle(veh);
@@ -8459,6 +8750,47 @@ export default function TransportManagementModule({
                   <X className="h-5 w-5" />
                 </button>
               </div>
+            </div>
+
+            {/* Interactive Month Filter & Statement Export Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Calendar className="h-4 w-4 text-purple-600" />
+                <span className="font-bold text-slate-700 dark:text-slate-300">Statement Month Filter:</span>
+                <select
+                  value={truckDetailsSelectedMonth}
+                  onChange={(e) => setTruckDetailsSelectedMonth(e.target.value)}
+                  className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 font-bold text-xs focus:outline-none focus:border-purple-500 cursor-pointer uppercase text-slate-800 dark:text-slate-200"
+                >
+                  <option value="ALL">All Recorded History ({selectedTruckStats.allTimeTripsCount} Trips)</option>
+                  {selectedTruckStats.availableMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                {truckDetailsSelectedMonth !== 'ALL' && (
+                  <button
+                    type="button"
+                    onClick={() => setTruckDetailsSelectedMonth('ALL')}
+                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    Reset to All
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTruckForStatement(selectedTruckForDetails);
+                  setStatementSelectedMonth(truckDetailsSelectedMonth);
+                  setShowTruckMonthlyStatementModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>Print {truckDetailsSelectedMonth !== 'ALL' ? truckDetailsSelectedMonth : 'Full'} Statement</span>
+              </button>
             </div>
 
             {/* 4 Financial & Telemetry Performance Cards */}
@@ -8705,6 +9037,23 @@ export default function TransportManagementModule({
             {/* Sub-Tab 2: Trips Ledger */}
             {truckDetailsActiveTab === 'trips' && (
               <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs px-1">
+                  <div className="font-semibold text-slate-700 dark:text-slate-300">
+                    Showing {selectedTruckStats.truckTrips.length} Trips {truckDetailsSelectedMonth !== 'ALL' ? `for ${truckDetailsSelectedMonth}` : '(All Time)'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTruckForStatement(selectedTruckForDetails);
+                      setStatementSelectedMonth(truckDetailsSelectedMonth);
+                      setShowTruckMonthlyStatementModal(true);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-600 hover:text-purple-700 hover:underline cursor-pointer"
+                  >
+                    <FileText className="h-3 w-3" />
+                    <span>Download Monthly Statement PDF</span>
+                  </button>
+                </div>
                 <div className="overflow-x-auto max-h-[45vh] border border-slate-200 dark:border-slate-700 rounded-xl">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b font-bold text-slate-700 dark:text-slate-300 text-[10px] uppercase">
@@ -10698,6 +11047,29 @@ export default function TransportManagementModule({
             setShowCorporateBillModal(false);
             openCollectClientBillModal(clientItem);
           }}
+          lang="en"
+        />
+      )}
+
+      {/* ── MODAL 15: MONTHLY TRUCK PERFORMANCE & INCOME STATEMENT (A4 Printable PDF) ── */}
+      {showTruckMonthlyStatementModal && selectedTruckForStatement && (
+        <MonthlyTruckStatementModal
+          isOpen={showTruckMonthlyStatementModal}
+          onClose={() => {
+            setShowTruckMonthlyStatementModal(false);
+            setSelectedTruckForStatement(null);
+          }}
+          truck={selectedTruckForStatement}
+          allVehicles={allVehicles}
+          onSelectTruck={(v) => setSelectedTruckForStatement(v)}
+          allTrips={allTrips}
+          allFuelLogs={allFuelLogs}
+          allMaintLogs={allMaintenanceLogs}
+          initialMonth={statementSelectedMonth}
+          businessName={activeBusiness?.nameBn || activeBusiness?.name || 'REGARDSAGRO ENTERPRISE'}
+          businessAddress="JL Manson 2nd Floor, 7/1 BRDC Road, Tejgaon, Dhaka-1208, Bangladesh"
+          businessPhone="01719714211, 017787779, 01707300599"
+          businessEmail="regardsagro747@gmail.com"
           lang="en"
         />
       )}
