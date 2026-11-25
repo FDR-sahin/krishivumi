@@ -2411,37 +2411,43 @@ export default function TransportManagementModule({
       const note = `[Delay Extended +${delayExtraDays}d to ${delayNewReturnDate}: ${delayReason}${addedDemurrage > 0 ? ` (+৳${addedDemurrage} Demurrage)` : ''}${addedKhoraki > 0 ? ` (+৳${addedKhoraki} Extra Khoraki)` : ''}]`;
       const updatedRemarks = delayTrip.remarks ? `${delayTrip.remarks} ${note}` : note;
 
-      await updateTransportOpRecord(
-        delayTrip,
-        {
-          expectedReturnDate: delayNewReturnDate,
-          demurrageAmount: newDemurrageTotal,
-          demurrageDays: newDemurrageDays,
-          demurrageDailyRate: delayDemurrageDailyRate,
-          demurrageReason: delayReason,
-          demurrageDriverAllowance: (Number(delayTrip.demurrageDriverAllowance || 0)) + addedKhoraki,
-          driverKhoraki: newKhoraki,
-          driverAllowance: newKhoraki,
-          tripExpense: newExpense,
-          outstandingDue: newDue,
-          remainingDue: newDue,
-          remarks: updatedRemarks,
-        },
-        actorEmail
-      );
+      const delayTasks: Promise<any>[] = [
+        updateTransportOpRecord(
+          delayTrip,
+          {
+            expectedReturnDate: delayNewReturnDate,
+            demurrageAmount: newDemurrageTotal,
+            demurrageDays: newDemurrageDays,
+            demurrageDailyRate: delayDemurrageDailyRate,
+            demurrageReason: delayReason,
+            demurrageDriverAllowance: (Number(delayTrip.demurrageDriverAllowance || 0)) + addedKhoraki,
+            driverKhoraki: newKhoraki,
+            driverAllowance: newKhoraki,
+            tripExpense: newExpense,
+            outstandingDue: newDue,
+            remainingDue: newDue,
+            remarks: updatedRemarks,
+          },
+          actorEmail
+        )
+      ];
 
       // Also ensure vehicle record reflects the extended date
       const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(delayTrip.registrationNumber));
       if (veh) {
-        await updateTransportOpRecord(
-          veh,
-          {
-            expectedReturnDate: delayNewReturnDate,
-            status: 'active',
-          },
-          actorEmail
+        delayTasks.push(
+          updateTransportOpRecord(
+            veh,
+            {
+              expectedReturnDate: delayNewReturnDate,
+              status: 'active',
+            },
+            actorEmail
+          ).catch((e) => console.warn('Auto-updating vehicle delay return date', e))
         );
       }
+
+      await Promise.all(delayTasks);
 
       setShowTripDelayModal(false);
       triggerGlobalToast(`Trip ${delayTrip.tripOrVehicleCode} extended to ${delayNewReturnDate}! Demurrage ৳${addedDemurrage.toLocaleString()} applied.`, 'success');
@@ -3079,27 +3085,14 @@ export default function TransportManagementModule({
       return;
     }
 
+    const activeCheck = getTruckActiveTrip(tripTruckReg);
+    if (activeCheck.isOnTrip) {
+      triggerGlobalToast(`Cannot start trip: Truck ${tripTruckReg} is currently on a trip until ${activeCheck.returnDateFormatted}!`, 'info');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Auto-complete any prior active trip on this truck so fleet status transitions seamlessly
-      const activeTripOnSameTruck = allTrips.find(
-        (t) => t.registrationNumber === tripTruckReg && (t.status === 'active' || t.status === 'running')
-      );
-      if (activeTripOnSameTruck) {
-        try {
-          await updateTransportOpRecord(
-            activeTripOnSameTruck,
-            {
-              status: 'completed',
-              actualReturnDate: tripStartDate,
-            },
-            actorEmail
-          );
-        } catch (e) {
-          console.warn('Auto-completing prior trip', e);
-        }
-      }
-
       const loadPoint = tripLoadLoc.trim() || tripStartLoc.trim() || 'Loading Point';
       const unloadPoint = tripDeliverLoc.trim() || tripDestLoc.trim() || 'Unloading Point';
 
@@ -3119,97 +3112,108 @@ export default function TransportManagementModule({
       const totalRecv = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
       const dueRemaining = Math.max(0, totalIncome - totalRecv);
 
-      const activeCheck = getTruckActiveTrip(tripTruckReg);
-      if (activeCheck.isOnTrip) {
-        triggerGlobalToast(`Cannot start trip: Truck ${tripTruckReg} is currently on a trip until ${activeCheck.returnDateFormatted}!`, 'info');
-        return;
-      }
+      const asyncTasks: Promise<any>[] = [
+        createTransportOpRecord(
+          {
+            tripOrVehicleCode: tripCode,
+            challanNumber: tripChallan,
+            orderNumber: tripOrder,
+            recordType: 'trip',
+            businessId: activeBusiness.id,
+            registrationNumber: tripTruckReg,
+            vehicleType: 'Heavy Truck',
+            driverName: tripDriverName.trim(),
+            driverPhone: tripDriverPhone.trim() || undefined,
+            receiverPhone: tripReceiverPhone.trim() || undefined,
+            helperName: tripHelperName.trim(),
+            origin: loadPoint,
+            destination: unloadPoint,
+            loadingLocation: loadPoint,
+            deliveryLocation: unloadPoint,
+            route: routeStr,
+            cargoDetails: tripCargo.trim(),
+            customerName: tripCustomer.trim(),
+            brokerName: tripBrokerName.trim(),
+            returnLoadingPoint: returnLoad,
+            returnUnloadingPoint: returnUnload,
+            returnFare: tripHasReturn ? Number(tripReturnFare || 0) : 0,
+            returnDriverCash: tripHasReturn ? Number(tripReturnDriverCash || 0) : 0,
+            distanceKm: Number(tripDistanceKm || calculatedDistanceKm || 260),
+            demurrageAmount: Number(tripDemurrage || 0),
+            demurrageDays: Number(tripDemurrageDays || 0),
+            demurrageDailyRate: Number(tripDemurrageDailyRate || 0),
+            demurrageReason: Number(tripDemurrage || 0) > 0 ? tripDemurrageReason : undefined,
+            startOdometer: Number(tripStartKm || 0),
+            endOdometer: Number(tripEndKm || 0),
+            fuelLitres: Number(tripFuelLitres || 0),
+            fuelCost: Number(tripDieselCost || 0),
+            tollCost: Number(tripTollCost || 0),
+            ferryCost: Number(tripFerryCost || 0),
+            driverKhoraki: Number(tripDriverKhoraki || 0),
+            policeRoadCost: Number(tripPoliceCost || 0),
+            labourLoadingCost: Number(tripLabourCost || 0),
+            driverAllowance: Number(tripDriverKhoraki || 0),
+            commission: Number(tripCommission || 0),
+            driverCommission: Number(tripDriverCommission || 0),
+            tripExpense: calculatedTripExpense,
+            maintenanceCost: Number(tripOtherCost || 0),
+            maintenanceDetails: `Toll: ৳${tripTollCost} | Ferry: ৳${tripFerryCost} | Khoraki: ৳${tripDriverKhoraki} | Driver Comm: ৳${tripDriverCommission} | Police: ৳${tripPoliceCost} | Labour: ৳${tripLabourCost} | Broker Comm: ৳${tripCommission}`,
+            tripRevenue: totalIncome,
+            advanceReceived: Number(tripAdvance || 0),
+            remainingDue: dueRemaining,
+            outstandingDue: dueRemaining,
+            netIncome: totalIncome - calculatedTripExpense,
+            insuranceExpiry: '2027-12-31',
+            fitnessExpiry: '2027-12-31',
+            taxTokenExpiry: '2027-12-31',
+            nextServiceDate: '2027-06-30',
+            date: tripStartDate,
+            expectedReturnDate: tripExpectedReturn,
+            status: 'active',
+            imageUrl: tripImageUrl,
+            remarks: tripRemarks.trim(),
+          },
+          ownerId,
+          actorEmail
+        )
+      ];
 
-      await createTransportOpRecord(
-        {
-          tripOrVehicleCode: tripCode,
-          challanNumber: tripChallan,
-          orderNumber: tripOrder,
-          recordType: 'trip',
-          businessId: activeBusiness.id,
-          registrationNumber: tripTruckReg,
-          vehicleType: 'Heavy Truck',
-          driverName: tripDriverName.trim(),
-          driverPhone: tripDriverPhone.trim() || undefined,
-          receiverPhone: tripReceiverPhone.trim() || undefined,
-          helperName: tripHelperName.trim(),
-          origin: loadPoint,
-          destination: unloadPoint,
-          loadingLocation: loadPoint,
-          deliveryLocation: unloadPoint,
-          route: routeStr,
-          cargoDetails: tripCargo.trim(),
-          customerName: tripCustomer.trim(),
-          brokerName: tripBrokerName.trim(),
-          returnLoadingPoint: returnLoad,
-          returnUnloadingPoint: returnUnload,
-          returnFare: tripHasReturn ? Number(tripReturnFare || 0) : 0,
-          returnDriverCash: tripHasReturn ? Number(tripReturnDriverCash || 0) : 0,
-          distanceKm: Number(tripDistanceKm || calculatedDistanceKm || 260),
-          demurrageAmount: Number(tripDemurrage || 0),
-          demurrageDays: Number(tripDemurrageDays || 0),
-          demurrageDailyRate: Number(tripDemurrageDailyRate || 0),
-          demurrageReason: Number(tripDemurrage || 0) > 0 ? tripDemurrageReason : undefined,
-          startOdometer: Number(tripStartKm || 0),
-          endOdometer: Number(tripEndKm || 0),
-          fuelLitres: Number(tripFuelLitres || 0),
-          fuelCost: Number(tripDieselCost || 0),
-          tollCost: Number(tripTollCost || 0),
-          ferryCost: Number(tripFerryCost || 0),
-          driverKhoraki: Number(tripDriverKhoraki || 0),
-          policeRoadCost: Number(tripPoliceCost || 0),
-          labourLoadingCost: Number(tripLabourCost || 0),
-          driverAllowance: Number(tripDriverKhoraki || 0),
-          commission: Number(tripCommission || 0),
-          driverCommission: Number(tripDriverCommission || 0),
-          tripExpense: calculatedTripExpense,
-          maintenanceCost: Number(tripOtherCost || 0),
-          maintenanceDetails: `Toll: ৳${tripTollCost} | Ferry: ৳${tripFerryCost} | Khoraki: ৳${tripDriverKhoraki} | Driver Comm: ৳${tripDriverCommission} | Police: ৳${tripPoliceCost} | Labour: ৳${tripLabourCost} | Broker Comm: ৳${tripCommission}`,
-          tripRevenue: totalIncome,
-          advanceReceived: Number(tripAdvance || 0),
-          remainingDue: dueRemaining,
-          outstandingDue: dueRemaining,
-          netIncome: totalIncome - calculatedTripExpense,
-          insuranceExpiry: '2027-12-31',
-          fitnessExpiry: '2027-12-31',
-          taxTokenExpiry: '2027-12-31',
-          nextServiceDate: '2027-06-30',
-          date: tripStartDate,
-          expectedReturnDate: tripExpectedReturn,
-          status: 'active',
-          imageUrl: tripImageUrl,
-          remarks: tripRemarks.trim(),
-        },
-        ownerId,
-        actorEmail
+      // Auto-complete any prior active trip on this truck so fleet status transitions seamlessly
+      const activeTripOnSameTruck = allTrips.find(
+        (t) => t.registrationNumber === tripTruckReg && (t.status === 'active' || t.status === 'running')
       );
+      if (activeTripOnSameTruck) {
+        asyncTasks.push(
+          updateTransportOpRecord(
+            activeTripOnSameTruck,
+            {
+              status: 'completed',
+              actualReturnDate: tripStartDate,
+            },
+            actorEmail
+          ).catch((e) => console.warn('Auto-completing prior trip', e))
+        );
+      }
 
       // Financial Integration: Advance Payment Received
       // Update vehicle assigned driver & active status so the truck immediately reflects active status everywhere
       const targetVeh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(tripTruckReg));
       if (targetVeh) {
-        try {
-          const vehUpdate: Partial<ErpTransportOp> = {
-            status: 'active',
-            expectedReturnDate: tripExpectedReturn,
-          };
-          if (tripDriverName.trim() && tripDriverName.trim().toLowerCase() !== 'unassigned') {
-            vehUpdate.driverName = tripDriverName.trim();
-            vehUpdate.driverPhone = tripDriverPhone.trim() || targetVeh.driverPhone || '';
-          }
-          await updateTransportOpRecord(
+        const vehUpdate: Partial<ErpTransportOp> = {
+          status: 'active',
+          expectedReturnDate: tripExpectedReturn,
+        };
+        if (tripDriverName.trim() && tripDriverName.trim().toLowerCase() !== 'unassigned') {
+          vehUpdate.driverName = tripDriverName.trim();
+          vehUpdate.driverPhone = tripDriverPhone.trim() || targetVeh.driverPhone || '';
+        }
+        asyncTasks.push(
+          updateTransportOpRecord(
             targetVeh,
             vehUpdate,
             actorEmail
-          );
-        } catch (e) {
-          console.warn('Auto-updating vehicle driver name and status', e);
-        }
+          ).catch((e) => console.warn('Auto-updating vehicle driver name and status', e))
+        );
       }
 
       const targetWallet = accounts.find((a) => a.id === tripWalletId) || treasuryWallets[0];
@@ -3217,55 +3221,61 @@ export default function TransportManagementModule({
       const expAcc = accounts.find((a) => a.accountType === 'expense') || accounts[0];
 
       if (targetWallet && revAcc && Number(tripAdvance) > 0) {
-        await postDoubleEntryTransaction(
-          {
-            referenceNo: `ADV-${tripCode}`,
-            date: tripStartDate,
-            businessId: activeBusiness.id,
-            businessName: activeBusiness.name,
-            transactionType: 'sale',
-            category: `Trip Advance Received (${tripTruckReg})`,
-            description: `${tripTruckReg} (${routeStr}) — Advance received: ৳${tripAdvance} (Total Fare: ৳${tripFare})`,
-            debitAccountId: targetWallet.id,
-            debitAccountName: targetWallet.name,
-            creditAccountId: revAcc.id,
-            creditAccountName: revAcc.name,
-            amount: Number(tripAdvance),
-            paymentStatus: dueRemaining > 0 ? 'partial' : 'paid',
-            dueAmount: dueRemaining,
-            counterpartyName: tripCustomer || tripDriverName,
-          },
-          accounts,
-          ownerId,
-          actorEmail
+        asyncTasks.push(
+          postDoubleEntryTransaction(
+            {
+              referenceNo: `ADV-${tripCode}`,
+              date: tripStartDate,
+              businessId: activeBusiness.id,
+              businessName: activeBusiness.name,
+              transactionType: 'sale',
+              category: `Trip Advance Received (${tripTruckReg})`,
+              description: `${tripTruckReg} (${routeStr}) — Advance received: ৳${tripAdvance} (Total Fare: ৳${tripFare})`,
+              debitAccountId: targetWallet.id,
+              debitAccountName: targetWallet.name,
+              creditAccountId: revAcc.id,
+              creditAccountName: revAcc.name,
+              amount: Number(tripAdvance),
+              paymentStatus: dueRemaining > 0 ? 'partial' : 'paid',
+              dueAmount: dueRemaining,
+              counterpartyName: tripCustomer || tripDriverName,
+            },
+            accounts,
+            ownerId,
+            actorEmail
+          ).catch((e) => console.warn('Advance transaction error', e))
         );
       }
 
       // Financial Integration: Direct Trip Outflow (Fuel + Toll + Road)
       if (targetWallet && expAcc && calculatedTripExpense > 0) {
-        await postDoubleEntryTransaction(
-          {
-            referenceNo: `EXP-${tripCode}`,
-            date: tripStartDate,
-            businessId: activeBusiness.id,
-            businessName: activeBusiness.name,
-            transactionType: 'expense',
-            category: `Trip Direct Outflow & Fuel (${tripTruckReg})`,
-            description: `${tripTruckReg} (${routeStr}) — Diesel: ৳${tripDieselCost}, Toll: ৳${tripTollCost}, Road: ৳${tripOtherCost}`,
-            debitAccountId: expAcc.id,
-            debitAccountName: expAcc.name,
-            creditAccountId: targetWallet.id,
-            creditAccountName: targetWallet.name,
-            amount: calculatedTripExpense,
-            paymentStatus: 'paid',
-            dueAmount: 0,
-            counterpartyName: tripDriverName,
-          },
-          accounts,
-          ownerId,
-          actorEmail
+        asyncTasks.push(
+          postDoubleEntryTransaction(
+            {
+              referenceNo: `EXP-${tripCode}`,
+              date: tripStartDate,
+              businessId: activeBusiness.id,
+              businessName: activeBusiness.name,
+              transactionType: 'expense',
+              category: `Trip Direct Outflow & Fuel (${tripTruckReg})`,
+              description: `${tripTruckReg} (${routeStr}) — Diesel: ৳${tripDieselCost}, Toll: ৳${tripTollCost}, Road: ৳${tripOtherCost}`,
+              debitAccountId: expAcc.id,
+              debitAccountName: expAcc.name,
+              creditAccountId: targetWallet.id,
+              creditAccountName: targetWallet.name,
+              amount: calculatedTripExpense,
+              paymentStatus: 'paid',
+              dueAmount: 0,
+              counterpartyName: tripDriverName,
+            },
+            accounts,
+            ownerId,
+            actorEmail
+          ).catch((e) => console.warn('Expense transaction error', e))
         );
       }
+
+      await Promise.all(asyncTasks);
 
       resetTripFormState();
       setShowAddTripModal(false);
@@ -4164,18 +4174,293 @@ export default function TransportManagementModule({
     });
   };
 
-  // 19. Export to CSV Helper
-  const handleExportCsv = (title: string, headers: string[], rows: (string | number)[][]) => {
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(','), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
-    const encoded = encodeURI(csvContent);
+  // 19. Export to CSV Helper with safe Blob and UTF-8 BOM
+  const handleExportCsv = (title: string, headers: string[], rows: (string | number | undefined | null)[][]) => {
+    const formatCell = (c: string | number | undefined | null) => {
+      if (c === undefined || c === null) return '""';
+      const str = String(c).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+    const csvRows = [
+      headers.map(formatCell).join(','),
+      ...rows.map((r) => r.map(formatCell).join(',')),
+    ];
+    const csvText = '\uFEFF' + csvRows.join('\r\n');
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encoded);
-    link.setAttribute('download', `${title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = url;
+    link.setAttribute('download', `${title.replace(/[^a-zA-Z0-9_\u0980-\u09FF]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const exportSpecificReport = (repId: string, repTitle: string) => {
+    switch (repId) {
+      case 'all_trucks': {
+        const headers = ['Vehicle Code', 'Registration Number', 'Brand & Model', 'Body Type', 'Capacity (Tons)', 'Assigned Driver', 'Driver Mobile', 'Current KM', 'Tax Token Exp', 'Fitness Exp', 'Insurance Exp', 'Route Permit Exp', 'Status'];
+        const rows = allVehicles.map((v) => [
+          v.tripOrVehicleCode || '-',
+          v.registrationNumber || '-',
+          v.vehicleType || `${v.brand || ''} ${v.model || ''}`.trim() || 'Heavy Truck',
+          v.truckBodyType || 'Open Truck',
+          v.capacityTons || 0,
+          v.driverName || 'Unassigned',
+          v.driverPhone || '-',
+          v.currentOdometer || 0,
+          v.taxTokenExpiry || '-',
+          v.fitnessExpiry || '-',
+          v.insuranceExpiry || '-',
+          v.routePermitExpiry || '-',
+          v.status || 'available'
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'running_trips': {
+        const headers = ['Challan No', 'Order No', 'Registration', 'Driver', 'Driver Mobile', 'Departure Date', 'Expected Return', 'Loading Point', 'Unloading Point', 'Route', 'Freight Fare (BDT)', 'Advance Received (BDT)', 'Due (BDT)', 'Status'];
+        const running = allTrips.filter((t) => t.status === 'active' || t.status === 'running');
+        const rows = running.map((t) => [
+          t.challanNumber || t.tripOrVehicleCode || '-',
+          t.orderNumber || '-',
+          t.registrationNumber || '-',
+          t.driverName || '-',
+          t.driverPhone || '-',
+          t.date || '-',
+          t.expectedReturnDate || '-',
+          t.loadingLocation || t.origin || '-',
+          t.deliveryLocation || t.destination || '-',
+          t.route || '-',
+          t.tripRevenue || 0,
+          t.advanceReceived || 0,
+          t.outstandingDue || 0,
+          t.status || 'running'
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'completed_trips': {
+        const headers = ['Challan No', 'Registration', 'Driver', 'Trip Date', 'Actual Return Date', 'Origin / Loading', 'Destination / Unload', 'Total Freight (BDT)', 'Trip Expenses (BDT)', 'Net Profit (BDT)', 'Status'];
+        const completed = allTrips.filter((t) => t.status === 'completed');
+        const rows = completed.map((t) => [
+          t.challanNumber || t.tripOrVehicleCode || '-',
+          t.registrationNumber || '-',
+          t.driverName || '-',
+          t.date || '-',
+          t.actualReturnDate || t.expectedReturnDate || '-',
+          t.loadingLocation || t.origin || '-',
+          t.deliveryLocation || t.destination || '-',
+          t.tripRevenue || 0,
+          t.tripExpense || 0,
+          (Number(t.tripRevenue || 0)) - (Number(t.tripExpense || 0)),
+          t.status || 'completed'
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'truck_history': {
+        const headers = ['Challan No', 'Registration Number', 'Driver', 'Date', 'Loading Location', 'Delivery Location', 'Distance (KM)', 'Gross Freight (BDT)', 'Fuel Cost (BDT)', 'Toll & Ferry (BDT)', 'Driver Khoraki (BDT)', 'Net Profit (BDT)', 'Status'];
+        const rows = allTrips.map((t) => [
+          t.challanNumber || t.tripOrVehicleCode || '-',
+          t.registrationNumber || '-',
+          t.driverName || '-',
+          t.date || '-',
+          t.loadingLocation || t.origin || '-',
+          t.deliveryLocation || t.destination || '-',
+          t.distanceKm || 0,
+          t.tripRevenue || 0,
+          t.fuelCost || 0,
+          (Number(t.tollCost || 0)) + (Number(t.ferryCost || 0)),
+          t.driverKhoraki || t.driverAllowance || 0,
+          (Number(t.tripRevenue || 0)) - (Number(t.tripExpense || 0)),
+          t.status || '-'
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'driver_perf': {
+        const headers = ['Driver Name', 'Assigned Truck', 'Driver Phone', 'Completed Trips', 'Running Trips', 'Total Distance (KM)', 'Total Freight Handled (BDT)', 'Total Driver Commission (BDT)'];
+        const map = new Map<string, any>();
+        for (const t of allTrips) {
+          const dName = (t.driverName || 'Unassigned').trim();
+          if (!map.has(dName)) {
+            map.set(dName, {
+              name: dName,
+              truck: t.registrationNumber || '-',
+              phone: t.driverPhone || '-',
+              completed: 0,
+              running: 0,
+              km: 0,
+              freight: 0,
+              commission: 0,
+            });
+          }
+          const rec = map.get(dName);
+          if (t.status === 'completed') rec.completed++;
+          else rec.running++;
+          rec.km += Number(t.distanceKm || 0);
+          rec.freight += Number(t.tripRevenue || 0);
+          rec.commission += Number(t.driverCommission || t.commission || 0);
+        }
+        const rows = Array.from(map.values()).map((d) => [
+          d.name,
+          d.truck,
+          d.phone,
+          d.completed,
+          d.running,
+          d.km,
+          d.freight,
+          d.commission
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'fuel_report': {
+        const headers = ['Date', 'Vehicle Reg', 'Driver', 'Fuel Type', 'Quantity (Litres)', 'Unit Price (BDT)', 'Total Cost (BDT)', 'Odometer (KM)', 'Fuel Station', 'Remarks'];
+        const rows = (allFuelLogs || []).map((f) => [
+          f.date || '-',
+          f.registrationNumber || '-',
+          f.driverName || '-',
+          f.fuelType || 'Diesel',
+          f.fuelLitres || 0,
+          f.fuelLitres ? Math.round((f.fuelCost || 0) / f.fuelLitres) : 0,
+          f.fuelCost || 0,
+          f.currentOdometer || 0,
+          f.origin || 'Highway Fuel Station',
+          f.remarks || '-'
+        ]);
+        handleExportCsv(repTitle, headers, rows.length > 0 ? rows : [['-', '-', '-', 'Diesel', 0, 0, 0, 0, '-', 'No fuel logs recorded yet']]);
+        break;
+      }
+      case 'maint_report': {
+        const headers = ['Date', 'Vehicle Reg', 'Service Category', 'Workshop / Garage', 'Parts Replaced', 'Labor & Parts Cost (BDT)', 'Next Service Date', 'Status', 'Remarks'];
+        const rows = (allMaintenanceLogs || []).map((m: any) => [
+          m.date || '-',
+          m.registrationNumber || '-',
+          m.vehicleType || 'Routine Maintenance',
+          m.customerName || 'Central Garage',
+          m.cargoDetails || m.maintenanceDetails || '-',
+          m.maintenanceCost || 0,
+          m.nextServiceDate || '-',
+          m.status || 'completed',
+          m.remarks || '-'
+        ]);
+        handleExportCsv(repTitle, headers, rows.length > 0 ? rows : [['-', '-', 'Maintenance', 'Garage', '-', 0, '-', 'completed', 'No maintenance logs recorded yet']]);
+        break;
+      }
+      case 'service_exp': {
+        const headers = ['Date', 'Vehicle Reg', 'Expense Type', 'Description', 'Amount (BDT)', 'Vendor / Garage'];
+        const rows = (allMaintenanceLogs || []).map((m: any) => [
+          m.date || '-',
+          m.registrationNumber || '-',
+          'Repair & Service',
+          m.maintenanceDetails || 'Fleet service expense',
+          m.maintenanceCost || 0,
+          m.customerName || 'Authorized Workshop'
+        ]);
+        handleExportCsv(repTitle, headers, rows.length > 0 ? rows : [['-', '-', 'Service', 'Garage repair', 0, '-']]);
+        break;
+      }
+      case 'monthly_rev': {
+        const headers = ['Month Period', 'Total Trips', 'Gross Freight (BDT)', 'Demurrage Billed (BDT)', 'Total Billed (BDT)', 'Direct Fuel & Road Cost (BDT)', 'Estimated Net Profit (BDT)'];
+        const monthMap = new Map<string, any>();
+        for (const t of allTrips) {
+          const m = t.date ? t.date.slice(0, 7) : 'Unknown';
+          if (!monthMap.has(m)) {
+            monthMap.set(m, { month: m, count: 0, freight: 0, demurrage: 0, expense: 0 });
+          }
+          const item = monthMap.get(m);
+          item.count++;
+          item.freight += Number(t.tripRevenue || 0);
+          item.demurrage += Number(t.demurrageAmount || 0);
+          item.expense += Number(t.tripExpense || 0);
+        }
+        const rows = Array.from(monthMap.values()).map((m) => [
+          m.month,
+          m.count,
+          m.freight,
+          m.demurrage,
+          m.freight + m.demurrage,
+          m.expense,
+          (m.freight + m.demurrage) - m.expense
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'truck_pnl': {
+        const headers = ['Registration Number', 'Model / Type', 'Driver', 'Total Trips Completed', 'Gross Freight (BDT)', 'Total Direct Expenses (BDT)', 'Maintenance Costs (BDT)', 'Net Fleet Profit (BDT)'];
+        const rows = allVehicles.map((v) => {
+          const vReg = normalizeReg(v.registrationNumber);
+          const vTrips = allTrips.filter((t) => normalizeReg(t.registrationNumber) === vReg);
+          const gross = vTrips.reduce((s, t) => s + Number(t.tripRevenue || 0), 0);
+          const expenses = vTrips.reduce((s, t) => s + Number(t.tripExpense || 0), 0);
+          const maint = (allMaintenanceLogs || [])
+            .filter((m: any) => normalizeReg(m.registrationNumber) === vReg)
+            .reduce((s: number, m: any) => s + Number(m.maintenanceCost || 0), 0);
+          return [
+            v.registrationNumber,
+            v.vehicleType || 'Heavy Truck',
+            v.driverName || 'Unassigned',
+            vTrips.length,
+            gross,
+            expenses,
+            maint,
+            gross - (expenses + maint)
+          ];
+        });
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'driver_salary': {
+        const headers = ['Driver Name', 'Assigned Truck', 'Driver Phone', 'Total Trip Allowance / Khoraki (BDT)', 'Total Commission (BDT)', 'Advance Taken (BDT)', 'Net Payable (BDT)'];
+        const driverMap = new Map<string, any>();
+        for (const t of allTrips) {
+          const dName = (t.driverName || 'Unassigned').trim();
+          if (!driverMap.has(dName)) {
+            driverMap.set(dName, { name: dName, truck: t.registrationNumber, phone: t.driverPhone, khoraki: 0, commission: 0 });
+          }
+          const rec = driverMap.get(dName);
+          rec.khoraki += Number(t.driverKhoraki || t.driverAllowance || 0);
+          rec.commission += Number(t.driverCommission || t.commission || 0);
+        }
+        const rows = Array.from(driverMap.values()).map((d) => [
+          d.name,
+          d.truck,
+          d.phone || '-',
+          d.khoraki,
+          d.commission,
+          0,
+          d.khoraki + d.commission
+        ]);
+        handleExportCsv(repTitle, headers, rows);
+        break;
+      }
+      case 'customer_due': {
+        const headers = ['Party / Customer Name', 'Challan No', 'Truck Reg', 'Trip Date', 'Total Freight (BDT)', 'Advance Received (BDT)', 'Outstanding Due (BDT)', 'Receiver Contact'];
+        const dueTrips = allTrips.filter((t) => Number(t.outstandingDue || 0) > 0 || (Number(t.tripRevenue || 0) - Number(t.advanceReceived || 0) > 0));
+        const rows = dueTrips.map((t) => [
+          t.customerName || t.clientName || 'General Client',
+          t.challanNumber || t.tripOrVehicleCode || '-',
+          t.registrationNumber || '-',
+          t.date || '-',
+          t.tripRevenue || 0,
+          t.advanceReceived || 0,
+          t.outstandingDue !== undefined ? t.outstandingDue : Math.max(0, Number(t.tripRevenue || 0) - Number(t.advanceReceived || 0)),
+          (t as any).receiverPhone || t.driverPhone || '-'
+        ]);
+        handleExportCsv(repTitle, headers, rows.length > 0 ? rows : [['-', '-', '-', '-', 0, 0, 0, 'All dues cleared']]);
+        break;
+      }
+      default: {
+        handleExportCsv(
+          repTitle,
+          ['Challan / Code', 'Registration', 'Driver', 'Date', 'Freight (BDT)', 'Status'],
+          allTrips.map((t) => [t.challanNumber || t.tripOrVehicleCode || '-', t.registrationNumber, t.driverName, t.date || '-', t.tripRevenue || 0, t.status || '-'])
+        );
+      }
+    }
   };
 
   return (
@@ -6743,13 +7028,7 @@ export default function TransportManagementModule({
                 <div className="space-y-1.5 pt-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      handleExportCsv(
-                        rep.title,
-                        ['Code', 'Registration', 'Driver', 'Date', 'Amount', 'Status'],
-                        allTrips.map((t) => [t.tripOrVehicleCode, t.registrationNumber, t.driverName, t.date, t.tripRevenue, t.status])
-                      );
-                    }}
+                    onClick={() => exportSpecificReport(rep.id, rep.title)}
                     className="w-full py-1 text-center rounded border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer"
                   >
                     Download CSV

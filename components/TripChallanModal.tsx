@@ -433,14 +433,6 @@ Date: ${trip.date}
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    TRANSPORT CARRIER
-                  </span>
-                  <span className="font-medium text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
-                    : {businessName} (RegardsAgro Logistics Fleet)
-                  </span>
-                </div>
-                <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
-                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
                     BROKER / AGENT
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">

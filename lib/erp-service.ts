@@ -36,7 +36,7 @@ export function notifyErpDataChanged(): void {
         // Ignore listener errors
       }
     });
-  }, 50);
+  }, 150);
 }
 
 async function callErpAction<T = void>(

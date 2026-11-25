@@ -115,5 +115,5 @@ export function printDocument(element: HTMLElement | null, title: string = 'Docu
         }
       }, 2500);
     }
-  }, 400);
+  }, 120);
 }
