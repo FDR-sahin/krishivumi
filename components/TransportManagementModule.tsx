@@ -41,6 +41,7 @@ import {
   Receipt,
   UserCheck,
   Loader2,
+  XCircle,
 } from 'lucide-react';
 import {
   ErpBusiness,
@@ -105,6 +106,53 @@ const MONTH_NAMES = [
   { code: '11', nameEn: 'November', nameBn: 'November' },
   { code: '12', nameEn: 'December', nameBn: 'December' },
 ];
+
+export const calculateHighwayDistance = (origin: string, destination: string): { km: number; routeName: string } => {
+  const o = (origin || '').toLowerCase().trim();
+  const d = (destination || '').toLowerCase().trim();
+  if (!o || !d) return { km: 260, routeName: 'National Highway Route' };
+
+  const isAshulia = o.includes('ashulia') || o.includes('savar') || o.includes('depz') || o.includes('nischintapur') || o.includes('epz');
+  const isGazipur = o.includes('gazipur') || o.includes('konabari') || o.includes('tongi') || o.includes('joydebpur');
+  const isValuka = o.includes('valuka') || o.includes('bhaluka') || o.includes('seedstor') || o.includes('mymensingh');
+  const isDhaka = o.includes('dhaka') || o.includes('tejgaon') || o.includes('airport') || o.includes('kallayanpur');
+
+  const isCtgPort = d.includes('chittagong') || d.includes('chattogram') || d.includes('ctg') || d.includes('port') || d.includes('ocl') || d.includes('cfs') || d.includes('patenga') || d.includes('agrabad');
+  const isBenapole = d.includes('benapole') || d.includes('jessore') || d.includes('jashore');
+  const isBogra = d.includes('bogra') || d.includes('bogura') || d.includes('sirajganj') || d.includes('rangpur');
+  const isSylhet = d.includes('sylhet') || d.includes('habiganj') || d.includes('moulvibazar') || d.includes('sreemangal');
+  const isKhulna = d.includes('khulna') || d.includes('mongla');
+  const isComilla = d.includes('comilla') || d.includes('cumilla') || d.includes('feni');
+
+  if (isAshulia && isCtgPort) return { km: 275, routeName: 'Ashulia ➔ Chittagong Port (via N1 Highway)' };
+  if (isGazipur && isCtgPort) return { km: 290, routeName: 'Konabari/Gazipur ➔ Chittagong Port (via N1 Highway)' };
+  if (isValuka && isCtgPort) return { km: 315, routeName: 'Valuka Seedstor ➔ Chittagong Port/OCL (via N1 Highway)' };
+  if (isDhaka && isCtgPort) return { km: 260, routeName: 'Dhaka Tejgaon ➔ Chittagong Port (via N1 Highway)' };
+
+  if (isAshulia && isBenapole) return { km: 245, routeName: 'Ashulia ➔ Benapole Land Port (via Padma Bridge)' };
+  if (isGazipur && isBenapole) return { km: 260, routeName: 'Gazipur ➔ Benapole Land Port (via Padma Bridge)' };
+  if (isValuka && isBenapole) return { km: 310, routeName: 'Valuka ➔ Benapole Land Port (via Padma Bridge)' };
+  if (isDhaka && isBenapole) return { km: 240, routeName: 'Dhaka ➔ Benapole Land Port (via Padma Bridge)' };
+
+  if (isAshulia && isBogra) return { km: 195, routeName: 'Ashulia ➔ Bogra (via Bangabandhu Bridge)' };
+  if (isGazipur && isBogra) return { km: 190, routeName: 'Gazipur ➔ Bogra (via Bangabandhu Bridge)' };
+  if (isDhaka && isBogra) return { km: 210, routeName: 'Dhaka ➔ Bogra (via N4 / N5 Highway)' };
+
+  if (isAshulia && isSylhet) return { km: 260, routeName: 'Ashulia ➔ Sylhet (via N2 Highway)' };
+  if (isGazipur && isSylhet) return { km: 245, routeName: 'Gazipur ➔ Sylhet (via N2 Highway)' };
+  if (isDhaka && isSylhet) return { km: 240, routeName: 'Dhaka ➔ Sylhet (via N2 Highway)' };
+
+  if (isDhaka && isKhulna) return { km: 265, routeName: 'Dhaka ➔ Khulna / Mongla (via Padma Bridge)' };
+  if (isDhaka && isComilla) return { km: 105, routeName: 'Dhaka ➔ Comilla (via Meghna Bridge)' };
+
+  if (isAshulia && isDhaka) return { km: 35, routeName: 'Ashulia ➔ Dhaka Tejgaon' };
+  if (isGazipur && isDhaka) return { km: 38, routeName: 'Gazipur ➔ Dhaka Tejgaon' };
+  if (isValuka && isDhaka) return { km: 90, routeName: 'Valuka ➔ Dhaka Tejgaon' };
+
+  if (o === d) return { km: 40, routeName: 'Intra-City Logistics (Local Transfer)' };
+
+  return { km: 260, routeName: `${origin} ➔ ${destination} (National Highway)` };
+};
 
 export default function TransportManagementModule({
   activeBusiness,
@@ -2011,6 +2059,59 @@ export default function TransportManagementModule({
   const [tripCommission, setTripCommission] = useState<number>(0);
   const [tripDriverCommission, setTripDriverCommission] = useState<number>(0);
 
+  // Demurrage (Detention Delay / Waiting Fine for Normal & Contract Trips)
+  const [tripDemurrage, setTripDemurrage] = useState<number>(0);
+  const [tripDemurrageDays, setTripDemurrageDays] = useState<number>(0);
+  const [tripDemurrageDailyRate, setTripDemurrageDailyRate] = useState<number>(3000);
+  const [tripDemurrageReason, setTripDemurrageReason] = useState<string>('Factory Unloading Delay (Exceeded 24h standard)');
+  const [tripDistanceKm, setTripDistanceKm] = useState<number>(260);
+
+  // Cancel Active Trip & Release Truck back to Available
+  const handleCancelActiveTrip = async (tripId?: string, truckReg?: string) => {
+    const targetTrip = allTrips.find((t) => (tripId && (t.id === tripId || t.tripOrVehicleCode === tripId)) || (truckReg && normalizeReg(t.registrationNumber) === normalizeReg(truckReg) && (t.status === 'active' || t.status === 'running') && !t.actualReturnDate));
+    const reg = truckReg || targetTrip?.registrationNumber;
+    const confirmCancel = window.confirm(
+      `Cancel active trip ${targetTrip?.challanNumber || targetTrip?.tripOrVehicleCode || ''} and release truck ${reg || ''} back to Available?`
+    );
+    if (!confirmCancel) return;
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (targetTrip) {
+        await updateTransportOpRecord(
+          targetTrip,
+          {
+            status: 'cancelled',
+            actualReturnDate: today,
+            remarks: `${targetTrip.remarks || ''} [Trip cancelled by dispatcher on ${today}. Vehicle released]`.trim(),
+          },
+          actorEmail
+        );
+      }
+
+      if (reg) {
+        const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(reg));
+        if (veh) {
+          await updateTransportOpRecord(
+            veh,
+            {
+              status: 'available',
+              expectedReturnDate: undefined,
+            },
+            actorEmail
+          );
+        }
+      }
+
+      triggerGlobalToast(`Trip cancelled successfully. Truck ${reg || ''} is now Available! 🚛✨`, 'success');
+      if (selectedTruckForDetails && normalizeReg(selectedTruckForDetails.registrationNumber) === normalizeReg(reg)) {
+        setSelectedTruckForDetails(null);
+      }
+    } catch (err: any) {
+      triggerGlobalToast(err?.message || 'Error cancelling trip', 'info');
+    }
+  };
+
   // Return Load (Round Trip / Back Load)
   const [tripHasReturn, setTripHasReturn] = useState(false);
   const [tripReturnLoadLoc, setTripReturnLoadLoc] = useState('');
@@ -2322,6 +2423,11 @@ export default function TransportManagementModule({
     setTripPoliceCost(0);
     setTripLabourCost(0);
     setTripOtherCost(0);
+    setTripDemurrage(0);
+    setTripDemurrageDays(0);
+    setTripDemurrageDailyRate(3000);
+    setTripDemurrageReason('Factory Unloading Delay (Exceeded 24h standard)');
+    setTripDistanceKm(260);
     setTripRemarks('');
   };
 
@@ -2340,7 +2446,10 @@ export default function TransportManagementModule({
 
   // Auto Distance & Financial Calculations
   const calculatedDistanceKm = Math.max(0, Number(tripEndKm || 0) - Number(tripStartKm || 0));
-  const calculatedTotalIncome = Number(tripFare || 0) + (tripHasReturn ? Number(tripReturnFare || 0) : 0);
+  const calculatedTotalIncome =
+    Number(tripFare || 0) +
+    (tripHasReturn ? Number(tripReturnFare || 0) : 0) +
+    Number(tripDemurrage || 0);
   const calculatedTotalReceived = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
   const calculatedRemainingDue = Math.max(0, calculatedTotalIncome - calculatedTotalReceived);
   const calculatedTripExpense =
@@ -2519,7 +2628,10 @@ export default function TransportManagementModule({
         ? `${loadPoint} ➔ ${unloadPoint} ⇄ ${returnUnload || loadPoint}`
         : `${loadPoint} ➔ ${unloadPoint}`;
 
-      const totalIncome = Number(tripFare || 0) + (tripHasReturn ? Number(tripReturnFare || 0) : 0);
+      const totalIncome =
+        Number(tripFare || 0) +
+        (tripHasReturn ? Number(tripReturnFare || 0) : 0) +
+        Number(tripDemurrage || 0);
       const totalRecv = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
       const dueRemaining = Math.max(0, totalIncome - totalRecv);
 
@@ -2554,7 +2666,11 @@ export default function TransportManagementModule({
           returnUnloadingPoint: returnUnload,
           returnFare: tripHasReturn ? Number(tripReturnFare || 0) : 0,
           returnDriverCash: tripHasReturn ? Number(tripReturnDriverCash || 0) : 0,
-          distanceKm: calculatedDistanceKm,
+          distanceKm: Number(tripDistanceKm || calculatedDistanceKm || 260),
+          demurrageAmount: Number(tripDemurrage || 0),
+          demurrageDays: Number(tripDemurrageDays || 0),
+          demurrageDailyRate: Number(tripDemurrageDailyRate || 0),
+          demurrageReason: Number(tripDemurrage || 0) > 0 ? tripDemurrageReason : undefined,
           startOdometer: Number(tripStartKm || 0),
           endOdometer: Number(tripEndKm || 0),
           fuelLitres: Number(tripFuelLitres || 0),
@@ -3207,6 +3323,8 @@ export default function TransportManagementModule({
       const tripCode = tripChallan;
       const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
       const contract = quickDispatchContract || getTruckAssignedGarments(quickDispatchTruck);
+      const originLoc = contract?.factoryLocation || contract?.origin || 'Ashulia, Savar';
+      const dynamicKm = calculateHighwayDistance(originLoc, quickDispatchDest || 'Chittagong Port').km;
 
       await createTransportOpRecord(
         {
@@ -3219,15 +3337,15 @@ export default function TransportManagementModule({
           vehicleType: veh?.vehicleType || 'Covered Van',
           driverName: veh?.driverName || 'Driver Assigned',
           driverPhone: veh?.driverPhone || undefined,
-          origin: contract?.factoryLocation || contract?.origin || 'Ashulia, Savar',
+          origin: originLoc,
           destination: quickDispatchDest || 'Chittagong Port',
-          loadingLocation: contract?.factoryLocation || contract?.origin || 'Ashulia, Savar',
+          loadingLocation: originLoc,
           deliveryLocation: quickDispatchDest || 'Chittagong Port',
           route: `${contract?.factoryLocation || 'Ashulia'} ➔ ${quickDispatchDest}`,
           cargoDetails: quickDispatchCargo || 'RMG Garments Export Cartons',
           customerName: contract?.clientName || contract?.customerName || 'Garments Client',
           clientName: contract?.clientName || contract?.customerName || 'Garments Client',
-          distanceKm: 260,
+          distanceKm: dynamicKm,
           tripRevenue: Number(quickDispatchFare || 0),
           demurrageAmount: Number(quickDispatchDemurrage || 0),
           demurrageDays: Number(quickDispatchDemurrageDays || 0),
@@ -4430,6 +4548,31 @@ export default function TransportManagementModule({
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
+                        {(() => {
+                          const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                          if (activeInfo.isOnTrip) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const trip = allTrips.find(
+                                    (t) =>
+                                      normalizeReg(t.registrationNumber) === normalizeReg(v.registrationNumber) &&
+                                      (t.status === 'active' || t.status === 'running') &&
+                                      !t.actualReturnDate
+                                  );
+                                  handleCancelActiveTrip(trip?.id, v.registrationNumber);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                title={`Currently on trip until ${activeInfo.returnDateFormatted}. Click to cancel trip and release truck.`}
+                              >
+                                <XCircle className="h-3 w-3 text-rose-600" />
+                                <span>Release</span>
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         <button
                           type="button"
                           onClick={() => {
@@ -4755,15 +4898,34 @@ export default function TransportManagementModule({
                           {/* Actions */}
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
                             {isBusy ? (
-                              <button
-                                type="button"
-                                disabled={true}
-                                title={`Truck is busy on active trip until ${activeTripInfo.returnDateFormatted}. New trips cannot be dispatched.`}
-                                className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-[11px] font-bold opacity-60 cursor-not-allowed shadow-none"
-                              >
-                                <Clock className="h-3 w-3 text-slate-400" />
-                                <span>On Trip ({activeTripInfo.returnDateFormatted})</span>
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={true}
+                                  title={`Truck is busy on active trip until ${activeTripInfo.returnDateFormatted}. New trips cannot be dispatched.`}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-[11px] font-bold opacity-60 cursor-not-allowed shadow-none"
+                                >
+                                  <Clock className="h-3 w-3 text-slate-400" />
+                                  <span>On Trip ({activeTripInfo.returnDateFormatted})</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const trip = allTrips.find(
+                                      (t) =>
+                                        normalizeReg(t.registrationNumber) === normalizeReg(v.registrationNumber) &&
+                                        (t.status === 'active' || t.status === 'running') &&
+                                        !t.actualReturnDate
+                                    );
+                                    handleCancelActiveTrip(trip?.id, v.registrationNumber);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                  title="Cancel active trip & release truck to Available"
+                                >
+                                  <XCircle className="h-3 w-3 text-rose-600" />
+                                  <span>Release</span>
+                                </button>
+                              </div>
                             ) : (
                               <button
                                 type="button"
@@ -5480,6 +5642,18 @@ export default function TransportManagementModule({
                               <span>✏ Edit</span>
                             </button>
 
+                            {(t.status === 'active' || t.status === 'running') && !t.actualReturnDate && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelActiveTrip(t.id, t.registrationNumber)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                title="Cancel active trip and release truck to Available"
+                              >
+                                <XCircle className="h-3 w-3 text-rose-600" />
+                                <span>Cancel Trip</span>
+                              </button>
+                            )}
+
                             <button
                               type="button"
                               onClick={() => openTripChallanModal(t)}
@@ -6190,7 +6364,12 @@ export default function TransportManagementModule({
                       type="text"
                       required
                       value={tripLoadLoc}
-                      onChange={(e) => setTripLoadLoc(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTripLoadLoc(val);
+                        const dist = calculateHighwayDistance(val, tripDeliverLoc);
+                        setTripDistanceKm(dist.km);
+                      }}
                       placeholder="e.g. Dhaka Tejgaon"
                       className="w-full rounded border px-2 py-1"
                     />
@@ -6201,10 +6380,39 @@ export default function TransportManagementModule({
                       type="text"
                       required
                       value={tripDeliverLoc}
-                      onChange={(e) => setTripDeliverLoc(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTripDeliverLoc(val);
+                        const dist = calculateHighwayDistance(tripLoadLoc, val);
+                        setTripDistanceKm(dist.km);
+                      }}
                       placeholder="e.g. Chittagong Agrabad / Unloading Point"
                       className="w-full rounded border px-2 py-1"
                     />
+                  </div>
+                </div>
+
+                {/* Dynamic Highway Route & Distance Indicator */}
+                <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
+                    <Navigation className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>⚡ Route: {calculateHighwayDistance(tripLoadLoc || 'Tejgaon', tripDeliverLoc || 'Chittagong Port').routeName}</span>
+                  </div>
+                  <div className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-100">
+                    <span className="text-[10px] text-slate-400 font-sans font-normal">Distance:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="0"
+                      value={tripDistanceKm === 0 ? '' : tripDistanceKm}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripDistanceKm(v === '' ? 0 : Number(v));
+                      }}
+                      className="w-16 px-1.5 py-0.5 text-right font-mono font-bold text-xs rounded border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800"
+                    />
+                    <span>KM</span>
                   </div>
                 </div>
 
@@ -6248,6 +6456,7 @@ export default function TransportManagementModule({
                       min={1}
                       placeholder="0"
                       value={tripFare === 0 ? '' : tripFare}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripFare(v === '' ? 0 : Number(v));
@@ -6262,11 +6471,89 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripAdvance === 0 ? '' : tripAdvance}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripAdvance(v === '' ? 0 : Number(v));
                       }}
                       className="w-full rounded border px-2 py-1 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* DEMURRAGE & VEHICLE DETENTION (Waiting Charge) */}
+              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Demurrage & Vehicle Detention (Extra Waiting Charge)</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 font-mono">
+                    {tripDemurrage > 0 ? `+BDT ${tripDemurrage.toLocaleString()} Added to Bill` : 'No Detention'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-0.5">Detention Days</label>
+                    <select
+                      value={tripDemurrageDays}
+                      onChange={(e) => {
+                        const days = Number(e.target.value);
+                        setTripDemurrageDays(days);
+                        setTripDemurrage(days * tripDemurrageDailyRate);
+                      }}
+                      className="w-full rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-bold"
+                    >
+                      <option value={0}>0 Days (On-Time)</option>
+                      <option value={1}>1 Day Detention</option>
+                      <option value={2}>2 Days Detention</option>
+                      <option value={3}>3 Days Detention</option>
+                      <option value={4}>4 Days Detention</option>
+                      <option value={5}>5 Days Detention</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-0.5">Daily Rate (BDT/day)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={500}
+                      placeholder="0"
+                      value={tripDemurrageDailyRate === 0 ? '' : tripDemurrageDailyRate}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const rate = Number(e.target.value.replace(/^0+(?=\d)/, ''));
+                        setTripDemurrageDailyRate(rate);
+                        setTripDemurrage(tripDemurrageDays * rate);
+                      }}
+                      className="w-full rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-0.5">Demurrage Total (BDT)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={tripDemurrage === 0 ? '' : tripDemurrage}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setTripDemurrage(v === '' ? 0 : Number(v));
+                      }}
+                      className="w-full rounded border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 px-2 py-1 font-mono font-bold text-xs text-amber-800 dark:text-amber-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-300 mb-0.5">Reason / Note</label>
+                    <input
+                      type="text"
+                      value={tripDemurrageReason}
+                      onChange={(e) => setTripDemurrageReason(e.target.value)}
+                      placeholder="e.g. Factory unloading delay"
+                      className="w-full rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
                     />
                   </div>
                 </div>
@@ -6326,6 +6613,7 @@ export default function TransportManagementModule({
                         min={0}
                         placeholder="0"
                         value={tripReturnFare === 0 ? '' : tripReturnFare}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           const v = e.target.value.replace(/^0+(?=\d)/, '');
                           setTripReturnFare(v === '' ? 0 : Number(v));
@@ -6340,6 +6628,7 @@ export default function TransportManagementModule({
                         min={0}
                         placeholder="0"
                         value={tripReturnDriverCash === 0 ? '' : tripReturnDriverCash}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           const v = e.target.value.replace(/^0+(?=\d)/, '');
                           setTripReturnDriverCash(v === '' ? 0 : Number(v));
@@ -6369,6 +6658,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripDieselCost === 0 ? '' : tripDieselCost}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripDieselCost(v === '' ? 0 : Number(v));
@@ -6383,6 +6673,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripTollCost === 0 ? '' : tripTollCost}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripTollCost(v === '' ? 0 : Number(v));
@@ -6397,6 +6688,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripFerryCost === 0 ? '' : tripFerryCost}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripFerryCost(v === '' ? 0 : Number(v));
@@ -6411,6 +6703,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripDriverKhoraki === 0 ? '' : tripDriverKhoraki}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripDriverKhoraki(v === '' ? 0 : Number(v));
@@ -6428,6 +6721,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripPoliceCost === 0 ? '' : tripPoliceCost}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripPoliceCost(v === '' ? 0 : Number(v));
@@ -6442,6 +6736,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripLabourCost === 0 ? '' : tripLabourCost}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripLabourCost(v === '' ? 0 : Number(v));
@@ -6458,6 +6753,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripDriverCommission === 0 ? '' : tripDriverCommission}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripDriverCommission(v === '' ? 0 : Number(v));
@@ -6472,6 +6768,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripCommission === 0 ? '' : tripCommission}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripCommission(v === '' ? 0 : Number(v));
@@ -6486,6 +6783,7 @@ export default function TransportManagementModule({
                       min={0}
                       placeholder="0"
                       value={tripOtherCost === 0 ? '' : tripOtherCost}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
                         const v = e.target.value.replace(/^0+(?=\d)/, '');
                         setTripOtherCost(v === '' ? 0 : Number(v));
@@ -8572,21 +8870,59 @@ export default function TransportManagementModule({
             )}
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  const reg = selectedTruckForDetails.registrationNumber;
-                  setSelectedTruckForDetails(null);
-                  resetTripFormState();
-                  setTripTruckReg(reg);
-                  setShowAddTripModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>+ Start Trip for {selectedTruckForDetails.registrationNumber}</span>
-              </button>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 flex-wrap">
+              {(() => {
+                const activeCheck = getTruckActiveTrip(selectedTruckForDetails.registrationNumber);
+                const isBusy = activeCheck.isOnTrip;
+                if (isBusy) {
+                  return (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        disabled={true}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs border border-slate-300 dark:border-slate-700 opacity-60 cursor-not-allowed"
+                        title={`Truck is currently on highway trip until ${activeCheck.returnDateFormatted}`}
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>On Trip (Locked until {activeCheck.returnDateFormatted})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trip = allTrips.find(
+                            (t) =>
+                              normalizeReg(t.registrationNumber) === normalizeReg(selectedTruckForDetails.registrationNumber) &&
+                              (t.status === 'active' || t.status === 'running') &&
+                              !t.actualReturnDate
+                          );
+                          handleCancelActiveTrip(trip?.id, selectedTruckForDetails.registrationNumber);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+                        title="Cancel active trip to immediately release this truck to available status"
+                      >
+                        <XCircle className="h-3.5 w-3.5 text-rose-600" />
+                        <span>Cancel Trip & Release Truck</span>
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const reg = selectedTruckForDetails.registrationNumber;
+                      setSelectedTruckForDetails(null);
+                      resetTripFormState();
+                      setTripTruckReg(reg);
+                      setShowAddTripModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>+ Start Trip for {selectedTruckForDetails.registrationNumber}</span>
+                  </button>
+                );
+              })()}
 
               <button
                 type="button"
@@ -9150,6 +9486,23 @@ export default function TransportManagementModule({
                     </button>
                   ))}
                 </div>
+
+                {/* Dynamic Highway Route & Distance Indicator */}
+                {(() => {
+                  const orig = quickDispatchContract?.factoryLocation || quickDispatchContract?.origin || 'Ashulia, Savar';
+                  const distInfo = calculateHighwayDistance(orig, quickDispatchDest || 'Chittagong Port');
+                  return (
+                    <div className="mt-2 flex items-center justify-between p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
+                        <Navigation className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>⚡ Route: {distInfo.routeName}</span>
+                      </div>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-700">
+                        {distInfo.km} KM
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 4. Fare, Date & Advances */}
@@ -9175,8 +9528,13 @@ export default function TransportManagementModule({
                     type="number"
                     required
                     min={0}
-                    value={quickDispatchFare}
-                    onChange={(e) => setQuickDispatchFare(Number(e.target.value))}
+                    placeholder="0"
+                    value={quickDispatchFare === 0 ? '' : quickDispatchFare}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQuickDispatchFare(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-purple-700 dark:text-purple-300 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -9188,9 +9546,13 @@ export default function TransportManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={quickDispatchAdvance}
-                    onChange={(e) => setQuickDispatchAdvance(Number(e.target.value))}
                     placeholder="0"
+                    value={quickDispatchAdvance === 0 ? '' : quickDispatchAdvance}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQuickDispatchAdvance(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs text-emerald-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -9240,9 +9602,11 @@ export default function TransportManagementModule({
                       type="number"
                       min={0}
                       step={500}
-                      value={quickDispatchDemurrageDailyRate}
+                      placeholder="0"
+                      value={quickDispatchDemurrageDailyRate === 0 ? '' : quickDispatchDemurrageDailyRate}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => {
-                        const rate = Number(e.target.value);
+                        const rate = Number(e.target.value.replace(/^0+(?=\d)/, ''));
                         setQuickDispatchDemurrageDailyRate(rate);
                         setQuickDispatchDemurrage(quickDispatchDemurrageDays * rate);
                       }}
@@ -9257,9 +9621,13 @@ export default function TransportManagementModule({
                     <input
                       type="number"
                       min={0}
-                      value={quickDispatchDemurrage}
-                      onChange={(e) => setQuickDispatchDemurrage(Number(e.target.value))}
                       placeholder="0"
+                      value={quickDispatchDemurrage === 0 ? '' : quickDispatchDemurrage}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/^0+(?=\d)/, '');
+                        setQuickDispatchDemurrage(v === '' ? 0 : Number(v));
+                      }}
                       className="w-full rounded-lg border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-amber-800 dark:text-amber-300"
                     />
                   </div>
@@ -9292,9 +9660,13 @@ export default function TransportManagementModule({
                       <input
                         type="number"
                         min={0}
-                        value={quickDispatchDriverDelayKhoraki}
-                        onChange={(e) => setQuickDispatchDriverDelayKhoraki(Number(e.target.value))}
                         placeholder="0"
+                        value={quickDispatchDriverDelayKhoraki === 0 ? '' : quickDispatchDriverDelayKhoraki}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/^0+(?=\d)/, '');
+                          setQuickDispatchDriverDelayKhoraki(v === '' ? 0 : Number(v));
+                        }}
                         className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-[11px]"
                       />
                     </div>
@@ -9396,9 +9768,13 @@ export default function TransportManagementModule({
                   <input
                     type="number"
                     min={0}
-                    value={quickDispatchKhoraki}
-                    onChange={(e) => setQuickDispatchKhoraki(Number(e.target.value))}
-                    placeholder="2000"
+                    placeholder="0"
+                    value={quickDispatchKhoraki === 0 ? '' : quickDispatchKhoraki}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/^0+(?=\d)/, '');
+                      setQuickDispatchKhoraki(v === '' ? 0 : Number(v));
+                    }}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs focus:outline-none focus:border-emerald-500"
                   />
                 </div>

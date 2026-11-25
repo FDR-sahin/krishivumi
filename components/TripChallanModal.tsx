@@ -349,14 +349,6 @@ Date: ${trip.date}
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    WORK ORDER NO
-                  </span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.tripOrVehicleCode}
-                  </span>
-                </div>
-                <div className="flex justify-between items-baseline py-0.5 border-b border-slate-100 dark:border-slate-800 print:border-slate-200">
-                  <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
                     ISSUE DATE
                   </span>
                   <span className="font-mono text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
@@ -411,30 +403,30 @@ Date: ${trip.date}
                 </div>
               </div>
 
-              {/* Right Column: Buyer (Consignee) & Supplier (Consignor) */}
+              {/* Right Column: Supplier / Company, Broker & Consignee */}
               <div className="p-4 space-y-2 bg-emerald-50/30 dark:bg-slate-900/50 print:bg-white">
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 print:text-slate-800 w-2/5">
-                    BUYER / CONSIGNEE
+                    SUPPLIER / COMPANY
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.customerName || '—'}
+                    : {trip.customerName || trip.clientName || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    SUPPLIER / CONSIGNOR
+                    BROKER / AGENT
                   </span>
                   <span className="font-semibold text-slate-900 dark:text-white print:text-black w-3/5 text-right sm:text-left">
-                    : {businessName} (Feed Mill & Central Agro Complex)
+                    : {trip.brokerName || 'Direct (No Broker)'}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
                   <span className="font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 print:text-slate-700 w-2/5">
-                    ATTENTION
+                    TRANSPORT CARRIER
                   </span>
                   <span className="font-medium text-slate-900 dark:text-slate-200 print:text-black w-3/5 text-right sm:text-left">
-                    : {trip.brokerName ? `Broker: ${trip.brokerName}` : 'Depot Incharge & Receiver'}
+                    : {businessName} (RegardsAgro Logistics Fleet)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline py-0.5 border-b border-emerald-100 dark:border-slate-800 print:border-slate-200">
