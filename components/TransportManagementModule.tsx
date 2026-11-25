@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Truck,
   Plus,
@@ -2899,6 +2899,40 @@ export default function TransportManagementModule({
     Number(tripCommission || 0) +
     Number(tripOtherCost || 0);
   const netSurplusBeforeDriverComm = Math.max(0, calculatedTotalIncome - expensesBeforeDriverComm);
+
+  // Dynamically recalculate driver commission whenever expenses or fare change in percent mode
+  useEffect(() => {
+    if (tripDriverCommMode === 'percent' && typeof tripDriverCommPercent === 'number' && tripDriverCommPercent > 0) {
+      const autoAmt = Math.round((netSurplusBeforeDriverComm * tripDriverCommPercent) / 100);
+      setTripDriverCommission(autoAmt);
+    }
+  }, [tripDriverCommMode, tripDriverCommPercent, netSurplusBeforeDriverComm]);
+
+  // Dynamically recalculate driver commission for edit trip modal when in percent mode
+  useEffect(() => {
+    if (showEditTripModal && typeof editTripDriverCommPercent === 'number' && editTripDriverCommPercent > 0) {
+      const editExp =
+        editTripDiesel + editTripToll + editTripFerry + editTripKhoraki +
+        editTripPolice + editTripLabour + editTripCommission + editTripOther;
+      const editNet = Math.max(0, editTripFare + editTripDemurrageAmount - editExp);
+      const autoAmt = Math.round((editNet * editTripDriverCommPercent) / 100);
+      setEditTripDriverCommission(autoAmt);
+    }
+  }, [
+    showEditTripModal,
+    editTripDriverCommPercent,
+    editTripFare,
+    editTripDemurrageAmount,
+    editTripDiesel,
+    editTripToll,
+    editTripFerry,
+    editTripKhoraki,
+    editTripPolice,
+    editTripLabour,
+    editTripCommission,
+    editTripOther,
+  ]);
+
   const calculatedTotalReceived = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
   const calculatedRemainingDue = Math.max(0, calculatedTotalIncome - calculatedTotalReceived);
   const calculatedTripExpense =
@@ -4340,31 +4374,54 @@ export default function TransportManagementModule({
               </div>
             </div>
 
-            {/* 5. Trucks Under Maintenance (RED COLOR AS REQUESTED) */}
-            <div
-              onClick={() => setShowMaintenanceModal(true)}
-              className="p-3 rounded-xl border-2 border-rose-400 dark:border-rose-700 bg-rose-50/80 dark:bg-rose-950/40 shadow-xs space-y-1 hover:border-rose-600 hover:shadow-md cursor-pointer transition-all group ring-1 ring-rose-300/50 dark:ring-rose-900/50"
-            >
-              <div className="text-[11px] text-rose-700 dark:text-rose-300 font-bold flex items-center justify-between">
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600 animate-bounce" />
-                  <span>In Workshop / Repair</span>
-                </span>
-                <Wrench className="h-3.5 w-3.5 text-rose-600" />
-              </div>
-              <div className="text-xl font-black font-mono text-rose-700 dark:text-rose-400">
-                {dashboardKpis.maintenanceCount}
-              </div>
-              <div className="text-[10px] text-rose-600 font-semibold flex items-center justify-between">
-                <span>{dashboardKpis.maintenanceCount > 0 ? `${dashboardKpis.maintenanceCount} in garage/shop` : 'All healthy'}</span>
-                <span className="underline decoration-dotted text-[9px] font-bold">Details →</span>
-              </div>
-              {activeMaintenanceList.length > 0 && (
-                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-2 py-1 mt-0.5 border border-amber-200 dark:border-amber-800/50">
-                  ⚠ Demurrage: {formatBDT(activeMaintenanceList.reduce((s, m) => s + (m.demurrage || 0), 0))}
+            {/* 5. Trucks Under Maintenance & Workshop Demurrage */}
+            {(() => {
+              const inRepair = dashboardKpis.maintenanceCount > 0;
+              const estMaintDemurrage = activeMaintenanceList.reduce((s, m) => s + (m.demurrage || 0), 0);
+              return (
+                <div
+                  onClick={() => setShowMaintenanceModal(true)}
+                  className={`p-3 rounded-xl transition-all cursor-pointer space-y-1 ${
+                    inRepair
+                      ? 'border-2 border-rose-400 dark:border-rose-700 bg-rose-50/80 dark:bg-rose-950/40 shadow-xs hover:border-rose-600 hover:shadow-md ring-1 ring-rose-300/50 dark:ring-rose-900/50'
+                      : 'border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:border-slate-400'
+                  }`}
+                >
+                  <div className={`text-[11px] font-bold flex items-center justify-between ${
+                    inRepair ? 'text-rose-700 dark:text-rose-300' : 'text-slate-600 dark:text-slate-400'
+                  }`}>
+                    <span className="flex items-center gap-1">
+                      {inRepair ? (
+                        <AlertTriangle className="h-3.5 w-3.5 text-rose-600 animate-bounce" />
+                      ) : (
+                        <Wrench className="h-3.5 w-3.5 text-slate-400" />
+                      )}
+                      <span>In Workshop / Repair</span>
+                    </span>
+                    <Wrench className={`h-3.5 w-3.5 ${inRepair ? 'text-rose-600' : 'text-slate-400'}`} />
+                  </div>
+
+                  <div className={`text-xl font-black font-mono ${
+                    inRepair ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'
+                  }`}>
+                    {dashboardKpis.maintenanceCount}
+                  </div>
+
+                  <div className="text-[10px] font-semibold flex items-center justify-between">
+                    <span className={inRepair ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      {inRepair ? `${dashboardKpis.maintenanceCount} in garage/shop` : '✓ 0 in repair (All Fleet Healthy)'}
+                    </span>
+                    <span className="underline decoration-dotted text-[9px] text-slate-400 font-bold">Details →</span>
+                  </div>
+
+                  {inRepair && estMaintDemurrage > 0 && (
+                    <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-2 py-1 mt-0.5 border border-amber-200 dark:border-amber-800/50">
+                      ⚠ Delay Demurrage: {formatBDT(estMaintDemurrage)}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* 6. Total Trucks */}
             <div

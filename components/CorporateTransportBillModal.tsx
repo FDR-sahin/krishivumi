@@ -262,7 +262,7 @@ export default function CorporateTransportBillModal({
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-white text-slate-900 print:p-0 print:overflow-visible font-sans">
           <div
             ref={printRef}
-            className="w-full max-w-[800px] mx-auto border border-slate-300 p-6 sm:p-8 bg-white text-black shadow-sm print:border-none print:shadow-none print:p-0 space-y-4"
+            className="printable-document w-full max-w-[800px] mx-auto border border-slate-300 p-6 sm:p-8 bg-white text-black shadow-sm print:border-none print:shadow-none print:p-0 space-y-4"
           >
             {/* Top Brand Logo & Header */}
             <div className="flex items-center justify-between border-b-2 border-black pb-3">

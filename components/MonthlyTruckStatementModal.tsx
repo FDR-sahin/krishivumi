@@ -342,7 +342,7 @@ export default function MonthlyTruckStatementModal({
         {/* ============================================================== */}
         <div
           ref={printRef}
-          className="p-6 sm:p-8 space-y-5 overflow-y-auto bg-white dark:bg-slate-900 print:p-6 print:bg-white text-slate-900 dark:text-slate-100 print:text-black font-sans"
+          className="printable-document p-6 sm:p-8 space-y-5 overflow-y-auto bg-white dark:bg-slate-900 print:p-6 print:bg-white text-slate-900 dark:text-slate-100 print:text-black font-sans"
         >
           {/* Header Title & Business Information */}
           <div className="text-center space-y-1 pb-3 border-b-2 border-slate-900 dark:border-slate-700 print:border-black">

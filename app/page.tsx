@@ -1151,8 +1151,24 @@ export default function AgroErpApp() {
         j.transactionType === 'purchase' ||
         j.transactionType === 'payroll'
       ) {
-        const cat = toEnglishCategory(j.category) || 'Other Expenses';
-        expByCat[cat] = (expByCat[cat] || 0) + (j.amount || 0);
+        let rawCat = toEnglishCategory(j.category) || 'Other Expenses';
+        // Clean repetitive names & format neatly
+        rawCat = rawCat.replace(/(\bFarm Transaction\b\s*)+/gi, 'Farm Operations ');
+        if (rawCat.includes('Trip Direct Outflow') || rawCat.includes('Fleet Fuel')) {
+          rawCat = 'Trip Outflows & Fuel';
+        } else if (rawCat.includes('Trip Advance')) {
+          rawCat = 'Trip Advances';
+        } else if (rawCat.includes('Corporate Garments') || rawCat.includes('Monthly Bill')) {
+          rawCat = 'Corporate Bill Payments';
+        } else if (rawCat.includes('Farm Transaction') || rawCat.includes('POL-')) {
+          rawCat = 'Farm Operating Expenses';
+        } else {
+          rawCat = rawCat.replace(/\s*\([A-Z0-9\-_]+\)\s*/gi, '').trim();
+        }
+        if (rawCat.length > 24) {
+          rawCat = rawCat.slice(0, 24).trim() + '...';
+        }
+        expByCat[rawCat] = (expByCat[rawCat] || 0) + (j.amount || 0);
         totalExp += (j.amount || 0);
       }
     }
@@ -2228,23 +2244,23 @@ export default function AgroErpApp() {
                 </div>
 
                 {/* 6. Expenses by Category (YTD Donut) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs flex flex-col justify-between overflow-hidden min-w-0">
                   <div>
                     <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
                       <span>Expenses by Category (YTD)</span>
                       <span className="text-[10px] font-mono text-slate-400">Breakdown</span>
                     </h3>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
-                    <div className="h-36 w-36 relative shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-2 min-w-0 w-full overflow-hidden">
+                    <div className="h-32 w-32 relative shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={expensesByCategoryData}
                             dataKey="value"
                             nameKey="name"
-                            innerRadius={40}
-                            outerRadius={60}
+                            innerRadius={36}
+                            outerRadius={56}
                             paddingAngle={3}
                             stroke="none"
                           >
@@ -2264,14 +2280,18 @@ export default function AgroErpApp() {
                       </div>
                     </div>
 
-                    <div className="space-y-1 w-full text-xs">
+                    <div className="space-y-1.5 w-full min-w-0 flex-1 overflow-hidden text-xs">
                       {expensesByCategoryData.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 truncate">
+                        <div key={idx} className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                             <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                            <span className="text-slate-600 dark:text-slate-400 text-[11px] truncate">{item.name}</span>
+                            <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium truncate block" title={item.name}>
+                              {item.name}
+                            </span>
                           </div>
-                          <span className="font-mono font-bold text-slate-900 dark:text-slate-200 text-[11px] shrink-0">{item.share}</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-slate-200 text-[11px] shrink-0 pl-1">
+                            {item.share}
+                          </span>
                         </div>
                       ))}
                     </div>

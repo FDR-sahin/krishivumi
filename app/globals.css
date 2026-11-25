@@ -83,11 +83,52 @@
 }
 
 @media print {
-  .no-print {
-    display: none !important;
+  /* Hide the rest of the application completely */
+  body > * {
+    visibility: hidden !important;
   }
+
+  /* Reveal only the printable document and its children */
+  .printable-document,
+  .printable-document * {
+    visibility: visible !important;
+  }
+
+  .printable-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .no-print,
+  .print\:hidden,
+  button,
+  input[type="button"],
+  input[type="submit"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
   }
 }
