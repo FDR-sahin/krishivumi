@@ -456,6 +456,7 @@ export default function TransportManagementModule({
   const [editTripLabour, setEditTripLabour] = useState<number>(0);
   const [editTripCommission, setEditTripCommission] = useState<number>(0);
   const [editTripDriverCommission, setEditTripDriverCommission] = useState<number>(0);
+  const [editTripDriverCommPercent, setEditTripDriverCommPercent] = useState<number | ''>('');
   const [editTripOther, setEditTripOther] = useState<number>(0);
   const [editTripCustomer, setEditTripCustomer] = useState('');
   const [editTripOrigin, setEditTripOrigin] = useState('');
@@ -465,6 +466,11 @@ export default function TransportManagementModule({
   const [editTripDriverPhone, setEditTripDriverPhone] = useState('');
   const [editTripRemarks, setEditTripRemarks] = useState('');
   const [editTripDistanceKm, setEditTripDistanceKm] = useState<number>(0);
+  const [editTripReturnDate, setEditTripReturnDate] = useState('');
+  const [editTripDemurrageAmount, setEditTripDemurrageAmount] = useState<number>(0);
+  const [editTripDemurrageDays, setEditTripDemurrageDays] = useState<number>(0);
+  const [editTripDemurrageDailyRate, setEditTripDemurrageDailyRate] = useState<number>(3000);
+  const [editTripDemurrageReason, setEditTripDemurrageReason] = useState<string>('Factory Unloading Delay');
 
   // ── Edit Truck/Vehicle Modal State ─────────────────────────────────────
   const [showEditVehicleModal, setShowEditVehicleModal] = useState(false);
@@ -2323,6 +2329,8 @@ export default function TransportManagementModule({
   const [tripAdvance, setTripAdvance] = useState<number>(0);
   const [tripCommission, setTripCommission] = useState<number>(0);
   const [tripDriverCommission, setTripDriverCommission] = useState<number>(0);
+  const [tripDriverCommMode, setTripDriverCommMode] = useState<'percent' | 'manual'>('manual');
+  const [tripDriverCommPercent, setTripDriverCommPercent] = useState<number | ''>('');
 
   // Demurrage (Detention Delay / Waiting Fine for Normal & Contract Trips)
   const [tripDemurrage, setTripDemurrage] = useState<number>(0);
@@ -2330,6 +2338,119 @@ export default function TransportManagementModule({
   const [tripDemurrageDailyRate, setTripDemurrageDailyRate] = useState<number>(3000);
   const [tripDemurrageReason, setTripDemurrageReason] = useState<string>('Factory Unloading Delay (Exceeded 24h standard)');
   const [tripDistanceKm, setTripDistanceKm] = useState<number>(260);
+
+  // Trip Delay, Duration Extension & Demurrage Modal
+  const [showTripDelayModal, setShowTripDelayModal] = useState(false);
+  const [delayTrip, setDelayTrip] = useState<ErpTransportOp | null>(null);
+  const [delayExtraDays, setDelayExtraDays] = useState<number>(1);
+  const [delayNewReturnDate, setDelayNewReturnDate] = useState<string>('');
+  const [delayBillDemurrage, setDelayBillDemurrage] = useState<boolean>(true);
+  const [delayDemurrageDailyRate, setDelayDemurrageDailyRate] = useState<number>(3000);
+  const [delayDemurrageAmount, setDelayDemurrageAmount] = useState<number>(3000);
+  const [delayReason, setDelayReason] = useState<string>('Factory Unloading Delay (Exceeded standard 24h)');
+  const [delayDriverKhoraki, setDelayDriverKhoraki] = useState<number>(500);
+
+  const handleOpenExtendTrip = (trip: ErpTransportOp) => {
+    setDelayTrip(trip);
+    const currentRet = trip.expectedReturnDate || trip.date || new Date().toISOString().slice(0, 10);
+    const d = new Date(currentRet);
+    d.setDate(d.getDate() + 1);
+    const nextDate = d.toISOString().slice(0, 10);
+    setDelayExtraDays(1);
+    setDelayNewReturnDate(nextDate);
+    setDelayBillDemurrage(true);
+    const rate = Number(trip.demurrageDailyRate || 3000);
+    setDelayDemurrageDailyRate(rate);
+    setDelayDemurrageAmount(rate * 1);
+    setDelayReason(trip.demurrageReason || 'Factory Unloading Delay (Exceeded standard 24h)');
+    setDelayDriverKhoraki(500);
+    setShowTripDelayModal(true);
+  };
+
+  const handleSetDelayDays = (days: number) => {
+    setDelayExtraDays(days);
+    if (delayTrip) {
+      const currentRet = delayTrip.expectedReturnDate || delayTrip.date || new Date().toISOString().slice(0, 10);
+      const d = new Date(currentRet);
+      d.setDate(d.getDate() + days);
+      setDelayNewReturnDate(d.toISOString().slice(0, 10));
+      setDelayDemurrageAmount(days * delayDemurrageDailyRate);
+      setDelayDriverKhoraki(days * 500);
+    }
+  };
+
+  const handleReturnDateChange = (newDate: string) => {
+    setDelayNewReturnDate(newDate);
+    if (delayTrip) {
+      const currentRet = delayTrip.expectedReturnDate || delayTrip.date || new Date().toISOString().slice(0, 10);
+      const diffMs = new Date(newDate).getTime() - new Date(currentRet).getTime();
+      const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      setDelayExtraDays(diffDays);
+      setDelayDemurrageAmount(diffDays * delayDemurrageDailyRate);
+      setDelayDriverKhoraki(diffDays * 500);
+    }
+  };
+
+  const handleSaveTripExtensionAndDemurrage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!delayTrip) return;
+    setIsSubmitting(true);
+    try {
+      const addedDemurrage = delayBillDemurrage ? Number(delayDemurrageAmount || 0) : 0;
+      const addedDays = delayBillDemurrage ? Number(delayExtraDays || 0) : 0;
+      const newDemurrageTotal = Number(delayTrip.demurrageAmount || 0) + addedDemurrage;
+      const newDemurrageDays = Number(delayTrip.demurrageDays || 0) + addedDays;
+      const addedKhoraki = Number(delayDriverKhoraki || 0);
+      const newKhoraki = Number(delayTrip.driverKhoraki || delayTrip.driverAllowance || 0) + addedKhoraki;
+      const newExpense = Number(delayTrip.tripExpense || 0) + addedKhoraki;
+
+      const totalBilled = Number(delayTrip.tripRevenue || 0) + newDemurrageTotal;
+      const totalAdvance = Number(delayTrip.advanceReceived || delayTrip.advancePaid || 0);
+      const newDue = Math.max(0, totalBilled - totalAdvance);
+
+      const note = `[Delay Extended +${delayExtraDays}d to ${delayNewReturnDate}: ${delayReason}${addedDemurrage > 0 ? ` (+৳${addedDemurrage} Demurrage)` : ''}${addedKhoraki > 0 ? ` (+৳${addedKhoraki} Extra Khoraki)` : ''}]`;
+      const updatedRemarks = delayTrip.remarks ? `${delayTrip.remarks} ${note}` : note;
+
+      await updateTransportOpRecord(
+        delayTrip,
+        {
+          expectedReturnDate: delayNewReturnDate,
+          demurrageAmount: newDemurrageTotal,
+          demurrageDays: newDemurrageDays,
+          demurrageDailyRate: delayDemurrageDailyRate,
+          demurrageReason: delayReason,
+          demurrageDriverAllowance: (Number(delayTrip.demurrageDriverAllowance || 0)) + addedKhoraki,
+          driverKhoraki: newKhoraki,
+          driverAllowance: newKhoraki,
+          tripExpense: newExpense,
+          outstandingDue: newDue,
+          remainingDue: newDue,
+          remarks: updatedRemarks,
+        },
+        actorEmail
+      );
+
+      // Also ensure vehicle record reflects the extended date
+      const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(delayTrip.registrationNumber));
+      if (veh) {
+        await updateTransportOpRecord(
+          veh,
+          {
+            expectedReturnDate: delayNewReturnDate,
+            status: 'active',
+          },
+          actorEmail
+        );
+      }
+
+      setShowTripDelayModal(false);
+      triggerGlobalToast(`Trip ${delayTrip.tripOrVehicleCode} extended to ${delayNewReturnDate}! Demurrage ৳${addedDemurrage.toLocaleString()} applied.`, 'success');
+    } catch (err: any) {
+      triggerGlobalToast(err.message || 'Failed to update trip delay', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Cancel Active Trip & Release Truck back to Available
   const handleCancelActiveTrip = async (tripId?: string, truckReg?: string) => {
@@ -2464,7 +2585,8 @@ export default function TransportManagementModule({
     setEditTripPolice(Number(trip.policeRoadCost || 0));
     setEditTripLabour(Number(trip.labourLoadingCost || 0));
     setEditTripCommission(Number(trip.commission || 0));
-    setEditTripDriverCommission(Number(trip.driverCommission !== undefined ? trip.driverCommission : trip.commission || 0));
+    const drvComm = Number(trip.driverCommission !== undefined ? trip.driverCommission : trip.commission || 0);
+    setEditTripDriverCommission(drvComm);
     setEditTripOther(Number(trip.otherCosts || 0));
     setEditTripCustomer(trip.customerName || '');
     setEditTripOrigin(trip.loadingLocation || trip.origin || '');
@@ -2475,6 +2597,28 @@ export default function TransportManagementModule({
     setEditTripDriverPhone(trip.driverPhone || resolveTripDriverPhone(trip));
     setEditTripRemarks(trip.remarks || '');
     setEditTripDistanceKm(Number(trip.distanceKm || 0));
+    setEditTripReturnDate(trip.expectedReturnDate || '');
+    setEditTripDemurrageAmount(Number(trip.demurrageAmount || 0));
+    setEditTripDemurrageDays(Number(trip.demurrageDays || 0));
+    setEditTripDemurrageDailyRate(Number(trip.demurrageDailyRate || 3000));
+    setEditTripDemurrageReason(trip.demurrageReason || 'Factory Unloading Delay');
+
+    const expBeforeDr =
+      Number(trip.fuelCost || 0) +
+      Number(trip.tollCost || 0) +
+      Number(trip.ferryCost || 0) +
+      Number(trip.driverKhoraki || trip.driverAllowance || 0) +
+      Number(trip.policeRoadCost || 0) +
+      Number(trip.labourLoadingCost || 0) +
+      Number(trip.commission || 0) +
+      Number(trip.otherCosts || 0);
+    const netBeforeDr = Math.max(0, Number(trip.tripRevenue || 0) + Number(trip.demurrageAmount || 0) - expBeforeDr);
+    if (netBeforeDr > 0 && drvComm > 0) {
+      setEditTripDriverCommPercent(Number(((drvComm / netBeforeDr) * 100).toFixed(1)));
+    } else {
+      setEditTripDriverCommPercent('');
+    }
+
     setShowEditTripModal(true);
   };
 
@@ -2487,12 +2631,18 @@ export default function TransportManagementModule({
       const totalExpense =
         editTripDiesel + editTripToll + editTripFerry + editTripKhoraki +
         editTripPolice + editTripLabour + editTripCommission + editTripDriverCommission + editTripOther;
-      const newDue = Math.max(0, editTripFare - editTripAdvance);
+      const totalIncome = editTripFare + editTripDemurrageAmount;
+      const newDue = Math.max(0, totalIncome - editTripAdvance);
 
       await updateTransportOpRecord(
         editingTrip,
         {
           tripRevenue: editTripFare,
+          demurrageAmount: editTripDemurrageAmount,
+          demurrageDays: editTripDemurrageDays,
+          demurrageDailyRate: editTripDemurrageDailyRate,
+          demurrageReason: editTripDemurrageReason,
+          expectedReturnDate: editTripReturnDate || editingTrip.expectedReturnDate,
           advanceReceived: editTripAdvance,
           outstandingDue: newDue,
           remainingDue: newDue,
@@ -2521,6 +2671,18 @@ export default function TransportManagementModule({
         },
         actorEmail
       );
+
+      // Auto-sync vehicle expectedReturnDate if updated
+      if (editTripReturnDate) {
+        const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(editingTrip.registrationNumber));
+        if (veh) {
+          await updateTransportOpRecord(
+            veh,
+            { expectedReturnDate: editTripReturnDate, status: 'active' },
+            actorEmail
+          );
+        }
+      }
 
       setShowEditTripModal(false);
       setEditingTrip(null);
@@ -2727,6 +2889,16 @@ export default function TransportManagementModule({
     Number(tripFare || 0) +
     (tripHasReturn ? Number(tripReturnFare || 0) : 0) +
     Number(tripDemurrage || 0);
+  const expensesBeforeDriverComm =
+    Number(tripDieselCost || 0) +
+    Number(tripTollCost || 0) +
+    Number(tripFerryCost || 0) +
+    Number(tripDriverKhoraki || 0) +
+    Number(tripPoliceCost || 0) +
+    Number(tripLabourCost || 0) +
+    Number(tripCommission || 0) +
+    Number(tripOtherCost || 0);
+  const netSurplusBeforeDriverComm = Math.max(0, calculatedTotalIncome - expensesBeforeDriverComm);
   const calculatedTotalReceived = Number(tripAdvance || 0) + (tripHasReturn ? Number(tripReturnDriverCash || 0) : 0);
   const calculatedRemainingDue = Math.max(0, calculatedTotalIncome - calculatedTotalReceived);
   const calculatedTripExpense =
@@ -4484,15 +4656,26 @@ export default function TransportManagementModule({
                         </div>
                       </div>
 
-                      {/* Action Button */}
-                      <button
-                        type="button"
-                        onClick={() => openTripChallanModal(trip)}
-                        className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 text-center inline-flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>View Trip Details</span>
-                      </button>
+                      {/* Action Buttons */}
+                      <div className="grid grid-cols-2 gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenExtendTrip(trip)}
+                          className="py-1.5 px-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-100 dark:hover:bg-amber-900/60 text-center inline-flex items-center justify-center gap-1 cursor-pointer"
+                          title="Trip delayed due to road jam or unloading? Extend return date and bill demurrage"
+                        >
+                          <Clock className="h-3 w-3 text-amber-600" />
+                          <span>⏱ Delay & Demurrage</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openTripChallanModal(trip)}
+                          className="py-1.5 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-100 text-center inline-flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span>Challan Slip</span>
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -5962,6 +6145,18 @@ export default function TransportManagementModule({
                             {isRunning && (
                               <button
                                 type="button"
+                                onClick={() => handleOpenExtendTrip(t)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 text-[10px] font-bold border border-amber-300 dark:border-amber-700 hover:bg-amber-600 hover:text-white transition-colors cursor-pointer"
+                                title="Trip delayed due to road jam or unloading delay? Extend return date & bill demurrage"
+                              >
+                                <Clock className="h-3 w-3 text-amber-600" />
+                                <span>Extend & Demurrage</span>
+                              </button>
+                            )}
+
+                            {isRunning && (
+                              <button
+                                type="button"
                                 onClick={() => handleOpenAddReturnLoadModal(t)}
                                 className="px-2 py-0.5 rounded bg-sky-50 text-sky-700 text-[10px] font-bold border border-sky-200 hover:bg-sky-600 hover:text-white cursor-pointer"
                                 title={hasReturn ? "Edit Return Load" : "+ Add Return Load"}
@@ -7151,23 +7346,6 @@ export default function TransportManagementModule({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-purple-600 dark:text-purple-400 font-bold mb-0.5">
-                      Driver Commission
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={tripDriverCommission === 0 ? '' : tripDriverCommission}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/^0+(?=\d)/, '');
-                        setTripDriverCommission(v === '' ? 0 : Number(v));
-                      }}
-                      className="w-full rounded border border-purple-300 dark:border-purple-700 px-2 py-1 font-mono text-purple-700 dark:text-purple-300 font-bold"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-[10px] text-slate-500 mb-0.5">Broker Commission</label>
                     <input
                       type="number"
@@ -7196,6 +7374,107 @@ export default function TransportManagementModule({
                       }}
                       className="w-full rounded border px-2 py-1 font-mono"
                     />
+                  </div>
+                </div>
+
+                {/* Driver Commission Smart Percentage & Manual BDT Section */}
+                <div className="p-2.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-2 mt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 dark:text-purple-200">
+                      <Users className="h-3.5 w-3.5 text-purple-600" />
+                      <span>Driver Trip Commission (Percentage % of Net Profit or Manual BDT)</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold">
+                      <span className="text-slate-500 mr-1">Quick % of Net:</span>
+                      {[5, 10, 15, 20, 25].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => {
+                            setTripDriverCommPercent(pct);
+                            setTripDriverCommMode('percent');
+                            const amt = Math.round((netSurplusBeforeDriverComm * pct) / 100);
+                            setTripDriverCommission(amt);
+                          }}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors cursor-pointer ${
+                            tripDriverCommPercent === pct && tripDriverCommMode === 'percent'
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                              : 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 hover:bg-purple-100'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] text-purple-700 dark:text-purple-300 font-semibold mb-1">
+                        Commission Percentage (% of Net Trip Surplus)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          placeholder="e.g. 10"
+                          value={tripDriverCommPercent}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setTripDriverCommPercent('');
+                            } else {
+                              const p = Number(val);
+                              setTripDriverCommPercent(p);
+                              setTripDriverCommMode('percent');
+                              const amt = Math.round((netSurplusBeforeDriverComm * p) / 100);
+                              setTripDriverCommission(amt);
+                            }
+                          }}
+                          className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs font-bold text-purple-800 dark:text-purple-200 pr-7"
+                        />
+                        <span className="absolute right-2.5 top-1.5 text-xs font-bold text-purple-500 pointer-events-none">%</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-purple-700 dark:text-purple-300 font-semibold mb-1">
+                        Commission Amount (BDT ৳)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={tripDriverCommission === 0 ? '' : tripDriverCommission}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/^0+(?=\d)/, '');
+                            const amt = v === '' ? 0 : Number(v);
+                            setTripDriverCommission(amt);
+                            setTripDriverCommMode('manual');
+                            if (netSurplusBeforeDriverComm > 0) {
+                              setTripDriverCommPercent(Number(((amt / netSurplusBeforeDriverComm) * 100).toFixed(1)));
+                            }
+                          }}
+                          className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs font-black text-purple-700 dark:text-purple-300 pr-7"
+                        />
+                        <span className="absolute right-2.5 top-1.5 text-xs font-bold text-purple-500 pointer-events-none">৳</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Breakdown Explanation */}
+                  <div className="flex flex-wrap items-center justify-between text-[11px] p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-purple-200 dark:border-purple-900 font-mono">
+                    <span className="text-slate-600 dark:text-slate-300">
+                      Net Surplus (Fare {formatBDT(calculatedTotalIncome)} − Direct Outflows {formatBDT(expensesBeforeDriverComm)}): <strong className="text-emerald-700 dark:text-emerald-400">{formatBDT(netSurplusBeforeDriverComm)}</strong>
+                    </span>
+                    <span className="text-purple-700 dark:text-purple-300 font-bold">
+                      Driver gets: {formatBDT(tripDriverCommission)} {tripDriverCommPercent ? `(${tripDriverCommPercent}%)` : ''} • Owner Profit: {formatBDT(Math.max(0, netSurplusBeforeDriverComm - tripDriverCommission))}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -8501,18 +8780,84 @@ export default function TransportManagementModule({
                   <TrendingUp className="h-3.5 w-3.5" />
                   Revenue & Payments
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">Total Freight Fare (BDT)</label>
                     <input type="number" value={editTripFare} onChange={(e) => setEditTripFare(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-purple-700 dark:text-purple-300 block mb-1">Demurrage Billed (BDT)</label>
+                    <input type="number" value={editTripDemurrageAmount} onChange={(e) => setEditTripDemurrageAmount(Number(e.target.value))} className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-purple-700 dark:text-purple-300" />
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">Advance Received (BDT)</label>
                     <input type="number" value={editTripAdvance} onChange={(e) => setEditTripAdvance(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
                   </div>
                 </div>
-                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/30 rounded-lg px-3 py-1.5">
-                  Due Balance: {formatBDT(Math.max(0, editTripFare - editTripAdvance))}
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/30 rounded-lg px-3 py-1.5">
+                  <span>Total Billed (Fare + Demurrage): {formatBDT(editTripFare + editTripDemurrageAmount)}</span>
+                  <span>Due Balance: {formatBDT(Math.max(0, editTripFare + editTripDemurrageAmount - editTripAdvance))}</span>
+                </div>
+              </div>
+
+              {/* Trip Schedule, Duration Extension & Demurrage Details */}
+              <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 space-y-2.5">
+                <div className="font-bold text-amber-900 dark:text-amber-300 text-[11px] flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Trip Schedule, Return Lock & Delay Demurrage</span>
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-500 mr-1">Quick Extend:</span>
+                    {[1, 2, 3].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          const base = editTripReturnDate || editingTrip.expectedReturnDate || editingTrip.date || new Date().toISOString().slice(0, 10);
+                          const dt = new Date(base);
+                          dt.setDate(dt.getDate() + d);
+                          setEditTripReturnDate(dt.toISOString().slice(0, 10));
+                          setEditTripDemurrageDays((prev) => prev + d);
+                          setEditTripDemurrageAmount((prev) => prev + d * editTripDemurrageDailyRate);
+                        }}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 cursor-pointer"
+                      >
+                        +{d}d
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                      Expected Return Date (Truck locked busy until this date)
+                    </label>
+                    <input
+                      type="date"
+                      value={editTripReturnDate}
+                      onChange={(e) => setEditTripReturnDate(e.target.value)}
+                      className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                      Delay Demurrage Reason
+                    </label>
+                    <select
+                      value={editTripDemurrageReason}
+                      onChange={(e) => setEditTripDemurrageReason(e.target.value)}
+                      className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                    >
+                      <option value="Factory Unloading Delay (Exceeded standard 24h)">Factory Unloading Delay (Exceeded 24h)</option>
+                      <option value="Port Berth Congestion / Offloading Delay">Port Berth Congestion / Offloading Delay</option>
+                      <option value="Highway Jam & Traffic Disruption">Highway Jam & Traffic Disruption</option>
+                      <option value="Customs Clearance & Inspection Delay">Customs Clearance & Inspection Delay</option>
+                      <option value="Client Storage / Delayed Confirmation">Client Storage / Delayed Confirmation</option>
+                      <option value="Road Block / Political Disruption">Road Block / Political Disruption</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -8548,10 +8893,6 @@ export default function TransportManagementModule({
                     <input type="number" value={editTripLabour} onChange={(e) => setEditTripLabour(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-purple-700 dark:text-purple-300 block mb-1">Driver Trip Commission (BDT)</label>
-                    <input type="number" value={editTripDriverCommission} onChange={(e) => setEditTripDriverCommission(Number(e.target.value))} className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-purple-700 dark:text-purple-300" />
-                  </div>
-                  <div>
                     <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">Broker Commission (BDT)</label>
                     <input type="number" value={editTripCommission} onChange={(e) => setEditTripCommission(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
                   </div>
@@ -8564,6 +8905,111 @@ export default function TransportManagementModule({
                     <input type="number" value={editTripDistanceKm} onChange={(e) => setEditTripDistanceKm(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono" />
                   </div>
                 </div>
+
+                {/* Driver Commission Smart Percentage & Manual BDT Section */}
+                {(() => {
+                  const editExpBeforeDr =
+                    editTripDiesel + editTripToll + editTripFerry + editTripKhoraki +
+                    editTripPolice + editTripLabour + editTripCommission + editTripOther;
+                  const editNetBeforeDr = Math.max(0, editTripFare + editTripDemurrageAmount - editExpBeforeDr);
+                  return (
+                    <div className="p-2.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-2 mt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 dark:text-purple-200">
+                          <Users className="h-3.5 w-3.5 text-purple-600" />
+                          <span>Driver Trip Commission (Percentage % or Manual BDT)</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold">
+                          <span className="text-slate-500 mr-1">Quick % of Net:</span>
+                          {[5, 10, 15, 20, 25].map((pct) => (
+                            <button
+                              key={pct}
+                              type="button"
+                              onClick={() => {
+                                setEditTripDriverCommPercent(pct);
+                                const amt = Math.round((editNetBeforeDr * pct) / 100);
+                                setEditTripDriverCommission(amt);
+                              }}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors cursor-pointer ${
+                                editTripDriverCommPercent === pct
+                                  ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                                  : 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 hover:bg-purple-100'
+                              }`}
+                            >
+                              {pct}%
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[10px] text-purple-700 dark:text-purple-300 font-semibold mb-1">
+                            Commission Percentage (% of Net Trip Surplus)
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              placeholder="e.g. 10"
+                              value={editTripDriverCommPercent}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                  setEditTripDriverCommPercent('');
+                                } else {
+                                  const p = Number(val);
+                                  setEditTripDriverCommPercent(p);
+                                  const amt = Math.round((editNetBeforeDr * p) / 100);
+                                  setEditTripDriverCommission(amt);
+                                }
+                              }}
+                              className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs font-bold text-purple-800 dark:text-purple-200 pr-7"
+                            />
+                            <span className="absolute right-2.5 top-1.5 text-xs font-bold text-purple-500 pointer-events-none">%</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] text-purple-700 dark:text-purple-300 font-semibold mb-1">
+                            Commission Amount (BDT ৳)
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              value={editTripDriverCommission === 0 ? '' : editTripDriverCommission}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const amt = Number(e.target.value);
+                                setEditTripDriverCommission(amt);
+                                if (editNetBeforeDr > 0) {
+                                  setEditTripDriverCommPercent(Number(((amt / editNetBeforeDr) * 100).toFixed(1)));
+                                }
+                              }}
+                              className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs font-black text-purple-700 dark:text-purple-300 pr-7"
+                            />
+                            <span className="absolute right-2.5 top-1.5 text-xs font-bold text-purple-500 pointer-events-none">৳</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between text-[11px] p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-purple-200 dark:border-purple-900 font-mono">
+                        <span className="text-slate-600 dark:text-slate-300">
+                          Net Surplus (Fare − Expenses): <strong className="text-emerald-700 dark:text-emerald-400">{formatBDT(editNetBeforeDr)}</strong>
+                        </span>
+                        <span className="text-purple-700 dark:text-purple-300 font-bold">
+                          Driver: {formatBDT(editTripDriverCommission)} {editTripDriverCommPercent ? `(${editTripDriverCommPercent}%)` : ''} • Owner Profit: {formatBDT(Math.max(0, editNetBeforeDr - editTripDriverCommission))}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="text-[11px] text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-900/30 rounded-lg px-3 py-1.5 flex justify-between">
                   <span>Total Expense:</span>
                   <span>{formatBDT(editTripDiesel + editTripToll + editTripFerry + editTripKhoraki + editTripPolice + editTripLabour + editTripCommission + editTripDriverCommission + editTripOther)}</span>
@@ -8649,6 +9095,246 @@ export default function TransportManagementModule({
                 >
                   {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                   <span>{isSubmitting ? 'Saving...' : 'Update Trip'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── MODAL: TRIP EXTENSION & DEMURRAGE (ROAD JAM / DETENTION DELAY) ── */}
+      {showTripDelayModal && delayTrip && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowTripDelayModal(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-amber-300 dark:border-amber-700 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                    Trip Delay Extension & Demurrage
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    {delayTrip.tripOrVehicleCode} • [{delayTrip.registrationNumber}]
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTripDelayModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTripExtensionAndDemurrage} className="space-y-3.5 text-xs">
+              {/* Trip Context Card */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-1.5">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Party / Client:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{delayTrip.customerName || delayTrip.clientName || 'Garments Client'}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Route:</span>
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">{delayTrip.origin} ➔ {delayTrip.destination}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-500">Driver:</span>
+                  <span className="font-semibold">{resolveTripDriverName(delayTrip)} {delayTrip.driverPhone ? `📞 ${delayTrip.driverPhone}` : ''}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-500">Current Expected Return:</span>
+                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                    {delayTrip.expectedReturnDate || delayTrip.date || 'Not specified'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Step 1: Extend Duration */}
+              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-amber-900 dark:text-amber-300 text-[11px] flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Extend Trip Duration (Road Jam / Unloading Delay) *</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                    +{delayExtraDays} {delayExtraDays === 1 ? 'Day' : 'Days'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-slate-500">Quick Add:</span>
+                  {[1, 2, 3, 4].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => handleSetDelayDays(d)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                        delayExtraDays === d
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-100'
+                      }`}
+                    >
+                      +{d} {d === 1 ? 'Day' : 'Days'}
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-semibold mb-1">
+                    New Expected Return Date (Truck stays locked BUSY until this date):
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={delayNewReturnDate}
+                    onChange={(e) => handleReturnDateChange(e.target.value)}
+                    className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-mono font-bold text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Step 2: Demurrage (Detention Billing to Client) */}
+              <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-purple-900 dark:text-purple-300 text-[11px] flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={delayBillDemurrage}
+                      onChange={(e) => setDelayBillDemurrage(e.target.checked)}
+                      className="rounded text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>Bill Demurrage / Holding Fine to Client</span>
+                  </label>
+                  {delayBillDemurrage && (
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 font-mono">
+                      {formatBDT(delayDemurrageAmount)}
+                    </span>
+                  )}
+                </div>
+
+                {delayBillDemurrage && (
+                  <div className="space-y-2 pt-1 border-t border-purple-200 dark:border-purple-800/60">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-semibold mb-0.5">
+                          Daily Rate (BDT/day)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={delayDemurrageDailyRate}
+                          onChange={(e) => {
+                            const rate = Number(e.target.value);
+                            setDelayDemurrageDailyRate(rate);
+                            setDelayDemurrageAmount(rate * delayExtraDays);
+                          }}
+                          className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-semibold mb-0.5">
+                          Total Demurrage (BDT)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={delayDemurrageAmount}
+                          onChange={(e) => setDelayDemurrageAmount(Number(e.target.value))}
+                          className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-mono font-black text-purple-700 dark:text-purple-300"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-semibold mb-0.5">
+                        Delay Reason (Shows on Bill & Challan)
+                      </label>
+                      <select
+                        value={delayReason}
+                        onChange={(e) => setDelayReason(e.target.value)}
+                        className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                      >
+                        <option value="Factory Unloading Delay (Exceeded standard 24h)">Factory Unloading Delay (Exceeded 24h)</option>
+                        <option value="Port Berth Congestion / Offloading Delay">Port Berth Congestion / Offloading Delay</option>
+                        <option value="Highway Jam & Traffic Disruption">Highway Jam & Traffic Disruption</option>
+                        <option value="Customs Clearance & Inspection Delay">Customs Clearance & Inspection Delay</option>
+                        <option value="Client Storage / Delayed Confirmation">Client Storage / Delayed Confirmation</option>
+                        <option value="Road Block / Political Disruption">Road Block / Political Disruption</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Step 3: Extra Driver Khoraki for delay */}
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                    Additional Driver Delay Khoraki / Allowance (BDT)
+                  </label>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    (Expense for {delayExtraDays} extra days)
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  value={delayDriverKhoraki}
+                  onChange={(e) => setDelayDriverKhoraki(Number(e.target.value))}
+                  placeholder="e.g. 500"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-mono"
+                />
+              </div>
+
+              {/* Live Financial Summary */}
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs space-y-1 font-mono">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Original Freight Fare:</span>
+                  <span>{formatBDT(delayTrip.tripRevenue || 0)}</span>
+                </div>
+                {delayBillDemurrage && delayDemurrageAmount > 0 && (
+                  <div className="flex justify-between text-purple-700 dark:text-purple-300 font-bold">
+                    <span>+ Added Demurrage ({delayExtraDays}d @ {formatBDT(delayDemurrageDailyRate)}):</span>
+                    <span>+{formatBDT(delayDemurrageAmount)}</span>
+                  </div>
+                )}
+                {delayDriverKhoraki > 0 && (
+                  <div className="flex justify-between text-rose-600 dark:text-rose-400">
+                    <span>+ Extra Driver Khoraki Expense:</span>
+                    <span>+{formatBDT(delayDriverKhoraki)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold pt-1 border-t border-slate-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 text-sm">
+                  <span>Updated Total Billed to Client:</span>
+                  <span>{formatBDT((Number(delayTrip.tripRevenue || 0)) + (Number(delayTrip.demurrageAmount || 0)) + (delayBillDemurrage ? delayDemurrageAmount : 0))}</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowTripDelayModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-black text-xs shadow-xs cursor-pointer"
+                >
+                  {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  <span>Save Extension & Apply Demurrage</span>
                 </button>
               </div>
             </form>
