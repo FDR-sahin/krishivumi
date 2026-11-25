@@ -271,6 +271,12 @@ export default function TransportManagementModule({
       .trim() || 'Heavy Truck';
   }, []);
 
+  // Helper to normalize client/company names (handles SAHIN.dev, sahin dev, Ananta Apparels Ltd., etc.)
+  const normalizeClientName = useCallback((name?: string | null): string => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  }, []);
+
   // 2. Extracted Data Partitions (Vehicles, Trips, Fuel, Maintenance, Drivers, Expenses)
   const allVehicles = useMemo(() => {
     // Default 7 Fleet Trucks (User specified fleet of 7 trucks)
@@ -1008,11 +1014,19 @@ export default function TransportManagementModule({
       }
 
       // Find all trips matching this client or assigned trucks
-      const cName = (contract.clientName || contract.customerName || '').toLowerCase().trim();
+      const rawCName = (contract.clientName || contract.customerName || '').trim();
+      const cName = rawCName.toLowerCase();
+      const normCName = normalizeClientName(rawCName);
+
       const clientTrips = allTrips.filter((t) => {
-        const tCustomer = (t.customerName || '').toLowerCase().trim();
-        const matchesName = cName && tCustomer && (tCustomer.includes(cName) || cName.includes(tCustomer));
-        const matchesTruck = assignedTrucks.includes(t.registrationNumber);
+        const rawTCustomer = (t.customerName || t.clientName || '').trim();
+        const normTCustomer = normalizeClientName(rawTCustomer);
+
+        const matchesName =
+          normCName &&
+          normTCustomer &&
+          (normTCustomer.includes(normCName) || normCName.includes(normTCustomer));
+        const matchesTruck = assignedTrucks.some((tr) => normalizeReg(tr) === normalizeReg(t.registrationNumber));
         return matchesName || matchesTruck;
       });
 
@@ -1033,7 +1047,52 @@ export default function TransportManagementModule({
         }
       }
 
-      const totalAdvance = clientTrips.reduce((s, t) => s + Number(t.advancePaid || 0), 0);
+      // Payments & Advances tracking:
+      // 1. Advances / payments logged directly on individual trips
+      const tripAdvanceSum = clientTrips.reduce((s, t) => s + Number(t.advancePaid || t.advanceReceived || 0), 0);
+
+      // 2. Direct advances / rent recorded on the contract record itself
+      const contractAdvance = Number(contract.advancePaid || contract.advanceReceived || 0);
+
+      // 3. Payments collected via double-entry journal vouchers for this corporate company (e.g. SAHIN.dev)
+      const clientJournalEntries = (journalEntries || []).filter((j) => {
+        if (j.transactionType !== 'sale' && j.transactionType !== 'income') return false;
+        const rawJParty = (j.counterpartyName || '').trim();
+        const normJParty = normalizeClientName(rawJParty);
+        const jDesc = (j.description || '').toLowerCase();
+        const jCat = (j.category || '').toLowerCase();
+
+        const matchesParty =
+          normCName &&
+          normJParty &&
+          (normJParty.includes(normCName) || normCName.includes(normJParty));
+        const matchesText =
+          (cName && jDesc.includes(cName)) ||
+          (normCName && normalizeClientName(jDesc).includes(normCName)) ||
+          (cName && jCat.includes(cName)) ||
+          (normCName && normalizeClientName(jCat).includes(normCName));
+
+        return matchesParty || matchesText;
+      });
+      const journalPaidSum = clientJournalEntries.reduce((s, j) => s + Number(j.amount || 0), 0);
+
+      // 4. Standalone payment records in ops
+      const opPaymentsSum = (ops || [])
+        .filter((op) => {
+          if (op.recordType !== 'payment' && op.recordType !== 'collection') return false;
+          const rawOpClient = (op.clientName || op.customerName || '').trim();
+          const normOpClient = normalizeClientName(rawOpClient);
+          return normCName && normOpClient && (normOpClient.includes(normCName) || normCName.includes(normOpClient));
+        })
+        .reduce((s, op: any) => s + Number(op.tripRevenue || op.advancePaid || op.amount || 0), 0);
+
+      // Comprehensive total advance/paid calculation ensuring money received reduces due:
+      const totalAdvance = Math.max(
+        tripAdvanceSum + contractAdvance,
+        journalPaidSum,
+        opPaymentsSum,
+        tripAdvanceSum + opPaymentsSum
+      );
       const totalDue = Math.max(0, totalBilled - totalAdvance);
 
       const totalExpenses = clientTrips.reduce((s, t) => {
@@ -1066,7 +1125,7 @@ export default function TransportManagementModule({
         clientTrips,
       };
     });
-  }, [allGarmentsContracts, allTrips]);
+  }, [allGarmentsContracts, allTrips, journalEntries, ops, normalizeReg, normalizeClientName]);
 
   const filteredGarmentsContracts = useMemo(() => {
     return garmentsStatsList.filter((item) => {
@@ -1074,7 +1133,10 @@ export default function TransportManagementModule({
       if (garmentsBillingFilter !== 'ALL' && c.billingType !== garmentsBillingFilter) return false;
       if (garmentsSearchQuery.trim()) {
         const q = garmentsSearchQuery.toLowerCase();
-        const matchesClient = (c.clientName || c.customerName || '').toLowerCase().includes(q);
+        const normQ = normalizeClientName(q);
+        const matchesClient =
+          (c.clientName || c.customerName || '').toLowerCase().includes(q) ||
+          normalizeClientName(c.clientName || c.customerName || '').includes(normQ);
         const matchesContact = (c.contactPerson || '').toLowerCase().includes(q);
         const matchesPhone = (c.contactPhone || '').toLowerCase().includes(q);
         const matchesLoc = (c.factoryLocation || '').toLowerCase().includes(q);
@@ -1083,7 +1145,7 @@ export default function TransportManagementModule({
       }
       return true;
     });
-  }, [garmentsStatsList, garmentsBillingFilter, garmentsSearchQuery]);
+  }, [garmentsStatsList, garmentsBillingFilter, garmentsSearchQuery, normalizeClientName]);
 
   // Dedicated fleet trucks assigned to Garments factories
   const garmentsDedicatedTrucks = useMemo(() => {
@@ -3101,7 +3163,53 @@ export default function TransportManagementModule({
         remainingAmountToAllocate -= payForThisTrip;
       }
 
-      // 2. Post Double Entry Transaction: Debit Treasury (Cash/Bank), Credit Revenue
+      // 2. Update contract record in ops to track total collected rent / payments
+      if (targetClientForBill.contract && targetClientForBill.contract.id) {
+        const curContractAdv = Number(targetClientForBill.contract.advancePaid || targetClientForBill.contract.advanceReceived || 0);
+        const newContractAdv = curContractAdv + clientBillPayAmount;
+        const newContractDue = Math.max(0, Number(targetClientForBill.totalDue || 0) - clientBillPayAmount);
+        try {
+          await updateTransportOpRecord(
+            targetClientForBill.contract,
+            {
+              advancePaid: newContractAdv,
+              advanceReceived: newContractAdv,
+              outstandingDue: newContractDue,
+              remainingDue: newContractDue,
+            },
+            actorEmail
+          );
+        } catch (cErr) {
+          console.warn('Could not update contract op record:', cErr);
+        }
+      }
+
+      // 3. Create a dedicated payment op record in ops for client payment ledger
+      try {
+        await createTransportOpRecord(
+          {
+            tripOrVehicleCode: recCode,
+            recordType: 'payment',
+            businessId: activeBusiness.id,
+            clientName: companyName,
+            customerName: companyName,
+            date: clientBillPayDate,
+            tripRevenue: Number(clientBillPayAmount),
+            advancePaid: Number(clientBillPayAmount),
+            advanceReceived: Number(clientBillPayAmount),
+            remainingDue: 0,
+            outstandingDue: 0,
+            status: 'completed',
+            remarks: `Corporate garments payment collection: ${clientBillNotes}`,
+          } as any,
+          ownerId,
+          actorEmail
+        );
+      } catch (pErr) {
+        console.warn('Could not create payment op record:', pErr);
+      }
+
+      // 4. Post Double Entry Transaction: Debit Treasury (Cash/Bank), Credit Revenue
       if (selectedWallet && revAcc) {
         await postDoubleEntryTransaction(
           {
@@ -3111,7 +3219,7 @@ export default function TransportManagementModule({
             businessName: activeBusiness.name,
             transactionType: 'sale',
             category: `Corporate Garments Monthly Bill Collection (${companyName})`,
-            description: `Collected ৳${clientBillPayAmount} monthly transport bill from ${companyName}. ${clientBillNotes}`,
+            description: `Collected ৳${clientBillPayAmount} transport payment from ${companyName}. ${clientBillNotes}`,
             debitAccountId: selectedWallet.id,
             debitAccountName: selectedWallet.name,
             creditAccountId: revAcc.id,
