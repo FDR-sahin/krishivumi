@@ -349,6 +349,9 @@ export interface ErpTransportOp {
   driverCommission?: number;
   demurrageAmount?: number;
   demurrageDays?: number;
+  demurrageDailyRate?: number;
+  demurrageReason?: string;
+  demurrageDriverAllowance?: number;
   tripExpense?: number;
   estimatedTripFare?: number;
   advancePaid?: number;

@@ -178,6 +178,10 @@ export default function TransportManagementModule({
   });
   const [quickDispatchFare, setQuickDispatchFare] = useState<number>(14500);
   const [quickDispatchDemurrage, setQuickDispatchDemurrage] = useState<number>(0);
+  const [quickDispatchDemurrageDays, setQuickDispatchDemurrageDays] = useState<number>(0);
+  const [quickDispatchDemurrageDailyRate, setQuickDispatchDemurrageDailyRate] = useState<number>(3000);
+  const [quickDispatchDemurrageReason, setQuickDispatchDemurrageReason] = useState<string>('Factory Unloading Delay (Exceeded 24h standard)');
+  const [quickDispatchDriverDelayKhoraki, setQuickDispatchDriverDelayKhoraki] = useState<number>(0);
   const [quickDispatchAdvance, setQuickDispatchAdvance] = useState<number>(0);
   const [quickDispatchKhoraki, setQuickDispatchKhoraki] = useState<number>(2000);
   const [quickDispatchCargo, setQuickDispatchCargo] = useState('RMG Garments Export Cartons');
@@ -775,6 +779,9 @@ export default function TransportManagementModule({
       distanceKm: 260,
       tripRevenue: 15000,
       demurrageAmount: 6000,
+      demurrageDays: 2,
+      demurrageDailyRate: 3000,
+      demurrageReason: 'Factory Unloading Delay (2 Days Detention)',
       advancePaid: 0,
       advanceReceived: 0,
       driverKhoraki: 2000,
@@ -813,6 +820,9 @@ export default function TransportManagementModule({
       distanceKm: 260,
       tripRevenue: 16000,
       demurrageAmount: 4000,
+      demurrageDays: 1,
+      demurrageDailyRate: 4000,
+      demurrageReason: 'Port Berth Congestion / Offloading Delay (1 Day)',
       advancePaid: 0,
       advanceReceived: 0,
       driverKhoraki: 2000,
@@ -3128,6 +3138,10 @@ export default function TransportManagementModule({
       setQuickDispatchFare(15000);
     }
     setQuickDispatchDemurrage(0);
+    setQuickDispatchDemurrageDays(0);
+    setQuickDispatchDemurrageDailyRate(3000);
+    setQuickDispatchDemurrageReason('Factory Unloading Delay (Exceeded 24h standard)');
+    setQuickDispatchDriverDelayKhoraki(0);
     setQuickDispatchAdvance(0);
     setQuickDispatchKhoraki(2000);
     const today = new Date().toISOString().slice(0, 10);
@@ -3216,13 +3230,17 @@ export default function TransportManagementModule({
           distanceKm: 260,
           tripRevenue: Number(quickDispatchFare || 0),
           demurrageAmount: Number(quickDispatchDemurrage || 0),
+          demurrageDays: Number(quickDispatchDemurrageDays || 0),
+          demurrageDailyRate: Number(quickDispatchDemurrageDailyRate || 0),
+          demurrageReason: quickDispatchDemurrageDays > 0 || quickDispatchDemurrage > 0 ? quickDispatchDemurrageReason : undefined,
+          demurrageDriverAllowance: Number(quickDispatchDriverDelayKhoraki || 0),
           advancePaid: Number(quickDispatchAdvance || 0),
           advanceReceived: Number(quickDispatchAdvance || 0),
           remainingDue: Math.max(0, Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - Number(quickDispatchAdvance || 0)),
           outstandingDue: Math.max(0, Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - Number(quickDispatchAdvance || 0)),
-          driverKhoraki: Number(quickDispatchKhoraki || 0),
-          tripExpense: Number(quickDispatchKhoraki || 0),
-          netIncome: Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - Number(quickDispatchKhoraki || 0),
+          driverKhoraki: Number(quickDispatchKhoraki || 0) + Number(quickDispatchDriverDelayKhoraki || 0),
+          tripExpense: Number(quickDispatchKhoraki || 0) + Number(quickDispatchDriverDelayKhoraki || 0),
+          netIncome: Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - (Number(quickDispatchKhoraki || 0) + Number(quickDispatchDriverDelayKhoraki || 0)),
           insuranceExpiry: '2027-12-31',
           fitnessExpiry: '2027-12-31',
           taxTokenExpiry: '2027-12-31',
@@ -3298,11 +3316,19 @@ export default function TransportManagementModule({
     setShowCorporateBillModal(true);
   };
 
-  const handleUpdateTripDemurrage = async (tripId: string, demurrage: number) => {
+  const handleUpdateTripDemurrage = async (tripId: string, demurrage: number, days?: number, reason?: string) => {
     const trip = allTrips.find((t) => t.id === tripId);
     if (trip && !trip.id.startsWith('demo-')) {
-      await updateTransportOpRecord(trip, { demurrageAmount: demurrage }, actorEmail);
-      triggerGlobalToast('Demurrage updated successfully', 'success');
+      await updateTransportOpRecord(
+        trip,
+        {
+          demurrageAmount: demurrage,
+          demurrageDays: days,
+          demurrageReason: reason,
+        },
+        actorEmail
+      );
+      triggerGlobalToast('Demurrage and detention delay details updated successfully', 'success');
     } else {
       triggerGlobalToast('Demurrage updated', 'info');
     }
@@ -9127,7 +9153,7 @@ export default function TransportManagementModule({
               </div>
 
               {/* 4. Fare, Date & Advances */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
                   <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
                     Dispatch Date *
@@ -9143,7 +9169,7 @@ export default function TransportManagementModule({
 
                 <div>
                   <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
-                    Trip Rent (BDT) *
+                    Base Freight Rent (BDT) *
                   </label>
                   <input
                     type="number"
@@ -9152,20 +9178,6 @@ export default function TransportManagementModule({
                     value={quickDispatchFare}
                     onChange={(e) => setQuickDispatchFare(Number(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-purple-700 dark:text-purple-300 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
-                    Demurrage (BDT)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={quickDispatchDemurrage}
-                    onChange={(e) => setQuickDispatchDemurrage(Number(e.target.value))}
-                    placeholder="0"
-                    className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-amber-700 dark:text-amber-300 focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
@@ -9182,6 +9194,112 @@ export default function TransportManagementModule({
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs text-emerald-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
+              </div>
+
+              {/* Demurrage & Vehicle Detention Breakdown */}
+              <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    <Clock className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Demurrage & Vehicle Detention (Extra Waiting Charge)</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 font-mono">
+                    {quickDispatchDemurrage > 0 ? `+BDT ${quickDispatchDemurrage.toLocaleString()} Added to Bill` : 'No Detention'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <label className="block mb-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      Detention Days
+                    </label>
+                    <select
+                      value={quickDispatchDemurrageDays}
+                      onChange={(e) => {
+                        const days = Number(e.target.value);
+                        setQuickDispatchDemurrageDays(days);
+                        setQuickDispatchDemurrage(days * quickDispatchDemurrageDailyRate);
+                        setQuickDispatchDriverDelayKhoraki(days * 500);
+                      }}
+                      className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1.5 font-bold text-xs"
+                    >
+                      <option value={0}>0 Days (On-time Unloading)</option>
+                      <option value={1}>1 Day Detention</option>
+                      <option value={2}>2 Days Detention</option>
+                      <option value={3}>3 Days Detention</option>
+                      <option value={4}>4 Days Detention</option>
+                      <option value={5}>5 Days Detention</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      Daily Demurrage Rate (BDT/day)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={500}
+                      value={quickDispatchDemurrageDailyRate}
+                      onChange={(e) => {
+                        const rate = Number(e.target.value);
+                        setQuickDispatchDemurrageDailyRate(rate);
+                        setQuickDispatchDemurrage(quickDispatchDemurrageDays * rate);
+                      }}
+                      className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      Total Demurrage Billed (BDT)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={quickDispatchDemurrage}
+                      onChange={(e) => setQuickDispatchDemurrage(Number(e.target.value))}
+                      placeholder="0"
+                      className="w-full rounded-lg border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-amber-800 dark:text-amber-300"
+                    />
+                  </div>
+                </div>
+
+                {quickDispatchDemurrageDays > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-amber-200/80 dark:border-amber-900/40">
+                    <div>
+                      <label className="block mb-1 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                        Detention Cause / Delay Reason
+                      </label>
+                      <select
+                        value={quickDispatchDemurrageReason}
+                        onChange={(e) => setQuickDispatchDemurrageReason(e.target.value)}
+                        className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1 text-[11px]"
+                      >
+                        <option value="Factory Unloading Delay (Exceeded 24h standard)">Factory Unloading Delay</option>
+                        <option value="Port / CFS Berth Congestion & Yard Hold">Port / CFS Congestion</option>
+                        <option value="Factory Closed / Weekend / Public Holiday">Factory Closed / Holiday</option>
+                        <option value="Customs & Shipping Document Hold">Customs Document Hold</option>
+                        <option value="Receiver Labor Shortage at Offloading Point">Receiver Labor Shortage</option>
+                        <option value="Truck Detained on Route / Highway Hold">Truck Stopped / Detained on Route</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                        Driver Extra Delay Khoraki / Allowance (BDT)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={quickDispatchDriverDelayKhoraki}
+                        onChange={(e) => setQuickDispatchDriverDelayKhoraki(Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2 py-1 font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Trip Duration & Expected Return Date */}
@@ -9296,6 +9414,22 @@ export default function TransportManagementModule({
                     placeholder="e.g. RMG Garments Export Cartons"
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
                   />
+                </div>
+              </div>
+
+              {/* Live Fare & Khoraki Summary Box */}
+              <div className="p-3 rounded-xl bg-slate-900 text-white flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-slate-400 text-[10px] block font-medium">Total Billed to Client (Rent + Demurrage)</span>
+                  <span className="text-base font-black font-mono text-emerald-400">
+                    {formatBDT(Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0))}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-400 text-[10px] block font-medium">Driver Total Khoraki</span>
+                  <span className="font-mono font-bold text-amber-300">
+                    {formatBDT(Number(quickDispatchKhoraki || 0) + Number(quickDispatchDriverDelayKhoraki || 0))}
+                  </span>
                 </div>
               </div>
 
@@ -10179,10 +10313,10 @@ export default function TransportManagementModule({
           }}
           contract={selectedCorporateBillContract}
           clientTrips={corporateBillTrips}
-          businessName="M/S IQRA ENTERPRISE"
-          businessAddress="JL Menson 2nd Floor, 7/1 BRDC Road, Tejgaon, Dhaka-1208"
+          businessName="REGARDSAGRO ENTERPRISE"
+          businessAddress="Tejgaon Industrial Area, Dhaka-1208, Bangladesh"
           businessPhone="01719714211, 017787779, 01707300599"
-          businessEmail="iqraenterprise747@gmail.com"
+          businessEmail="regardsagro747@gmail.com"
           onUpdateTripDemurrage={handleUpdateTripDemurrage}
           onReceivePayment={(clientItem) => {
             setShowCorporateBillModal(false);

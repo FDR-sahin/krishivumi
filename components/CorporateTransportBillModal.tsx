@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Printer, X, Download, Calendar, DollarSign, Edit2, Check, RefreshCw, Building2 } from 'lucide-react';
+import { Printer, X, Calendar, DollarSign, Edit2, Check, Building2, Truck, AlertCircle, FileText } from 'lucide-react';
 import { ErpTransportOp } from '@/lib/erp-types';
 
 interface CorporateTransportBillModalProps {
@@ -13,7 +13,7 @@ interface CorporateTransportBillModalProps {
   businessAddress?: string;
   businessPhone?: string;
   businessEmail?: string;
-  onUpdateTripDemurrage?: (tripId: string, demurrage: number) => Promise<void>;
+  onUpdateTripDemurrage?: (tripId: string, demurrage: number, days?: number, reason?: string) => Promise<void>;
   onReceivePayment?: (clientItem: any) => void;
   lang?: 'en' | 'bn';
 }
@@ -55,15 +55,25 @@ function numberToWords(amount: number): string {
   return convert(Math.abs(Math.round(amount))) + ' TAKA ONLY';
 }
 
+const COMMON_DEMURRAGE_REASONS = [
+  'Factory Unloading Delay (Exceeded 24h standard)',
+  'Port / CFS Berth Congestion & Yard Hold',
+  'Factory Closed / Weekend / Public Holiday',
+  'Customs & Shipping Document Hold',
+  'Receiver Labor Shortage at Offloading Point',
+  'Truck Detained on Route / Highway Hold',
+  'Special Client Holding Request',
+];
+
 export default function CorporateTransportBillModal({
   isOpen,
   onClose,
   contract,
   clientTrips,
-  businessName = 'M/S IQRA ENTERPRISE',
-  businessAddress = 'JL Menson 2nd Floor, 7/1 BRDC Road, Tejgaon, Dhaka-1208',
+  businessName = 'REGARDSAGRO ENTERPRISE',
+  businessAddress = 'Tejgaon Industrial Area, Dhaka-1208, Bangladesh',
   businessPhone = '01719714211, 017787779, 01707300599',
-  businessEmail = 'iqraenterprise747@gmail.com',
+  businessEmail = 'regardsagro747@gmail.com',
   onUpdateTripDemurrage,
   onReceivePayment,
 }: CorporateTransportBillModalProps) {
@@ -71,6 +81,8 @@ export default function CorporateTransportBillModal({
   const [customBillNo, setCustomBillNo] = useState<string>('');
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [editingDemurrageVal, setEditingDemurrageVal] = useState<number>(0);
+  const [editingDemurrageDays, setEditingDemurrageDays] = useState<number>(1);
+  const [editingDemurrageReason, setEditingDemurrageReason] = useState<string>('Factory Unloading Delay');
   const [isSavingDemurrage, setIsSavingDemurrage] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -120,7 +132,7 @@ export default function CorporateTransportBillModal({
 
   // Auto Bill No
   const defaultBillNo = useMemo(() => {
-    const clientCode = (contract?.clientName || 'GSL').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 4);
+    const clientCode = (contract?.clientName || 'GSL').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 4);
     const year = new Date().getFullYear();
     const countStr = String(filteredTrips.length || 1).padStart(3, '0');
     return `SUM_TPB_${clientCode}_${year.toString().slice(-2)}${countStr}`;
@@ -144,11 +156,19 @@ export default function CorporateTransportBillModal({
     window.print();
   };
 
+  const startEditTripDemurrage = (trip: ErpTransportOp) => {
+    setEditingTripId(trip.id);
+    const currentDemurrage = Number(trip.demurrageAmount || 0);
+    setEditingDemurrageVal(currentDemurrage);
+    setEditingDemurrageDays(trip.demurrageDays || (currentDemurrage > 0 ? 1 : 1));
+    setEditingDemurrageReason(trip.demurrageReason || 'Factory Unloading Delay');
+  };
+
   const handleSaveDemurrage = async (tripId: string) => {
     if (!onUpdateTripDemurrage) return;
     setIsSavingDemurrage(true);
     try {
-      await onUpdateTripDemurrage(tripId, editingDemurrageVal);
+      await onUpdateTripDemurrage(tripId, editingDemurrageVal, editingDemurrageDays, editingDemurrageReason);
       setEditingTripId(null);
     } catch (err) {
       console.error('Failed to update demurrage:', err);
@@ -158,23 +178,29 @@ export default function CorporateTransportBillModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:fixed-none">
-      <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[95vh] print:max-h-none print:border-none print:shadow-none print:rounded-none">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:fixed-none cursor-pointer"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[95vh] print:max-h-none print:border-none print:shadow-none print:rounded-none cursor-default"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Top Control Bar (Hidden on Print) */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 rounded-t-2xl print:hidden">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
               <Building2 className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Corporate Transport Bill & Summary Invoice</span>
+                <span>{businessName} - Transport Bill & Monthly Statement</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  Real-World Format
+                  Official Statement
                 </span>
               </h2>
               <p className="text-xs text-slate-500">
-                Official monthly billing slip for garment factory with Rent + Demurrage breakdown.
+                Official billing statement for {clientName} with Rent + Demurrage breakdown.
               </p>
             </div>
           </div>
@@ -201,10 +227,10 @@ export default function CorporateTransportBillModal({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span>Print Invoice / PDF</span>
+              <span>Download PDF / Print</span>
             </button>
 
             {onReceivePayment && (
@@ -214,7 +240,7 @@ export default function CorporateTransportBillModal({
                   onClose();
                   onReceivePayment({ contract, totalDue: balanceDue, totalBilled: grandTotalTk, clientTrips });
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
               >
                 <DollarSign className="h-3.5 w-3.5" />
                 <span>+ Receive Payment</span>
@@ -225,6 +251,7 @@ export default function CorporateTransportBillModal({
               type="button"
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              title="Close (or click outside)"
             >
               <X className="h-5 w-5" />
             </button>
@@ -240,9 +267,9 @@ export default function CorporateTransportBillModal({
             {/* Top Brand Logo & Header */}
             <div className="flex items-center justify-between border-b-2 border-black pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-full border-2 border-blue-600 flex flex-col items-center justify-center p-1 text-center shrink-0">
-                  <div className="font-black text-blue-700 text-xs tracking-tighter leading-none">IQRA</div>
-                  <div className="text-[7px] text-slate-600 font-bold leading-none mt-0.5">Business service</div>
+                <div className="w-14 h-14 rounded-full border-2 border-emerald-600 flex flex-col items-center justify-center p-1 text-center shrink-0 bg-emerald-50">
+                  <div className="font-black text-emerald-800 text-[10px] tracking-tighter leading-none">REGARDS</div>
+                  <div className="text-[7px] text-emerald-700 font-bold leading-none mt-0.5">Agro Enterprise</div>
                 </div>
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-black">
@@ -256,7 +283,7 @@ export default function CorporateTransportBillModal({
 
               <div className="text-right text-[11px] text-slate-700 font-medium">
                 <div>Tejgaon Industrial Area, Dhaka</div>
-                <div className="font-mono text-[10px]">Head Office & Transport Depot</div>
+                <div className="font-mono text-[10px]">Head Office & Fleet Logistics Depot</div>
               </div>
             </div>
 
@@ -287,18 +314,44 @@ export default function CorporateTransportBillModal({
               </div>
             </div>
 
+            {/* Executive Summary Card (Monthly Trips, Demurrage & Income Breakdown) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Total Trips</span>
+                <span className="font-bold text-sm font-mono text-slate-900">{filteredTrips.length} Trips</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Base Freight</span>
+                <span className="font-bold text-sm font-mono text-slate-900">
+                  {totalRent.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-amber-700 block uppercase font-bold">Total Demurrage</span>
+                <span className="font-bold text-sm font-mono text-amber-800">
+                  {totalDemurrage.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="text-right sm:text-left">
+                <span className="text-[10px] text-emerald-700 block uppercase font-bold">Total Billed</span>
+                <span className="font-black text-sm font-mono text-emerald-800">
+                  {grandTotalTk.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
             {/* The Authentic Real-World Bill Table */}
-            <div className="pt-2">
+            <div className="pt-1">
               <table className="w-full border-collapse border-2 border-black text-xs">
                 <thead>
                   <tr className="bg-slate-100 text-black font-black uppercase text-[11px] text-center border-b-2 border-black">
                     <th className="border border-black py-2 px-2 w-[85px]">DATE</th>
-                    <th className="border border-black py-2 px-2 w-[110px]">BILL NO</th>
-                    <th className="border border-black py-2 px-2 w-[120px]">TRUCK NO</th>
+                    <th className="border border-black py-2 px-2 w-[105px]">BILL NO</th>
+                    <th className="border border-black py-2 px-2 w-[115px]">TRUCK NO</th>
                     <th className="border border-black py-2 px-2">LOAD</th>
                     <th className="border border-black py-2 px-2">UNLOAD</th>
                     <th className="border border-black py-2 px-2 text-right w-[95px]">RENT</th>
-                    <th className="border border-black py-2 px-2 text-right w-[95px]">DEMMURGE</th>
+                    <th className="border border-black py-2 px-2 text-right w-[115px]">DEMMURGE</th>
                     <th className="border border-black py-2 px-2 text-right w-[105px]">TOTAL TK</th>
                   </tr>
                 </thead>
@@ -342,41 +395,88 @@ export default function CorporateTransportBillModal({
                         </td>
                         <td className="border border-black py-1.5 px-2 text-right font-mono font-bold group relative">
                           {editingTripId === trip.id ? (
-                            <div className="flex items-center justify-end gap-1 print:hidden">
-                              <input
-                                type="number"
-                                autoFocus
-                                value={editingDemurrageVal}
-                                onChange={(e) => setEditingDemurrageVal(Number(e.target.value))}
-                                className="w-16 px-1 py-0.5 border border-purple-500 rounded text-right font-mono text-xs"
-                              />
-                              <button
-                                type="button"
-                                disabled={isSavingDemurrage}
-                                onClick={() => handleSaveDemurrage(trip.id)}
-                                className="p-0.5 rounded bg-emerald-600 text-white cursor-pointer"
-                              >
-                                <Check className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1">
-                              <span>
-                                {demurrage.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                              {onUpdateTripDemurrage && (
+                            <div className="p-2 rounded-lg bg-amber-50 border border-amber-300 text-left space-y-1.5 print:hidden">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-amber-900">Demurrage (BDT):</span>
+                                <input
+                                  type="number"
+                                  autoFocus
+                                  min={0}
+                                  value={editingDemurrageVal}
+                                  onChange={(e) => setEditingDemurrageVal(Number(e.target.value))}
+                                  className="w-20 px-1 py-0.5 border border-amber-500 rounded text-right font-mono text-xs bg-white"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-700">Days Delayed:</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={editingDemurrageDays}
+                                  onChange={(e) => setEditingDemurrageDays(Number(e.target.value))}
+                                  className="w-14 px-1 py-0.5 border border-slate-300 rounded text-right font-mono text-xs bg-white"
+                                />
+                              </div>
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-bold text-slate-700 block">Delay Reason:</span>
+                                <select
+                                  value={editingDemurrageReason}
+                                  onChange={(e) => setEditingDemurrageReason(e.target.value)}
+                                  className="w-full text-[10px] border border-slate-300 rounded p-1 bg-white"
+                                >
+                                  {COMMON_DEMURRAGE_REASONS.map((r) => (
+                                    <option key={r} value={r}>
+                                      {r}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex justify-end gap-1 pt-1">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setEditingTripId(trip.id);
-                                    setEditingDemurrageVal(demurrage);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-400 hover:text-purple-600 cursor-pointer print:hidden transition-opacity"
-                                  title="Edit Demurrage"
+                                  onClick={() => setEditingTripId(null)}
+                                  className="px-2 py-0.5 rounded text-[10px] border border-slate-300 text-slate-600 bg-white cursor-pointer"
                                 >
-                                  <Edit2 className="h-2.5 w-2.5" />
+                                  Cancel
                                 </button>
-                              )}
+                                <button
+                                  type="button"
+                                  disabled={isSavingDemurrage}
+                                  onClick={() => handleSaveDemurrage(trip.id)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-emerald-600 text-white font-bold cursor-pointer"
+                                >
+                                  <Check className="h-3 w-3" />
+                                  <span>Save</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-end justify-center">
+                              <div className="flex items-center justify-end gap-1">
+                                <span>
+                                  {demurrage.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                {onUpdateTripDemurrage && (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditTripDemurrage(trip)}
+                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-400 hover:text-emerald-600 cursor-pointer print:hidden transition-opacity"
+                                    title="Edit Demurrage / Delay Cause"
+                                  >
+                                    <Edit2 className="h-2.5 w-2.5" />
+                                  </button>
+                                )}
+                              </div>
+                              {trip.demurrageDays ? (
+                                <span className="text-[8.5px] font-sans text-amber-700 font-semibold block leading-tight">
+                                  {trip.demurrageDays}d delayed
+                                </span>
+                              ) : null}
+                              {trip.demurrageReason ? (
+                                <span className="text-[8px] font-sans text-slate-500 italic block leading-tight truncate max-w-[100px]" title={trip.demurrageReason}>
+                                  {trip.demurrageReason}
+                                </span>
+                              ) : null}
                             </div>
                           )}
                         </td>
@@ -421,14 +521,14 @@ export default function CorporateTransportBillModal({
             </div>
 
             {/* Signature Area (Exact Match to Picture) */}
-            <div className="pt-16 sm:pt-20 pb-4 flex items-end justify-between text-xs font-bold text-black">
+            <div className="pt-14 sm:pt-16 pb-3 flex items-end justify-between text-xs font-bold text-black">
               <div className="text-center w-40">
                 <div className="border-t border-black pt-1">Received By</div>
               </div>
 
-              <div className="text-center w-52 space-y-1">
-                <div className="text-blue-800 font-mono font-black text-xs italic tracking-wider">
-                  M/S IQRA ENTERPRISE
+              <div className="text-center w-56 space-y-1">
+                <div className="text-emerald-800 font-mono font-black text-xs italic tracking-wider">
+                  {businessName}
                 </div>
                 <div className="border-t border-black pt-1 font-bold">
                   Proprietor / Authorized Signature
@@ -439,7 +539,7 @@ export default function CorporateTransportBillModal({
             {/* Bottom Footer Info (Exact Match to Picture) */}
             <div className="border-t border-slate-400 pt-3 text-[10px] text-slate-700 space-y-1">
               <div className="flex items-center justify-between font-bold">
-                <span className="text-blue-800 font-extrabold uppercase">
+                <span className="text-emerald-800 font-extrabold uppercase">
                   Commission Agent | All Bangladesh Transportation
                 </span>
                 <span>Government Registered Commercial Transport Carrier</span>
@@ -452,7 +552,7 @@ export default function CorporateTransportBillModal({
                 </div>
                 <div>
                   <span className="font-bold text-black">Chittagong Office : </span>
-                  Suvopur Basstend Kodomtoli Ctg
+                  Suvopur Bus Stand, Kadamtali, Chittagong
                 </div>
               </div>
 
@@ -492,10 +592,10 @@ export default function CorporateTransportBillModal({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
             >
               <Printer className="h-4 w-4" />
-              <span>Print A4 Invoice</span>
+              <span>Download PDF / Print</span>
             </button>
             <button
               type="button"
