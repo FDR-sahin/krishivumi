@@ -351,6 +351,7 @@ export default function TransportManagementModule({
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedTruckFilter, setSelectedTruckFilter] = useState<string>('ALL');
   const [selectedTripStatusFilter, setSelectedTripStatusFilter] = useState<string>('ALL');
+  const [tripSearchQuery, setTripSearchQuery] = useState('');
 
   // Driver Table Filters (Excel View)
   const [driverSearchQuery, setDriverSearchQuery] = useState('');
@@ -471,6 +472,7 @@ export default function TransportManagementModule({
   const [editVehReg, setEditVehReg] = useState('');
   const [editVehName, setEditVehName] = useState('');
   const [editVehDriver, setEditVehDriver] = useState('');
+  const [editVehDriverPhone, setEditVehDriverPhone] = useState('');
   const [editVehOdometer, setEditVehOdometer] = useState<number>(0);
   const [editVehCapacity, setEditVehCapacity] = useState<number>(0);
   const [editVehBodyType, setEditVehBodyType] = useState('covered');
@@ -1275,10 +1277,20 @@ export default function TransportManagementModule({
       if (driverTruckFilter !== 'ALL' && d.truck !== driverTruckFilter) return false;
       if (driverStatusFilter !== 'ALL' && d.status !== driverStatusFilter) return false;
       if (driverSearchQuery.trim()) {
-        const q = driverSearchQuery.toLowerCase();
+        const q = driverSearchQuery.toLowerCase().trim();
+        const cleanQ = q.replace(/[^a-z0-9]/gi, '');
+        const digitsQ = q.replace(/\D/g, '');
+
         const matchesName = d.name.toLowerCase().includes(q);
-        const matchesPhone = (d.phone || '').toLowerCase().includes(q);
-        const matchesTruck = (d.truck || '').toLowerCase().includes(q);
+        const matchesPhone = (d.phone || '').replace(/\D/g, '').includes(digitsQ) || (d.phone || '').toLowerCase().includes(q);
+
+        const truckReg = (d.truck || '').toLowerCase();
+        const digitsTruck = truckReg.replace(/\D/g, '');
+        const cleanTruck = truckReg.replace(/[^a-z0-9]/gi, '');
+        const matchTruckDigits = digitsQ.length >= 2 && digitsTruck.includes(digitsQ);
+        const matchCleanTruck = cleanQ.length > 0 && cleanTruck.includes(cleanQ);
+        const matchesTruck = truckReg.includes(q) || matchCleanTruck || matchTruckDigits;
+
         const matchesLicense = (d.license || '').toLowerCase().includes(q);
         if (!matchesName && !matchesPhone && !matchesTruck && !matchesLicense) return false;
       }
@@ -1294,13 +1306,23 @@ export default function TransportManagementModule({
       if (truckContractFilter === 'garments' && !getTruckAssignedGarments(v.registrationNumber)) return false;
       if (truckContractFilter === 'open' && getTruckAssignedGarments(v.registrationNumber)) return false;
       if (truckSearchQuery.trim()) {
-        const q = truckSearchQuery.toLowerCase();
-        const matchReg = (v.registrationNumber || '').toLowerCase().includes(q);
+        const q = truckSearchQuery.toLowerCase().trim();
+        const cleanQ = q.replace(/[^a-z0-9]/gi, '');
+        const digitsQ = q.replace(/\D/g, '');
+
+        const reg = (v.registrationNumber || '').toLowerCase();
+        const cleanReg = reg.replace(/[^a-z0-9]/gi, '');
+        const digitsReg = reg.replace(/\D/g, '');
+
+        const matchDigits = digitsQ.length >= 2 && digitsReg.includes(digitsQ);
+        const matchCleanReg = cleanQ.length > 0 && cleanReg.includes(cleanQ);
+        const matchReg = reg.includes(q) || matchCleanReg || matchDigits;
         const matchDriver = (v.driverName || '').toLowerCase().includes(q);
+        const matchPhone = (v.driverPhone || '').replace(/\D/g, '').includes(digitsQ) || (v.driverPhone || '').toLowerCase().includes(q);
         const matchModel = (v.vehicleType || v.truckName || '').toLowerCase().includes(q);
         const matchChassis = (v.chassisNumber || '').toLowerCase().includes(q);
         const matchCode = (v.tripOrVehicleCode || '').toLowerCase().includes(q);
-        if (!matchReg && !matchDriver && !matchModel && !matchChassis && !matchCode) return false;
+        if (!matchReg && !matchDriver && !matchPhone && !matchModel && !matchChassis && !matchCode) return false;
       }
       return true;
     });
@@ -2267,6 +2289,10 @@ export default function TransportManagementModule({
   const [newVehFuelType, setNewVehFuelType] = useState('Diesel');
   const [newVehOdometer, setNewVehOdometer] = useState<number>(45000);
   const [newVehDriver, setNewVehDriver] = useState('');
+  const [newVehDriverPhone, setNewVehDriverPhone] = useState('');
+  const [addTripTruckSearch, setAddTripTruckSearch] = useState('');
+  const [quickDispatchTruckSearch, setQuickDispatchTruckSearch] = useState('');
+  const [contractTruckSearch, setContractTruckSearch] = useState('');
   const [newVehTaxTokenExp, setNewVehTaxTokenExp] = useState('2027-06-30');
   const [newVehFitnessExp, setNewVehFitnessExp] = useState('2027-05-31');
   const [newVehInsuranceExp, setNewVehInsuranceExp] = useState('2027-08-31');
@@ -2512,6 +2538,12 @@ export default function TransportManagementModule({
     setEditVehReg(v.registrationNumber || '');
     setEditVehName(v.truckName || v.vehicleType || '');
     setEditVehDriver(v.driverName || '');
+    const d = allDrivers.find(
+      (dr) =>
+        dr.name.toLowerCase() === (v.driverName || '').toLowerCase() ||
+        normalizeReg(dr.truck) === normalizeReg(v.registrationNumber)
+    );
+    setEditVehDriverPhone(v.driverPhone || d?.phone || '');
     setEditVehOdometer(Number(v.currentOdometer || v.distanceKm || 0));
     setEditVehCapacity(Number(v.capacityTons || 0));
     setEditVehBodyType(v.truckBodyType || 'covered');
@@ -2530,12 +2562,14 @@ export default function TransportManagementModule({
     setIsSubmitting(true);
     try {
       const updatedDriverName = editVehDriver.trim() || 'Unassigned';
+      const updatedDriverPhone = editVehDriverPhone.trim();
       await updateTransportOpRecord(
         editingVehicle,
         {
           registrationNumber: editVehReg.trim(),
           truckName: editVehName.trim(),
           driverName: updatedDriverName,
+          driverPhone: updatedDriverPhone,
           currentOdometer: editVehOdometer,
           capacityTons: editVehCapacity,
           truckBodyType: editVehBodyType,
@@ -2551,8 +2585,8 @@ export default function TransportManagementModule({
       // Auto-synchronize driver name with any active or running trips for this truck
       const activeTripsOfVehicle = allTrips.filter(
         (t) =>
-          (t.registrationNumber === editingVehicle.registrationNumber ||
-            t.registrationNumber === editVehReg.trim()) &&
+          (normalizeReg(t.registrationNumber) === normalizeReg(editingVehicle.registrationNumber) ||
+            normalizeReg(t.registrationNumber) === normalizeReg(editVehReg.trim())) &&
           (t.status === 'active' || t.status === 'running')
       );
       const drvObj = allDrivers.find((d) => d.name.toLowerCase() === updatedDriverName.toLowerCase());
@@ -2562,7 +2596,7 @@ export default function TransportManagementModule({
             tr,
             {
               driverName: updatedDriverName,
-              ...(drvObj?.phone ? { driverPhone: drvObj.phone } : {}),
+              ...(updatedDriverPhone ? { driverPhone: updatedDriverPhone } : (drvObj?.phone ? { driverPhone: drvObj.phone } : {})),
               ...(drvObj?.license ? { driverLicense: drvObj.license } : {}),
             },
             actorEmail
@@ -2585,15 +2619,19 @@ export default function TransportManagementModule({
   const handleTruckSelectChange = useCallback(
     (reg: string) => {
       setTripTruckReg(reg);
-      const v = allVehicles.find((veh) => veh.registrationNumber === reg);
+      const v = allVehicles.find((veh) => normalizeReg(veh.registrationNumber) === normalizeReg(reg));
       if (v?.driverName) {
         setTripDriverName(v.driverName);
-        const d = allDrivers.find((dr) => dr.name.toLowerCase() === v.driverName?.toLowerCase());
-        if (d?.phone) setTripDriverPhone(d.phone);
-        else if (v.driverPhone) setTripDriverPhone(v.driverPhone);
+        const d = allDrivers.find(
+          (dr) =>
+            dr.name.toLowerCase() === v.driverName?.toLowerCase() ||
+            normalizeReg(dr.truck) === normalizeReg(reg)
+        );
+        if (v.driverPhone) setTripDriverPhone(v.driverPhone);
+        else if (d?.phone) setTripDriverPhone(d.phone);
         else setTripDriverPhone('');
       } else {
-        const fallbackDriver = allDrivers.find((dr) => dr.truck === reg) || allDrivers[0];
+        const fallbackDriver = allDrivers.find((dr) => normalizeReg(dr.truck) === normalizeReg(reg)) || allDrivers[0];
         if (fallbackDriver) {
           setTripDriverName(fallbackDriver.name);
           setTripDriverPhone(fallbackDriver.phone || '');
@@ -2786,6 +2824,7 @@ export default function TransportManagementModule({
           fuelType: newVehFuelType,
           currentOdometer: Number(newVehOdometer || 0),
           driverName: newVehDriver.trim() || 'Unassigned',
+          driverPhone: newVehDriverPhone.trim() || undefined,
           origin: 'Central Garage',
           destination: 'Fleet Yard',
           cargoDetails: 'Commercial Agro Transport',
@@ -3561,6 +3600,9 @@ export default function TransportManagementModule({
       const tripOrder = quickDispatchOrderNo.trim() || `ORD-${currentYear}-${String(allTrips.length + 1).padStart(3, '0')}`;
       const tripCode = tripChallan;
       const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
+      const resolvedDriverPhone = veh?.driverPhone || allDrivers.find(
+        (dr) => dr.name.toLowerCase() === (veh?.driverName || '').toLowerCase() || normalizeReg(dr.truck) === normalizeReg(quickDispatchTruck)
+      )?.phone || undefined;
       const contract = quickDispatchContract || getTruckAssignedGarments(quickDispatchTruck);
       const originLoc = contract?.factoryLocation || contract?.origin || 'Ashulia, Savar';
       const dynamicKm = calculateHighwayDistance(originLoc, quickDispatchDest || 'Chittagong Port').km;
@@ -3575,7 +3617,7 @@ export default function TransportManagementModule({
           registrationNumber: quickDispatchTruck,
           vehicleType: veh?.vehicleType || 'Covered Van',
           driverName: veh?.driverName || 'Driver Assigned',
-          driverPhone: veh?.driverPhone || undefined,
+          driverPhone: resolvedDriverPhone,
           origin: originLoc,
           destination: quickDispatchDest || 'Chittagong Port',
           loadingLocation: originLoc,
@@ -5731,18 +5773,41 @@ export default function TransportManagementModule({
               </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap flex-1 justify-end">
+              <div className="relative min-w-[220px] max-w-sm">
+                <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={tripSearchQuery}
+                  onChange={(e) => setTripSearchQuery(e.target.value)}
+                  placeholder="Search by Truck digits (e.g. 9171), Challan, Driver..."
+                  className="w-full pl-8 pr-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:border-emerald-500"
+                />
+                {tripSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setTripSearchQuery('')}
+                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+
               <select
                 value={selectedTruckFilter}
                 onChange={(e) => setSelectedTruckFilter(e.target.value)}
                 className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold"
               >
                 <option value="ALL">All Trucks ({allVehicles.length} Registered)</option>
-                {allVehicles.map((v) => (
-                  <option key={v.id} value={v.registrationNumber}>
-                    {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
-                  </option>
-                ))}
+                {allVehicles.map((v) => {
+                  const digits = (v.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                  return (
+                    <option key={v.id} value={v.registrationNumber}>
+                      [{digits || 'TRK'}] {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                    </option>
+                  );
+                })}
               </select>
 
               <select
@@ -5784,7 +5849,26 @@ export default function TransportManagementModule({
                 {allTrips
                   .filter((t) => {
                     if (selectedTripStatusFilter !== 'ALL' && t.status !== selectedTripStatusFilter) return false;
-                    if (selectedTruckFilter !== 'ALL' && t.registrationNumber !== selectedTruckFilter) return false;
+                    if (selectedTruckFilter !== 'ALL' && normalizeReg(t.registrationNumber) !== normalizeReg(selectedTruckFilter)) return false;
+                    if (tripSearchQuery.trim()) {
+                      const q = tripSearchQuery.toLowerCase().trim();
+                      const cleanQ = q.replace(/[^a-z0-9]/gi, '');
+                      const digitsQ = q.replace(/\D/g, '');
+
+                      const reg = (t.registrationNumber || '').toLowerCase();
+                      const cleanReg = reg.replace(/[^a-z0-9]/gi, '');
+                      const digitsReg = reg.replace(/\D/g, '');
+
+                      const matchDigits = digitsQ.length >= 2 && digitsReg.includes(digitsQ);
+                      const matchCleanReg = cleanQ.length > 0 && cleanReg.includes(cleanQ);
+                      const matchTruck = reg.includes(q) || matchCleanReg || matchDigits;
+                      const matchDriver = (t.driverName || '').toLowerCase().includes(q);
+                      const matchPhone = ((t.driverPhone || (t as any).receiverPhone || '') + '').replace(/\D/g, '').includes(digitsQ) || (t.driverPhone || '').toLowerCase().includes(q);
+                      const matchChallan = (t.challanNumber || t.tripOrVehicleCode || t.orderNumber || '').toLowerCase().includes(q);
+                      const matchRoute = ((t.loadingLocation || t.origin || '') + ' ' + (t.deliveryLocation || t.destination || '') + ' ' + (t.cargoDetails || '') + ' ' + (t.customerName || t.clientName || '')).toLowerCase().includes(q);
+
+                      if (!matchTruck && !matchDriver && !matchPhone && !matchChallan && !matchRoute) return false;
+                    }
                     return true;
                   })
                   .map((t, index) => {
@@ -6102,18 +6186,21 @@ export default function TransportManagementModule({
                 />
               </div>
 
-              {/* Truck Dropdown Filter */}
+              {/* Driver Truck Dropdown Filter */}
               <select
                 value={driverTruckFilter}
                 onChange={(e) => setDriverTruckFilter(e.target.value)}
                 className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-purple-500"
               >
                 <option value="ALL">All Trucks ({allVehicles.length})</option>
-                {allVehicles.map((v) => (
-                  <option key={v.id} value={v.registrationNumber}>
-                    {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
-                  </option>
-                ))}
+                {allVehicles.map((v) => {
+                  const digits = (v.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                  return (
+                    <option key={v.id} value={v.registrationNumber}>
+                      [{digits || 'TRK'}] {v.registrationNumber} ({v.truckBodyType || v.vehicleType || 'Truck'})
+                    </option>
+                  );
+                })}
               </select>
 
               {/* Status Dropdown Filter */}
@@ -6504,28 +6591,69 @@ export default function TransportManagementModule({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                   <div>
-                    <label className="block mb-1 font-semibold">Select Truck *</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-semibold">Select Truck *</label>
+                      <span className="text-[10px] text-emerald-600 font-bold">🔍 By digits (e.g. 9171)</span>
+                    </div>
+                    <div className="relative mb-1">
+                      <Search className="h-3 w-3 absolute left-2 top-2 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={addTripTruckSearch}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAddTripTruckSearch(val);
+                          if (val.trim()) {
+                            const digitsQ = val.replace(/\D/g, '');
+                            const cleanQ = val.replace(/[^a-z0-9]/gi, '').toLowerCase();
+                            const matched = allVehicles.find((v) => {
+                              const dReg = (v.registrationNumber || '').replace(/\D/g, '');
+                              const cReg = (v.registrationNumber || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+                              const mDriver = (v.driverName || '').toLowerCase().includes(cleanQ);
+                              return (digitsQ.length >= 2 && dReg.includes(digitsQ)) || cReg.includes(cleanQ) || mDriver;
+                            });
+                            if (matched) {
+                              handleTruckSelectChange(matched.registrationNumber);
+                            }
+                          }
+                        }}
+                        placeholder="Search digits e.g. 9171, 8899..."
+                        className="w-full pl-6 pr-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
                     <select
                       value={tripTruckReg}
                       onChange={(e) => handleTruckSelectChange(e.target.value)}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold"
                     >
-                      {allVehicles.map((v) => {
-                        const activeInfo = getTruckActiveTrip(v.registrationNumber);
-                        const isBusy = activeInfo.isOnTrip;
-                        const contract = getTruckAssignedGarments(v.registrationNumber);
-                        const contractLabel = contract ? ` [${(contract.clientName || 'Garments').split(' ')[0]} - ${contract.billingType === 'monthly' ? 'Monthly' : 'Per-Trip'}]` : '';
-                        return (
-                          <option
-                            key={v.id}
-                            value={v.registrationNumber}
-                            disabled={isBusy}
-                            className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
-                          >
-                            {v.registrationNumber} {isBusy ? `— [BUSY: On Trip until ${activeInfo.returnDateFormatted}] 🚫` : '— [Available]'}{contractLabel} ({v.truckBodyType || v.vehicleType || 'Truck'})
-                          </option>
-                        );
-                      })}
+                      {allVehicles
+                        .filter((v) => {
+                          if (!addTripTruckSearch.trim()) return true;
+                          const digitsQ = addTripTruckSearch.replace(/\D/g, '');
+                          const cleanQ = addTripTruckSearch.replace(/[^a-z0-9]/gi, '').toLowerCase();
+                          const dReg = (v.registrationNumber || '').replace(/\D/g, '');
+                          const cReg = (v.registrationNumber || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+                          const mDriver = (v.driverName || '').toLowerCase().includes(cleanQ);
+                          return (digitsQ.length >= 2 && dReg.includes(digitsQ)) || cReg.includes(cleanQ) || mDriver;
+                        })
+                        .map((v) => {
+                          const digits = (v.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                          const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                          const isBusy = activeInfo.isOnTrip;
+                          const contract = getTruckAssignedGarments(v.registrationNumber);
+                          const contractLabel = contract ? ` [${(contract.clientName || 'Garments').split(' ')[0]} - ${contract.billingType === 'monthly' ? 'Monthly' : 'Per-Trip'}]` : '';
+                          const phoneLabel = v.driverPhone ? ` 📞 ${v.driverPhone}` : '';
+                          return (
+                            <option
+                              key={v.id}
+                              value={v.registrationNumber}
+                              disabled={isBusy}
+                              className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
+                            >
+                              [{digits || 'TRK'}] {v.registrationNumber} • {v.driverName || 'Driver'}{phoneLabel} {isBusy ? `— [BUSY until ${activeInfo.returnDateFormatted}] 🚫` : '— [Available]'}{contractLabel}
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
                   <div>
@@ -7158,6 +7286,29 @@ export default function TransportManagementModule({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
+                  <label className="block mb-1 font-semibold">Assigned Driver Name</label>
+                  <input
+                    type="text"
+                    value={newVehDriver}
+                    onChange={(e) => setNewVehDriver(e.target.value)}
+                    placeholder="e.g. Md. Kalam Hossain"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold">Driver Mobile / Phone</label>
+                  <input
+                    type="text"
+                    value={newVehDriverPhone}
+                    onChange={(e) => setNewVehDriverPhone(e.target.value)}
+                    placeholder="e.g. 01711-223344"
+                    className="w-full rounded-lg border px-2.5 py-1.5 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
                   <label className="block mb-1 font-semibold">Truck Body Type *</label>
                   <select
                     value={newVehBodyType}
@@ -7316,11 +7467,14 @@ export default function TransportManagementModule({
                     onChange={(e) => setFuelTruckReg(e.target.value)}
                     className="w-full rounded-lg border px-2.5 py-1.5 font-bold"
                   >
-                    {allVehicles.map((v) => (
-                      <option key={v.id} value={v.registrationNumber}>
-                        {v.registrationNumber}
-                      </option>
-                    ))}
+                    {allVehicles.map((v) => {
+                      const digits = (v.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                      return (
+                        <option key={v.id} value={v.registrationNumber}>
+                          [{digits || 'TRK'}] {v.registrationNumber}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div>
@@ -7443,11 +7597,14 @@ export default function TransportManagementModule({
                     onChange={(e) => setSrvTruckReg(e.target.value)}
                     className="w-full rounded-lg border px-2.5 py-1.5 font-bold"
                   >
-                    {allVehicles.map((v) => (
-                      <option key={v.id} value={v.registrationNumber}>
-                        {v.registrationNumber}
-                      </option>
-                    ))}
+                    {allVehicles.map((v) => {
+                      const digits = (v.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                      return (
+                        <option key={v.id} value={v.registrationNumber}>
+                          [{digits || 'TRK'}] {v.registrationNumber}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div>
@@ -8561,7 +8718,20 @@ export default function TransportManagementModule({
                     type="text"
                     value={editVehDriver}
                     onChange={(e) => setEditVehDriver(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs"
+                    placeholder="e.g. Md. Kalam Hossain"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    Driver Mobile / Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={editVehDriverPhone}
+                    onChange={(e) => setEditVehDriverPhone(e.target.value)}
+                    placeholder="e.g. 01711-223344"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
                   />
                 </div>
                 <div>
@@ -9728,6 +9898,44 @@ export default function TransportManagementModule({
                     {quickDispatchCompanyTrucks.filter((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Available of {quickDispatchCompanyTrucks.length}
                   </span>
                 </div>
+
+                {/* Truck Digit / Driver Search Filter */}
+                <div className="mb-1.5 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={quickDispatchTruckSearch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setQuickDispatchTruckSearch(val);
+                      if (val.trim()) {
+                        const digitsQ = val.replace(/\D/g, '');
+                        const cleanQ = val.replace(/[^a-z0-9]/gi, '').toLowerCase();
+                        const matches = quickDispatchCompanyTrucks.filter((v) => {
+                          const dReg = (v.registrationNumber || '').replace(/\D/g, '');
+                          const cReg = (v.registrationNumber || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+                          const mDriver = (v.driverName || '').toLowerCase().includes(cleanQ);
+                          return (digitsQ.length >= 2 && dReg.includes(digitsQ)) || cReg.includes(cleanQ) || mDriver;
+                        });
+                        if (matches.length === 1 && !getTruckActiveTrip(matches[0].registrationNumber).isOnTrip) {
+                          handleQuickTruckChange(matches[0].registrationNumber);
+                        }
+                      }
+                    }}
+                    placeholder="Search truck digits (e.g. 9171, 8393, Kalam)..."
+                    className="w-full bg-transparent text-xs font-semibold focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  />
+                  {quickDispatchTruckSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setQuickDispatchTruckSearch('')}
+                      className="text-[10px] text-slate-400 hover:text-slate-600 px-1 font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
                 <select
                   required
                   value={quickDispatchTruck}
@@ -9735,20 +9943,33 @@ export default function TransportManagementModule({
                   className="w-full rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-950/20 px-3 py-2.5 font-mono font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 >
                   <option value="">-- Choose Truck from {quickDispatchContract?.clientName || 'Company'} Fleet --</option>
-                  {quickDispatchCompanyTrucks.map((v) => {
-                    const activeInfo = getTruckActiveTrip(v.registrationNumber);
-                    const isBusy = activeInfo.isOnTrip;
-                    return (
-                      <option
-                        key={v.id}
-                        value={v.registrationNumber}
-                        disabled={isBusy}
-                        className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
-                      >
-                        {v.registrationNumber} ({cleanTruckName(v.truckName || v.vehicleType)}) • Driver: {v.driverName} {isBusy ? `🚫 [BUSY: On Trip until ${activeInfo.returnDateFormatted}]` : '✓ [READY]'}
-                      </option>
-                    );
-                  })}
+                  {quickDispatchCompanyTrucks
+                    .filter((v) => {
+                      if (!quickDispatchTruckSearch.trim()) return true;
+                      const digitsQ = quickDispatchTruckSearch.replace(/\D/g, '');
+                      const cleanQ = quickDispatchTruckSearch.replace(/[^a-z0-9]/gi, '').toLowerCase();
+                      const dReg = (v.registrationNumber || '').replace(/\D/g, '');
+                      const cReg = (v.registrationNumber || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+                      const mDriver = (v.driverName || '').toLowerCase().includes(cleanQ);
+                      const mPhone = (v.driverPhone || '').replace(/\D/g, '').includes(digitsQ);
+                      return (digitsQ.length >= 2 && dReg.includes(digitsQ)) || cReg.includes(cleanQ) || mDriver || mPhone;
+                    })
+                    .map((v) => {
+                      const digits = (v.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                      const activeInfo = getTruckActiveTrip(v.registrationNumber);
+                      const isBusy = activeInfo.isOnTrip;
+                      const phoneLabel = v.driverPhone ? ` 📞 ${v.driverPhone}` : '';
+                      return (
+                        <option
+                          key={v.id}
+                          value={v.registrationNumber}
+                          disabled={isBusy}
+                          className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
+                        >
+                          [{digits || 'TRK'}] {v.registrationNumber} ({cleanTruckName(v.truckName || v.vehicleType)}) • {v.driverName || 'Driver'}{phoneLabel} {isBusy ? `🚫 [BUSY: On Trip until ${activeInfo.returnDateFormatted}]` : '✓ [READY]'}
+                        </option>
+                      );
+                    })}
                 </select>
                 {quickDispatchCompanyTrucks.length > 0 && quickDispatchCompanyTrucks.every((v) => getTruckActiveTrip(v.registrationNumber).isOnTrip) && (
                   <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1.5">
@@ -10530,47 +10751,82 @@ export default function TransportManagementModule({
                   Selected fleet trucks will auto-fill driver name, contact phone, factory loading address, and agreed trip rate upon trip dispatch.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  {allVehicles.map((veh) => {
-                    const isChecked = garmentsAssignedTrucks.includes(veh.registrationNumber);
-                    return (
-                      <label
-                        key={veh.id}
-                        className={`flex items-start gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
-                          isChecked
-                            ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-200'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setGarmentsAssignedTrucks([...garmentsAssignedTrucks, veh.registrationNumber]);
-                            } else {
-                              setGarmentsAssignedTrucks(
-                                garmentsAssignedTrucks.filter((r) => r !== veh.registrationNumber)
-                              );
-                            }
-                          }}
-                          className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
-                        />
-                        <div className="space-y-0.5 flex-1 min-w-0">
-                          <div className="font-mono font-bold text-xs truncate">
-                            {veh.registrationNumber}
+                {/* Truck Digit / Name Filter */}
+                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={contractTruckSearch}
+                    onChange={(e) => setContractTruckSearch(e.target.value)}
+                    placeholder="Search truck digits, plate or driver (e.g. 9171, 8393, Kalam)..."
+                    className="w-full bg-transparent text-xs font-semibold focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  />
+                  {contractTruckSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setContractTruckSearch('')}
+                      className="text-[10px] text-slate-400 hover:text-slate-600 px-1 font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-56 overflow-y-auto pr-1">
+                  {allVehicles
+                    .filter((veh) => {
+                      if (!contractTruckSearch.trim()) return true;
+                      const digitsQ = contractTruckSearch.replace(/\D/g, '');
+                      const cleanQ = contractTruckSearch.replace(/[^a-z0-9]/gi, '').toLowerCase();
+                      const dReg = (veh.registrationNumber || '').replace(/\D/g, '');
+                      const cReg = (veh.registrationNumber || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+                      const mDriver = (veh.driverName || '').toLowerCase().includes(cleanQ);
+                      const mPhone = (veh.driverPhone || '').replace(/\D/g, '').includes(digitsQ);
+                      return (digitsQ.length >= 2 && dReg.includes(digitsQ)) || cReg.includes(cleanQ) || mDriver || mPhone;
+                    })
+                    .map((veh) => {
+                      const isChecked = garmentsAssignedTrucks.includes(veh.registrationNumber);
+                      const digits = (veh.registrationNumber || '').replace(/\D/g, '').slice(-4);
+                      return (
+                        <label
+                          key={veh.id}
+                          className={`flex items-start gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                            isChecked
+                              ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/30 text-purple-900 dark:text-purple-200'
+                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setGarmentsAssignedTrucks([...garmentsAssignedTrucks, veh.registrationNumber]);
+                              } else {
+                                setGarmentsAssignedTrucks(
+                                  garmentsAssignedTrucks.filter((r) => r !== veh.registrationNumber)
+                                );
+                              }
+                            }}
+                            className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                          />
+                          <div className="space-y-0.5 flex-1 min-w-0">
+                            <div className="font-mono font-bold text-xs truncate">
+                              <span className="text-purple-600 dark:text-purple-400 font-extrabold mr-1">[{digits || 'TRK'}]</span>
+                              {veh.registrationNumber}
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''} ({veh.truckBodyType || 'covered'})
+                            </div>
+                            <div className="text-[10px] text-emerald-600 font-semibold truncate flex items-center gap-1">
+                              <Users className="h-2.5 w-2.5" />
+                              <span>{veh.driverName || 'Driver Assigned'}</span>
+                              {veh.driverPhone && <span className="font-mono text-slate-500 ml-1">📞 {veh.driverPhone}</span>}
+                            </div>
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate">
-                            {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''} ({veh.truckBodyType || 'covered'})
-                          </div>
-                          <div className="text-[10px] text-emerald-600 font-semibold truncate flex items-center gap-1">
-                            <Users className="h-2.5 w-2.5" />
-                            <span>{veh.driverName || 'Driver Assigned'}</span>
-                          </div>
-                        </div>
-                      </label>
-                    );
-                  })}
+                        </label>
+                      );
+                    })}
                 </div>
               </div>
 
