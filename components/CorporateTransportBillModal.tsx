@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Printer, X, Calendar, DollarSign, Edit2, Check, Building2, Truck, AlertCircle, FileText } from 'lucide-react';
 import { ErpTransportOp } from '@/lib/erp-types';
+import { printDocument } from '@/lib/print-document';
 
 interface CorporateTransportBillModalProps {
   isOpen: boolean;
@@ -153,7 +154,7 @@ export default function CorporateTransportBillModal({
   const clientLocation = contract.factoryLocation || contract.origin || 'Seedstor Bazar Valuka';
 
   const handlePrint = () => {
-    window.print();
+    printDocument(printRef.current, `${businessName} - Transport Bill - ${displayBillNo}`);
   };
 
   const startEditTripDemurrage = (trip: ErpTransportOp) => {

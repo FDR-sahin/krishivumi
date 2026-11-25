@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { ErpTransportOp } from '@/lib/erp-types';
+import { printDocument } from '@/lib/print-document';
 
 interface MonthlyTruckStatementModalProps {
   isOpen: boolean;
@@ -235,9 +236,7 @@ export default function MonthlyTruckStatementModal({
   }, [normTruckReg, selectedMonth]);
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
-    }
+    printDocument(printRef.current, `${businessName} - Monthly Statement - ${normTruckReg}`);
   };
 
   if (!isOpen || !truck) return null;

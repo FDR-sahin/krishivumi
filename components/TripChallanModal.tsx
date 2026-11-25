@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   X,
   Printer,
@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ErpTransportOp, formatBDT } from '@/lib/erp-types';
+import { printDocument } from '@/lib/print-document';
 
 interface TripChallanModalProps {
   isOpen: boolean;
@@ -80,6 +81,7 @@ export default function TripChallanModal({
 }: TripChallanModalProps) {
   const bn = false;
   const [copied, setCopied] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   // Compute sequential order index starting from 1 (Order 01, 02, etc.)
   const orderIndex = useMemo(() => {
@@ -205,9 +207,8 @@ export default function TripChallanModal({
   const deliveryDate = deliveryDateObj.toISOString().split('T')[0];
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
-    }
+    const chalNo = trip.challanNumber || trip.tripOrVehicleCode || `CHAL-${orderNumberFormatted}`;
+    printDocument(printRef.current, `${businessName} - Challan - ${chalNo}`);
   };
 
   const handleCopySummary = async () => {
@@ -309,7 +310,7 @@ Date: ${trip.date}
         {/* PRINTABLE CHALLAN & WORK ORDER BODY                            */}
         {/* Matches Client Format in Image 2 (Style Wise PO Summary Report) */}
         {/* ============================================================== */}
-        <div className="printable-document p-6 sm:p-8 space-y-6 bg-white dark:bg-slate-900 print:p-8 print:bg-white text-slate-900 dark:text-slate-100 print:text-black">
+        <div ref={printRef} className="printable-document p-6 sm:p-8 space-y-6 bg-white dark:bg-slate-900 print:p-8 print:bg-white text-slate-900 dark:text-slate-100 print:text-black">
           {/* Header Title & Address */}
           <div className="text-center space-y-1 pb-2 border-b border-slate-200 dark:border-slate-800 print:border-black">
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 print:text-black">
