@@ -165,6 +165,7 @@ export default function TransportManagementModule({
 
   // ── Start Garments Trip Modal State ────────────────────────────────
   const [showQuickGarmentsDispatchModal, setShowQuickGarmentsDispatchModal] = useState(false);
+  const [quickDispatchContract, setQuickDispatchContract] = useState<ErpTransportOp | null>(null);
   const [quickDispatchTruck, setQuickDispatchTruck] = useState('');
   const [quickDispatchDest, setQuickDispatchDest] = useState('Chittagong Port (Incoterm CFS)');
   const [quickDispatchDate, setQuickDispatchDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -189,8 +190,7 @@ export default function TransportManagementModule({
   const [clientBillWalletId, setClientBillWalletId] = useState('');
   const [clientBillNotes, setClientBillNotes] = useState('');
 
-  // View Mode Toggles for Company-First presentation
-  const [truckViewMode, setTruckViewMode] = useState<'company' | 'list'>('company');
+  // View Mode Toggles for Garments Presentation
   const [garmentsViewMode, setGarmentsViewMode] = useState<'companies' | 'trucks'>('companies');
 
   // Modals
@@ -255,7 +255,20 @@ export default function TransportManagementModule({
   // Helper to normalize registration numbers (merges DHAKA-METRO-T-12-3456 and DHAKA-METRO-TA-12-3456)
   const normalizeReg = useCallback((reg?: string | null): string => {
     if (!reg) return '';
-    return reg.toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9]/g, '').replace('METROT', 'METROTA');
+    let s = reg.toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9]/g, '');
+    s = s.replace(/METROT(?=[0-9])/g, 'METROTA');
+    s = s.replace(/METROTA+/g, 'METROTA');
+    return s;
+  }, []);
+
+  // Helper to clean truck name of unwanted price/annotation artifacts
+  const cleanTruckName = useCallback((name?: string | null): string => {
+    if (!name) return 'Heavy Truck';
+    return name
+      .replace(/\(Price:\s*BDT\s*[,.\s0-9]*\)/gi, '')
+      .replace(/\(Farm Freight Truck\)/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Heavy Truck';
   }, []);
 
   // 2. Extracted Data Partitions (Vehicles, Trips, Fuel, Maintenance, Drivers, Expenses)
@@ -1076,6 +1089,24 @@ export default function TransportManagementModule({
   const garmentsDedicatedTrucks = useMemo(() => {
     return allVehicles.filter((v) => getTruckAssignedGarments(v.registrationNumber));
   }, [allVehicles, getTruckAssignedGarments]);
+
+  // Trucks strictly allocated to the selected corporate company in Quick Dispatch modal
+  const quickDispatchCompanyTrucks = useMemo(() => {
+    if (!quickDispatchContract) return garmentsDedicatedTrucks;
+    let assignedArr: string[] = [];
+    if (Array.isArray(quickDispatchContract.assignedTrucks)) assignedArr = quickDispatchContract.assignedTrucks;
+    else if (quickDispatchContract.assignedTrucksJson) {
+      try { assignedArr = JSON.parse(quickDispatchContract.assignedTrucksJson); } catch {}
+    } else if (quickDispatchContract.route && quickDispatchContract.route.includes(',')) {
+      assignedArr = quickDispatchContract.route.split(',').map((s) => s.trim());
+    } else if (quickDispatchContract.registrationNumber) {
+      assignedArr = [quickDispatchContract.registrationNumber];
+    }
+    const filtered = allVehicles.filter((v) =>
+      assignedArr.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
+    );
+    return filtered.length > 0 ? filtered : garmentsDedicatedTrucks;
+  }, [quickDispatchContract, allVehicles, garmentsDedicatedTrucks, normalizeReg]);
 
   // Cash & Bank Wallets for Financial Payments
   const treasuryWallets = useMemo(() => {
@@ -2775,24 +2806,62 @@ export default function TransportManagementModule({
   };
 
   // ── Quick Garments Dispatch Handlers ────────────────────────────────
-  const openQuickGarmentsDispatch = (truckReg?: string) => {
+  const openQuickGarmentsDispatch = (truckReg?: string, contractOrCompany?: ErpTransportOp | string | null) => {
+    // 1. Resolve targeted corporate garments contract
+    let matchedContract: ErpTransportOp | null = null;
+    if (contractOrCompany) {
+      if (typeof contractOrCompany === 'object') {
+        matchedContract = contractOrCompany;
+      } else {
+        matchedContract = allGarmentsContracts.find(
+          (c) => c.id === contractOrCompany || (c.clientName || c.customerName) === contractOrCompany
+        ) || null;
+      }
+    }
+    if (!matchedContract && truckReg) {
+      matchedContract = getTruckAssignedGarments(truckReg) || null;
+    }
+    if (!matchedContract && allGarmentsContracts.length > 0) {
+      matchedContract = allGarmentsContracts[0];
+    }
+    setQuickDispatchContract(matchedContract);
+
+    // 2. Resolve trucks strictly allocated to this company
+    let targetCompanyTrucks: ErpTransportOp[] = [];
+    if (matchedContract) {
+      let assignedArr: string[] = [];
+      if (Array.isArray(matchedContract.assignedTrucks)) assignedArr = matchedContract.assignedTrucks;
+      else if (matchedContract.assignedTrucksJson) {
+        try { assignedArr = JSON.parse(matchedContract.assignedTrucksJson); } catch {}
+      } else if (matchedContract.route && matchedContract.route.includes(',')) {
+        assignedArr = matchedContract.route.split(',').map((s) => s.trim());
+      } else if (matchedContract.registrationNumber) {
+        assignedArr = [matchedContract.registrationNumber];
+      }
+      targetCompanyTrucks = allVehicles.filter((v) =>
+        assignedArr.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
+      );
+    }
+    if (targetCompanyTrucks.length === 0) {
+      targetCompanyTrucks = garmentsDedicatedTrucks.length > 0 ? garmentsDedicatedTrucks : allVehicles;
+    }
+
+    // 3. Inform user if the specific requested truck is busy
     if (truckReg) {
       const activeInfo = getTruckActiveTrip(truckReg);
       if (activeInfo.isOnTrip) {
         triggerGlobalToast(
-          `Truck ${truckReg} is currently on a trip (Expected return: ${activeInfo.returnDateFormatted}). Please wait until it returns or complete the trip first.`,
+          `Truck ${truckReg} is currently on a trip (Expected return: ${activeInfo.returnDateFormatted}). Please choose another truck for ${matchedContract?.clientName || 'this company'}.`,
           'info'
         );
-        return;
       }
     }
-    const availDedicated = garmentsDedicatedTrucks.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip);
-    const availAny = allVehicles.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip);
+
+    const availInCompany = targetCompanyTrucks.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip);
     const regToUse =
-      (truckReg && !getTruckActiveTrip(truckReg).isOnTrip ? truckReg : null) ||
-      availDedicated?.registrationNumber ||
-      availAny?.registrationNumber ||
-      allVehicles[0]?.registrationNumber ||
+      (truckReg && !getTruckActiveTrip(truckReg).isOnTrip && targetCompanyTrucks.some((v) => normalizeReg(v.registrationNumber) === normalizeReg(truckReg)) ? truckReg : null) ||
+      availInCompany?.registrationNumber ||
+      targetCompanyTrucks[0]?.registrationNumber ||
       '';
 
     setQuickDispatchTruck(regToUse);
@@ -2801,11 +2870,12 @@ export default function TransportManagementModule({
     setQuickDispatchOrderNo(`ORD-${currentYear}-${String(nextSeq).padStart(3, '0')}`);
     setQuickDispatchChallanNo(`CHAL-${currentYear}-${String(nextSeq).padStart(3, '0')}`);
 
-    const contract = getTruckAssignedGarments(regToUse);
-    if (contract) {
-      setQuickDispatchFare(contract.agreedRate || 14500);
-      if (contract.destination) setQuickDispatchDest(contract.destination);
-      if (contract.cargoDetails) setQuickDispatchCargo(contract.cargoDetails);
+    if (matchedContract) {
+      setQuickDispatchFare(matchedContract.agreedRate || 14500);
+      if (matchedContract.destination || matchedContract.route) {
+        setQuickDispatchDest(matchedContract.destination || matchedContract.route || 'Chittagong Port');
+      }
+      if (matchedContract.cargoDetails) setQuickDispatchCargo(matchedContract.cargoDetails);
     } else {
       setQuickDispatchFare(15000);
     }
@@ -2820,12 +2890,37 @@ export default function TransportManagementModule({
     setShowQuickGarmentsDispatchModal(true);
   };
 
+  const handleQuickDispatchCompanyChange = (contract: ErpTransportOp) => {
+    setQuickDispatchContract(contract);
+    let assignedArr: string[] = [];
+    if (Array.isArray(contract.assignedTrucks)) assignedArr = contract.assignedTrucks;
+    else if (contract.assignedTrucksJson) {
+      try { assignedArr = JSON.parse(contract.assignedTrucksJson); } catch {}
+    } else if (contract.route && contract.route.includes(',')) {
+      assignedArr = contract.route.split(',').map((s) => s.trim());
+    } else if (contract.registrationNumber) {
+      assignedArr = [contract.registrationNumber];
+    }
+    const cTrucks = allVehicles.filter((v) =>
+      assignedArr.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
+    );
+    const avail = cTrucks.find((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip);
+    setQuickDispatchTruck(avail?.registrationNumber || cTrucks[0]?.registrationNumber || '');
+    setQuickDispatchFare(contract.agreedRate || 14500);
+    if (contract.destination || contract.route) {
+      setQuickDispatchDest(contract.destination || contract.route || 'Chittagong Port');
+    }
+    if (contract.cargoDetails) setQuickDispatchCargo(contract.cargoDetails);
+  };
+
   const handleQuickTruckChange = (reg: string) => {
     setQuickDispatchTruck(reg);
-    const contract = getTruckAssignedGarments(reg);
+    const contract = quickDispatchContract || getTruckAssignedGarments(reg);
     if (contract) {
       setQuickDispatchFare(contract.agreedRate || 14500);
-      if (contract.destination) setQuickDispatchDest(contract.destination);
+      if (contract.destination || contract.route) {
+        setQuickDispatchDest(contract.destination || contract.route || 'Chittagong Port');
+      }
       if (contract.cargoDetails) setQuickDispatchCargo(contract.cargoDetails);
     }
   };
@@ -2848,7 +2943,7 @@ export default function TransportManagementModule({
       const tripOrder = quickDispatchOrderNo.trim() || `ORD-${currentYear}-${String(allTrips.length + 1).padStart(3, '0')}`;
       const tripCode = tripChallan;
       const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
-      const contract = getTruckAssignedGarments(quickDispatchTruck);
+      const contract = quickDispatchContract || getTruckAssignedGarments(quickDispatchTruck);
 
       await createTransportOpRecord(
         {
@@ -2947,7 +3042,7 @@ export default function TransportManagementModule({
     }
   };
 
-  // ── Collect Garments Client Monthly Bill Handlers ──────────────────
+  // ── Receive Garments Payment / Monthly Rent Handlers ───────────────
   const openCollectClientBillModal = (clientItem: any) => {
     setTargetClientForBill(clientItem);
     const suggestedAmount = clientItem.totalDue > 0
@@ -2956,7 +3051,13 @@ export default function TransportManagementModule({
     setClientBillPayAmount(suggestedAmount);
     setClientBillPayDate(new Date().toISOString().slice(0, 10));
     setClientBillWalletId(treasuryWallets[0]?.id || accounts[0]?.id || '');
-    setClientBillNotes(`Monthly transport billing settlement for ${clientItem.contract?.clientName || clientItem.contract?.customerName}`);
+    const isMonthly = clientItem.contract?.billingType === 'monthly';
+    const companyName = clientItem.contract?.clientName || clientItem.contract?.customerName || 'Garments Client';
+    setClientBillNotes(
+      isMonthly
+        ? `Monthly vehicle rent received from ${companyName}`
+        : `Freight payment settlement received from ${companyName}`
+    );
     setShowCollectClientBillModal(true);
   };
 
@@ -3464,7 +3565,7 @@ export default function TransportManagementModule({
               </div>
             </div>
 
-            {/* Quick 2-Column Visual Summary */}
+            {/* Quick 2-Column High-Level Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1 text-xs">
               <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/40 space-y-2">
                 <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center justify-between">
@@ -3476,47 +3577,34 @@ export default function TransportManagementModule({
                     {garmentsDedicatedTrucks.length} Trucks
                   </span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {garmentsStatsList.map((item) => {
                     const c = item.contract;
-                    const assignedVehs = allVehicles.filter((v) =>
-                      item.assignedTrucks.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
-                    );
                     return (
                       <div
                         key={c.id}
-                        className="p-2 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-purple-100 dark:border-purple-900/40 space-y-1.5"
+                        className="p-2 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-purple-100 dark:border-purple-900/40 flex items-center justify-between text-xs"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                            <span className="text-purple-600">🏢</span>
-                            <span>{c.clientName || c.customerName}</span>
-                          </span>
-                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-mono">
-                            {assignedVehs.length} Trucks
-                          </span>
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <span>🏢 {c.clientName || c.customerName}</span>
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-mono">
+                              {item.assignedTrucks.length} Trucks
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {c.billingType === 'monthly'
+                              ? `Monthly Fixed: ${formatBDT(c.agreedRate || 0)}/mo`
+                              : `Per Trip Rate: ${formatBDT(c.agreedRate || 0)}/trip`}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                          {assignedVehs.map((v) => {
-                            const activeInfo = getTruckActiveTrip(v.registrationNumber);
-                            const isBusy = activeInfo.isOnTrip;
-                            return (
-                              <span
-                                key={v.id}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border ${
-                                  isBusy
-                                    ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                                    : 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                                }`}
-                                title={`${v.registrationNumber} • Driver: ${v.driverName} • Status: ${isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}`}
-                              >
-                                <span className="font-bold">{v.registrationNumber}</span>
-                                <span className="text-[9px] opacity-75">({v.driverName?.split(' ')[0] || 'Driver'})</span>
-                                <span>{isBusy ? '🚫' : '✓'}</span>
-                              </span>
-                            );
-                          })}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('garments')}
+                          className="text-[11px] font-bold text-purple-600 hover:underline cursor-pointer"
+                        >
+                          View →
+                        </button>
                       </div>
                     );
                   })}
@@ -3533,41 +3621,23 @@ export default function TransportManagementModule({
                     {allVehicles.filter((v) => !getTruckAssignedGarments(v.registrationNumber)).length} Trucks
                   </span>
                 </div>
-                <div className="space-y-1.5">
-                  {allVehicles
-                    .filter((v) => !getTruckAssignedGarments(v.registrationNumber))
-                    .map((v) => {
-                      const activeInfo = getTruckActiveTrip(v.registrationNumber);
-                      const isBusy = activeInfo.isOnTrip;
-                      return (
-                        <div
-                          key={v.id}
-                          className="p-2 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/40 flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                              <span>🚚 {v.registrationNumber}</span>
-                              <span className="text-[10px] text-slate-400 font-sans font-normal">({v.truckName || v.vehicleType})</span>
-                            </div>
-                            <div className="text-[10px] text-sky-700 dark:text-sky-400 font-medium">
-                              Driver: {v.driverName} {v.driverPhone ? `(${v.driverPhone})` : ''}
-                            </div>
-                          </div>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              isBusy
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            }`}
-                          >
-                            {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  <div className="text-[10px] text-slate-400 pt-1">
-                    💡 Available for ad-hoc open market cargo, agricultural logistics, and return trips.
+                <div className="p-3 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/40 space-y-1.5 text-xs">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">
+                    2 Trucks ready for ad-hoc open market freight & return cargo trips.
                   </div>
+                  <div className="text-[11px] text-slate-500 font-mono">
+                    DHAKA-METRO-TA-16-7788 (14T Open) • DHAKA-METRO-TA-17-8899 (22T Trailer)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTruckContractFilter('open');
+                      setActiveTab('vehicles');
+                    }}
+                    className="text-[11px] font-bold text-sky-600 hover:underline cursor-pointer pt-1 block"
+                  >
+                    Manage Open Fleet Trucks →
+                  </button>
                 </div>
               </div>
             </div>
@@ -3887,230 +3957,8 @@ export default function TransportManagementModule({
             )}
           </div>
 
-          {/* View Mode Switcher: Company Allocation vs Flat List */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Display:</span>
-              <button
-                type="button"
-                onClick={() => setTruckViewMode('company')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  truckViewMode === 'company'
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
-              >
-                <Building2 className="h-3.5 w-3.5" />
-                <span>Company-Wise Allocation</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTruckViewMode('list')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  truckViewMode === 'list'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
-              >
-                <Truck className="h-3.5 w-3.5" />
-                <span>All Trucks Table</span>
-              </button>
-            </div>
-            <span className="text-[11px] text-slate-400">
-              {truckViewMode === 'company'
-                ? 'Showing fleet trucks allocated under each corporate garment company'
-                : `Showing all ${filteredVehicles.length} registered trucks`}
-            </span>
-          </div>
-
-          {/* 1. If Company-Wise Allocation Mode */}
-          {truckViewMode === 'company' ? (
-            <div className="space-y-3.5">
-              {garmentsStatsList.map((item) => {
-                const contract = item.contract;
-                const assignedVehs = allVehicles.filter((v) =>
-                  item.assignedTrucks.some((t) => normalizeReg(t) === normalizeReg(v.registrationNumber))
-                );
-                return (
-                  <div
-                    key={contract.id}
-                    className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/20 dark:bg-purple-950/10 space-y-3"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/40 pb-2">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-purple-600" />
-                        <div>
-                          <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                            <span>{contract.clientName || contract.customerName}</span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-mono">
-                              {assignedVehs.length} Dedicated Trucks
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            {contract.factoryLocation || 'Factory Depot'} • {contract.billingType === 'monthly' ? `Monthly Fixed: ${formatBDT(contract.agreedRate || 0)}/mo` : `Per Trip Rate: ${formatBDT(contract.agreedRate || 0)}/trip`}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openCollectClientBillModal(item)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                        >
-                          <DollarSign className="h-3 w-3" />
-                          <span>+ Collect Bill</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('garments')}
-                          className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
-                        >
-                          View Contract →
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                      {assignedVehs.map((veh) => {
-                        const activeInfo = getTruckActiveTrip(veh.registrationNumber);
-                        const isBusy = activeInfo.isOnTrip;
-                        return (
-                          <div
-                            key={veh.id}
-                            className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2 shadow-2xs hover:border-purple-300 transition-all"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span
-                                onClick={() => {
-                                  setSelectedTruckForDetails(veh);
-                                  setTruckDetailsActiveTab('overview');
-                                }}
-                                className="font-mono font-bold text-xs text-slate-900 dark:text-white hover:text-purple-600 cursor-pointer flex items-center gap-1"
-                              >
-                                <span>{veh.registrationNumber}</span>
-                                <Eye className="h-3 w-3 text-slate-400" />
-                              </span>
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                  isBusy
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                }`}
-                              >
-                                {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
-                              {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''}
-                            </div>
-                            <div className="text-[11px] text-purple-700 dark:text-purple-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
-                              <span>Driver: <strong>{veh.driverName}</strong></span>
-                              {veh.driverPhone && (
-                                <a href={`tel:${veh.driverPhone}`} className="font-mono text-[10px] text-slate-400 hover:text-purple-600">
-                                  {veh.driverPhone}
-                                </a>
-                              )}
-                            </div>
-                            <div className="pt-1">
-                              {isBusy ? (
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="w-full py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 text-[10px] font-bold cursor-not-allowed text-center"
-                                >
-                                  On Trip until {activeInfo.returnDateFormatted}
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => openQuickGarmentsDispatch(veh.registrationNumber)}
-                                  className="w-full py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold text-center cursor-pointer shadow-2xs"
-                                >
-                                  + Start Garments Trip
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {assignedVehs.length === 0 && (
-                        <div className="text-slate-400 text-xs italic p-3">No trucks allocated to this company yet.</div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Open Market Fleet Group */}
-              {(() => {
-                const openVehs = allVehicles.filter((v) => !getTruckAssignedGarments(v.registrationNumber));
-                if (openVehs.length === 0) return null;
-                return (
-                  <div className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/20 dark:bg-sky-950/10 space-y-3">
-                    <div className="flex items-center justify-between border-b border-sky-100 dark:border-sky-900/40 pb-2">
-                      <div className="flex items-center gap-2">
-                        <Navigation className="h-4 w-4 text-sky-600" />
-                        <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>Open Market Commercial Fleet</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 font-mono">
-                            {openVehs.length} Trucks
-                          </span>
-                        </div>
-                      </div>
-                      <span className="text-xs text-slate-400">Available for General Freight & Ad-hoc Trips</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                      {openVehs.map((veh) => {
-                        const activeInfo = getTruckActiveTrip(veh.registrationNumber);
-                        const isBusy = activeInfo.isOnTrip;
-                        return (
-                          <div
-                            key={veh.id}
-                            className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2 shadow-2xs hover:border-sky-300 transition-all"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span
-                                onClick={() => {
-                                  setSelectedTruckForDetails(veh);
-                                  setTruckDetailsActiveTab('overview');
-                                }}
-                                className="font-mono font-bold text-xs text-slate-900 dark:text-white hover:text-sky-600 cursor-pointer flex items-center gap-1"
-                              >
-                                <span>{veh.registrationNumber}</span>
-                                <Eye className="h-3 w-3 text-slate-400" />
-                              </span>
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                  isBusy
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                }`}
-                              >
-                                {isBusy ? `On Trip (${activeInfo.returnDateFormatted})` : 'Available'}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
-                              {veh.truckName || veh.vehicleType} • {veh.capacityTons ? `${veh.capacityTons}T` : ''}
-                            </div>
-                            <div className="text-[11px] text-sky-700 dark:text-sky-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
-                              <span>Driver: <strong>{veh.driverName}</strong></span>
-                              {veh.driverPhone && (
-                                <a href={`tel:${veh.driverPhone}`} className="font-mono text-[10px] text-slate-400 hover:text-sky-600">
-                                  {veh.driverPhone}
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="overflow-x-auto max-h-[50vh]">
+          {/* All Registered Fleet Vehicles Table */}
+          <div className="overflow-x-auto max-h-[60vh]">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 border-b font-semibold text-slate-600 dark:text-slate-300">
                 <tr>
@@ -4146,7 +3994,7 @@ export default function TransportManagementModule({
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-medium text-slate-800 dark:text-slate-200">
-                        {v.vehicleType} {v.truckBodyType ? `(${v.truckBodyType})` : ''}
+                        {cleanTruckName(v.truckName || v.vehicleType)} {v.truckBodyType ? `(${v.truckBodyType})` : ''}
                       </div>
                       <div className="text-[10px] text-slate-400 font-semibold text-emerald-600">
                         {v.capacityTons ? `${v.capacityTons} Ton Capacity` : ''}
@@ -4266,7 +4114,6 @@ export default function TransportManagementModule({
               </tbody>
             </table>
           </div>
-        )}
       </div>
     )}
 
@@ -4559,7 +4406,7 @@ export default function TransportManagementModule({
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => openQuickGarmentsDispatch(v.registrationNumber)}
+                                onClick={() => openQuickGarmentsDispatch(v.registrationNumber, contract)}
                                 className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                               >
                                 <Truck className="h-3 w-3" />
@@ -4749,16 +4596,16 @@ export default function TransportManagementModule({
                               type="button"
                               onClick={() => openCollectClientBillModal(item)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                              title="Collect Monthly Bill / Settle Dues"
+                              title={isMonthly ? 'Receive Monthly Fixed Rent' : 'Receive Trip Payment / Settle Due'}
                             >
                               <DollarSign className="h-3 w-3" />
-                              <span>+ Collect Bill</span>
+                              <span>{isMonthly ? '+ Receive Rent' : '+ Receive Payment'}</span>
                             </button>
 
                             {availTruck ? (
                               <button
                                 type="button"
-                                onClick={() => openQuickGarmentsDispatch(availTruck)}
+                                onClick={() => openQuickGarmentsDispatch(availTruck, item.contract)}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                                 title="Start Trip for this Company"
                               >
@@ -4998,10 +4845,10 @@ export default function TransportManagementModule({
                           type="button"
                           onClick={() => openCollectClientBillModal(item)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
-                          title="Collect Monthly Bill from this Corporate Client"
+                          title={item.contract?.billingType === 'monthly' ? 'Receive Monthly Fixed Rent' : 'Receive Trip Payment / Settle Due'}
                         >
                           <DollarSign className="h-3 w-3" />
-                          <span>+ Collect Bill</span>
+                          <span>{item.contract?.billingType === 'monthly' ? '+ Receive Monthly Rent' : '+ Receive Payment'}</span>
                         </button>
 
                       {/* Dispatch Trip Button */}
@@ -5024,7 +4871,7 @@ export default function TransportManagementModule({
                         return (
                           <button
                             type="button"
-                            onClick={() => openQuickGarmentsDispatch(availTruck)}
+                            onClick={() => openQuickGarmentsDispatch(availTruck, item.contract)}
                             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
                           >
                             <Truck className="h-3.5 w-3.5" />
@@ -8631,19 +8478,35 @@ export default function TransportManagementModule({
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  const assigned = selectedGarmentsForDetails.assignedTrucks;
-                  const avail = assigned.find((t: string) => !getTruckActiveTrip(t).isOnTrip);
-                  setSelectedGarmentsForDetails(null);
-                  openQuickGarmentsDispatch(avail || assigned[0]);
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
-              >
-                <Truck className="h-3.5 w-3.5" />
-                <span>+ Start Trip for this Factory</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const client = selectedGarmentsForDetails;
+                    setSelectedGarmentsForDetails(null);
+                    openCollectClientBillModal(client);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  <DollarSign className="h-3.5 w-3.5" />
+                  <span>{selectedGarmentsForDetails.contract?.billingType === 'monthly' ? '+ Receive Monthly Rent' : '+ Receive Payment'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const assigned = selectedGarmentsForDetails.assignedTrucks;
+                    const avail = assigned.find((t: string) => !getTruckActiveTrip(t).isOnTrip);
+                    const contract = selectedGarmentsForDetails.contract;
+                    setSelectedGarmentsForDetails(null);
+                    openQuickGarmentsDispatch(avail || assigned[0], contract);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  <Truck className="h-3.5 w-3.5" />
+                  <span>+ Start Trip for this Factory</span>
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -8737,22 +8600,64 @@ export default function TransportManagementModule({
                 </div>
               </div>
 
-              {/* 1. Select Dedicated Truck */}
+              {/* Corporate Garments Factory Selector */}
+              <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 text-[11px] flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-purple-600" />
+                    <span>Corporate Client / Factory *</span>
+                  </label>
+                  {quickDispatchContract && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                      {quickDispatchCompanyTrucks.length} Dedicated Trucks Allocated
+                    </span>
+                  )}
+                </div>
+                <select
+                  required
+                  value={quickDispatchContract?.id || ''}
+                  onChange={(e) => {
+                    const found = allGarmentsContracts.find((c) => c.id === e.target.value);
+                    if (found) handleQuickDispatchCompanyChange(found);
+                  }}
+                  className="w-full rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-bold text-xs text-purple-900 dark:text-purple-200 focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">-- Choose Corporate Company --</option>
+                  {allGarmentsContracts.map((c) => {
+                    let count = 0;
+                    if (Array.isArray(c.assignedTrucks)) count = c.assignedTrucks.length;
+                    else if (c.assignedTrucksJson) {
+                      try { count = JSON.parse(c.assignedTrucksJson).length; } catch {}
+                    }
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.clientName || c.customerName} ({count} Dedicated Trucks • {c.billingType === 'monthly' ? 'Monthly Contract' : `${formatBDT(c.agreedRate || 0)}/trip`})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* 1. Select Dedicated Truck (SCOPED STRICTLY TO SELECTED COMPANY) */}
               <div>
-                <label className="block mb-1 font-bold text-slate-700 dark:text-slate-300">
-                  Select Dedicated Fleet Truck *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                    Select Dedicated Truck for {quickDispatchContract?.clientName || 'Selected Company'} *
+                  </label>
+                  <span className="text-[10px] text-emerald-600 font-bold">
+                    {quickDispatchCompanyTrucks.filter((v) => !getTruckActiveTrip(v.registrationNumber).isOnTrip).length} Available of {quickDispatchCompanyTrucks.length}
+                  </span>
+                </div>
                 <select
                   required
                   value={quickDispatchTruck}
                   onChange={(e) => handleQuickTruckChange(e.target.value)}
                   className="w-full rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-950/20 px-3 py-2.5 font-mono font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="">-- Choose Truck from Dedicated Fleet --</option>
-                  {allVehicles.map((v) => {
+                  <option value="">-- Choose Truck from {quickDispatchContract?.clientName || 'Company'} Fleet --</option>
+                  {quickDispatchCompanyTrucks.map((v) => {
                     const activeInfo = getTruckActiveTrip(v.registrationNumber);
                     const isBusy = activeInfo.isOnTrip;
-                    const c = getTruckAssignedGarments(v.registrationNumber);
                     return (
                       <option
                         key={v.id}
@@ -8760,16 +8665,22 @@ export default function TransportManagementModule({
                         disabled={isBusy}
                         className={isBusy ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 italic' : 'font-bold'}
                       >
-                        {v.registrationNumber} — {v.driverName} {isBusy ? `[BUSY: On Trip until ${activeInfo.returnDateFormatted}] 🚫` : `[AVAILABLE] ${c ? `(${c.clientName})` : ''}`}
+                        {v.registrationNumber} ({cleanTruckName(v.truckName || v.vehicleType)}) • Driver: {v.driverName} {isBusy ? `🚫 [BUSY: On Trip until ${activeInfo.returnDateFormatted}]` : '✓ [READY]'}
                       </option>
                     );
                   })}
                 </select>
+                {quickDispatchCompanyTrucks.length > 0 && quickDispatchCompanyTrucks.every((v) => getTruckActiveTrip(v.registrationNumber).isOnTrip) && (
+                  <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                    <span>All {quickDispatchCompanyTrucks.length} trucks allocated to {quickDispatchContract?.clientName} are currently on active trips.</span>
+                  </div>
+                )}
               </div>
 
               {/* 2. Auto-filled Summary Box */}
               {(() => {
-                const c = getTruckAssignedGarments(quickDispatchTruck);
+                const c = quickDispatchContract || getTruckAssignedGarments(quickDispatchTruck);
                 const veh = allVehicles.find((v) => normalizeReg(v.registrationNumber) === normalizeReg(quickDispatchTruck));
                 return (
                   <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-1.5 text-xs">
@@ -9048,28 +8959,36 @@ export default function TransportManagementModule({
             className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 p-5 sm:p-6 shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
-                  <DollarSign className="h-5 w-5" />
+            {(() => {
+              const isMonthly = targetClientForBill.contract?.billingType === 'monthly';
+              const companyName = targetClientForBill.contract?.clientName || targetClientForBill.contract?.customerName || 'Corporate Client';
+              return (
+                <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+                      <DollarSign className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {isMonthly ? `Receive Monthly Rent — ${companyName}` : `Receive Payment — ${companyName}`}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {isMonthly
+                          ? 'Record monthly fixed contract rent into Cash or Bank'
+                          : 'Record trip freight payment or settle dues into Cash or Bank'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCollectClientBillModal(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Collect Corporate Client Bill
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Receive monthly transport bill payment from corporate garment factory
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCollectClientBillModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+              );
+            })()}
 
             <form onSubmit={handleCollectGarmentsClientBill} className="space-y-3.5 text-xs">
               {/* Client & Contract Info Summary */}
@@ -9198,7 +9117,7 @@ export default function TransportManagementModule({
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
-                  <span>Confirm Bill Collection</span>
+                  <span>{targetClientForBill?.contract?.billingType === 'monthly' ? 'Confirm Monthly Rent Deposit' : 'Confirm Payment Receipt'}</span>
                 </button>
               </div>
             </form>
