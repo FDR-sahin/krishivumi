@@ -60,6 +60,7 @@ import {
   deleteTransportOp,
 } from '@/lib/erp-service';
 import TripChallanModal from './TripChallanModal';
+import CorporateTransportBillModal from './CorporateTransportBillModal';
 import { triggerGlobalToast, triggerConfirmDelete } from './GlobalToastAndConfirmModal';
 
 interface TransportManagementModuleProps {
@@ -176,11 +177,16 @@ export default function TransportManagementModule({
     return d.toISOString().slice(0, 10);
   });
   const [quickDispatchFare, setQuickDispatchFare] = useState<number>(14500);
+  const [quickDispatchDemurrage, setQuickDispatchDemurrage] = useState<number>(0);
   const [quickDispatchAdvance, setQuickDispatchAdvance] = useState<number>(0);
   const [quickDispatchKhoraki, setQuickDispatchKhoraki] = useState<number>(2000);
   const [quickDispatchCargo, setQuickDispatchCargo] = useState('RMG Garments Export Cartons');
   const [quickDispatchChallanNo, setQuickDispatchChallanNo] = useState('');
   const [quickDispatchOrderNo, setQuickDispatchOrderNo] = useState('');
+
+  // Corporate Transport Bill Modal State (A4 Printable Invoice with Rent + Demurrage)
+  const [showCorporateBillModal, setShowCorporateBillModal] = useState(false);
+  const [selectedCorporateBillContract, setSelectedCorporateBillContract] = useState<ErpTransportOp | null>(null);
 
   // Collect Garments Client Monthly Bill Modal State
   const [showCollectClientBillModal, setShowCollectClientBillModal] = useState(false);
@@ -477,6 +483,62 @@ export default function TransportManagementModule({
         maintenanceDetails: '',
         distanceKm: 0,
       },
+      {
+        id: 'fleet-truck-8',
+        tripOrVehicleCode: 'TRK-08',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-20-9171',
+        vehicleType: 'Heavy Truck',
+        truckName: 'Tata 1615 Cargo Truck (15 Ton)',
+        driverName: 'Md. Tariqul Islam',
+        driverPhone: '01719-714211',
+        capacityTons: 15,
+        currentOdometer: 58000,
+        truckBodyType: 'covered',
+        taxTokenExpiry: '2027-10-10',
+        fitnessExpiry: '2027-11-15',
+        insuranceExpiry: '2028-01-10',
+        routePermitExpiry: '2028-03-20',
+        status: 'active',
+        origin: 'Valuka',
+        destination: 'OCL Chittagong',
+        cargoDetails: 'Export Footwear & RMG Cargo',
+        customerName: 'Global Shoes Ltd',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
+      {
+        id: 'fleet-truck-9',
+        tripOrVehicleCode: 'TRK-09',
+        recordType: 'vehicle',
+        businessId: activeBusiness.id,
+        registrationNumber: 'DHAKA-METRO-TA-11-8393',
+        vehicleType: 'Covered Van',
+        truckName: 'Bedford Covered Van (14 Ton)',
+        driverName: 'Md. Shahidul Islam',
+        driverPhone: '01707-300599',
+        capacityTons: 14,
+        currentOdometer: 47000,
+        truckBodyType: 'covered',
+        taxTokenExpiry: '2027-09-10',
+        fitnessExpiry: '2027-10-25',
+        insuranceExpiry: '2028-02-15',
+        routePermitExpiry: '2028-04-10',
+        status: 'active',
+        origin: 'Valuka',
+        destination: 'OCL Chittagong',
+        cargoDetails: 'Export Footwear & RMG Cargo',
+        customerName: 'Global Shoes Ltd',
+        fuelCost: 0,
+        tollCost: 0,
+        maintenanceCost: 0,
+        maintenanceDetails: '',
+        distanceKm: 0,
+      },
     ].map((v) => ({
       tripRevenue: 0,
       outstandingDue: 0,
@@ -607,6 +669,37 @@ export default function TransportManagementModule({
       driverName: 'Assigned Fleet (1 Truck)',
       distanceKm: 120,
     },
+    {
+      id: 'gcontract-04',
+      tripOrVehicleCode: 'GCON-04',
+      recordType: 'garments_contract',
+      businessId: activeBusiness.id,
+      registrationNumber: 'DHAKA-METRO-TA-20-9171',
+      vehicleType: 'Corporate Contract',
+      clientName: 'Global Shoes Ltd',
+      customerName: 'Global Shoes Ltd',
+      factoryLocation: 'Seedstor Bazar Valuka, Mymensingh',
+      contactPerson: 'Mr. Tariqul Islam (Logistics Manager)',
+      contactPhone: '01719-714211',
+      billingType: 'day_trip', // Day-Trip / Per-Trip Rate
+      agreedRate: 15000, // BDT 15,000 per trip base rent
+      assignedTrucks: ['DHAKA-METRO-TA-20-9171', 'DHAKA-METRO-TA-11-8393'],
+      assignedTrucksJson: JSON.stringify(['DHAKA-METRO-TA-20-9171', 'DHAKA-METRO-TA-11-8393']),
+      route: 'Seedstor Bazar Valuka ➔ OCL Depot / Chittagong Port',
+      cargoDetails: 'Export Footwear & RMG Cargo',
+      startDate: '2026-10-01',
+      contractStatus: 'active',
+      status: 'active',
+      remarks: 'Official transport contract with Global Shoes Ltd. Rent + Demurrage billing per trip with monthly Transport Bill.',
+      origin: 'GLOBAL',
+      destination: 'OCL',
+      fuelCost: 0,
+      tollCost: 0,
+      maintenanceCost: 0,
+      maintenanceDetails: '',
+      driverName: 'Assigned Fleet (2 Trucks)',
+      distanceKm: 260,
+    },
   ].map((c) => ({
     tripRevenue: 0,
     outstandingDue: 0,
@@ -660,9 +753,96 @@ export default function TransportManagementModule({
     [allGarmentsContracts, normalizeReg]
   );
 
+  const defaultGlobalShoesTrips: ErpTransportOp[] = useMemo(() => [
+    {
+      id: 'demo-gsl-trip-01',
+      tripOrVehicleCode: 'TPB_GSL 010',
+      challanNumber: 'TPB_GSL 010',
+      orderNumber: 'ORD-GSL-010',
+      recordType: 'trip',
+      businessId: activeBusiness.id,
+      registrationNumber: 'DHAKA-METRO-TA-20-9171',
+      vehicleType: 'Heavy Truck',
+      driverName: 'Md. Tariqul Islam',
+      origin: 'GLOBAL',
+      destination: 'OCL',
+      loadingLocation: 'GLOBAL',
+      deliveryLocation: 'OCL',
+      route: 'GLOBAL ➔ OCL',
+      cargoDetails: 'Export Footwear & RMG',
+      customerName: 'Global Shoes Ltd',
+      clientName: 'Global Shoes Ltd',
+      distanceKm: 260,
+      tripRevenue: 15000,
+      demurrageAmount: 6000,
+      advancePaid: 0,
+      advanceReceived: 0,
+      driverKhoraki: 2000,
+      tripExpense: 2000,
+      netIncome: 19000,
+      insuranceExpiry: '2027-12-31',
+      fitnessExpiry: '2027-12-31',
+      taxTokenExpiry: '2027-12-31',
+      nextServiceDate: '2027-06-30',
+      date: '2026-10-14',
+      status: 'completed',
+      fuelCost: 0,
+      tollCost: 0,
+      maintenanceCost: 0,
+      maintenanceDetails: '',
+      ownerId: ownerId || activeBusiness.id,
+    } as ErpTransportOp,
+    {
+      id: 'demo-gsl-trip-02',
+      tripOrVehicleCode: 'TPB_GSL 011',
+      challanNumber: 'TPB_GSL 011',
+      orderNumber: 'ORD-GSL-011',
+      recordType: 'trip',
+      businessId: activeBusiness.id,
+      registrationNumber: 'DHAKA-METRO-TA-11-8393',
+      vehicleType: 'Covered Van',
+      driverName: 'Md. Shahidul Islam',
+      origin: 'GLOBAL',
+      destination: 'OCL',
+      loadingLocation: 'GLOBAL',
+      deliveryLocation: 'OCL',
+      route: 'GLOBAL ➔ OCL',
+      cargoDetails: 'Export Footwear & RMG',
+      customerName: 'Global Shoes Ltd',
+      clientName: 'Global Shoes Ltd',
+      distanceKm: 260,
+      tripRevenue: 16000,
+      demurrageAmount: 4000,
+      advancePaid: 0,
+      advanceReceived: 0,
+      driverKhoraki: 2000,
+      tripExpense: 2000,
+      netIncome: 18000,
+      insuranceExpiry: '2027-12-31',
+      fitnessExpiry: '2027-12-31',
+      taxTokenExpiry: '2027-12-31',
+      nextServiceDate: '2027-06-30',
+      date: '2026-10-22',
+      status: 'completed',
+      fuelCost: 0,
+      tollCost: 0,
+      maintenanceCost: 0,
+      maintenanceDetails: '',
+      ownerId: ownerId || activeBusiness.id,
+    } as ErpTransportOp,
+  ], [activeBusiness.id, ownerId]);
+
   const allTrips = useMemo(() => {
-    return ops.filter((op) => op.recordType === 'trip' || (!op.recordType && op.origin));
-  }, [ops]);
+    const fromOps = ops.filter((op) => op.recordType === 'trip' || (!op.recordType && op.origin));
+    const tripMap = new Map<string, ErpTransportOp>();
+    for (const d of defaultGlobalShoesTrips) {
+      tripMap.set(d.tripOrVehicleCode || d.id, d);
+    }
+    for (const op of fromOps) {
+      tripMap.set(op.tripOrVehicleCode || op.id, op);
+    }
+    return Array.from(tripMap.values());
+  }, [ops, defaultGlobalShoesTrips]);
 
   // Helper to determine if a truck is currently on an active trip and when it is expected to return
   const getTruckActiveTrip = useCallback(
@@ -1034,14 +1214,20 @@ export default function TransportManagementModule({
       const activeTrips = clientTrips.filter((t) => t.status === 'active' || t.status === 'running').length;
       const completedTrips = clientTrips.filter((t) => t.status === 'completed').length;
 
-      // Billing calculations:
+      // Billing calculations (Rent + Demurrage per real-world corporate billing):
       let totalBilled = 0;
       if (contract.billingType === 'monthly') {
-        const tripBilledSum = clientTrips.reduce((s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0), 0);
+        const tripBilledSum = clientTrips.reduce(
+          (s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0) + Number(t.demurrageAmount || 0),
+          0
+        );
         totalBilled = Math.max(tripBilledSum, Number(contract.agreedRate || 0));
       } else {
-        // day_trip: sum of trip fares
-        totalBilled = clientTrips.reduce((s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0), 0);
+        // day_trip: sum of trip rent + demurrage
+        totalBilled = clientTrips.reduce(
+          (s, t) => s + Number(t.tripRevenue || t.estimatedTripFare || 0) + Number(t.demurrageAmount || 0),
+          0
+        );
         if (totalBilled === 0 && totalTrips > 0) {
           totalBilled = totalTrips * Number(contract.agreedRate || 0);
         }
@@ -1730,7 +1916,7 @@ export default function TransportManagementModule({
     // Filter by month/year for monthly metrics
     const currentMonthPrefix = selectedMonth !== 'ALL' ? `${selectedYear}-${selectedMonth}` : selectedYear;
     const monthlyTrips = allTrips.filter((t) => t.date && t.date.startsWith(currentMonthPrefix));
-    const monthlyRevenue = monthlyTrips.reduce((s, t) => s + Number(t.tripRevenue || 0), 0);
+    const monthlyRevenue = monthlyTrips.reduce((s, t) => s + Number(t.tripRevenue || 0) + Number(t.demurrageAmount || 0), 0);
     const monthlyExpenses = monthlyTrips.reduce((s, t) => {
       const exp = Number(t.tripExpense || 0) > 0
         ? Number(t.tripExpense)
@@ -2941,6 +3127,7 @@ export default function TransportManagementModule({
     } else {
       setQuickDispatchFare(15000);
     }
+    setQuickDispatchDemurrage(0);
     setQuickDispatchAdvance(0);
     setQuickDispatchKhoraki(2000);
     const today = new Date().toISOString().slice(0, 10);
@@ -3028,13 +3215,14 @@ export default function TransportManagementModule({
           clientName: contract?.clientName || contract?.customerName || 'Garments Client',
           distanceKm: 260,
           tripRevenue: Number(quickDispatchFare || 0),
+          demurrageAmount: Number(quickDispatchDemurrage || 0),
           advancePaid: Number(quickDispatchAdvance || 0),
           advanceReceived: Number(quickDispatchAdvance || 0),
-          remainingDue: Math.max(0, Number(quickDispatchFare || 0) - Number(quickDispatchAdvance || 0)),
-          outstandingDue: Math.max(0, Number(quickDispatchFare || 0) - Number(quickDispatchAdvance || 0)),
+          remainingDue: Math.max(0, Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - Number(quickDispatchAdvance || 0)),
+          outstandingDue: Math.max(0, Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - Number(quickDispatchAdvance || 0)),
           driverKhoraki: Number(quickDispatchKhoraki || 0),
           tripExpense: Number(quickDispatchKhoraki || 0),
-          netIncome: Number(quickDispatchFare || 0) - Number(quickDispatchKhoraki || 0),
+          netIncome: Number(quickDispatchFare || 0) + Number(quickDispatchDemurrage || 0) - Number(quickDispatchKhoraki || 0),
           insuranceExpiry: '2027-12-31',
           fitnessExpiry: '2027-12-31',
           taxTokenExpiry: '2027-12-31',
@@ -3103,6 +3291,45 @@ export default function TransportManagementModule({
       setIsSubmitting(false);
     }
   };
+
+  // ── Corporate Transport Bill Handlers & Computed Trips ───────────────
+  const openCorporateTransportBill = (contract: ErpTransportOp) => {
+    setSelectedCorporateBillContract(contract);
+    setShowCorporateBillModal(true);
+  };
+
+  const handleUpdateTripDemurrage = async (tripId: string, demurrage: number) => {
+    const trip = allTrips.find((t) => t.id === tripId);
+    if (trip && !trip.id.startsWith('demo-')) {
+      await updateTransportOpRecord(trip, { demurrageAmount: demurrage }, actorEmail);
+      triggerGlobalToast('Demurrage updated successfully', 'success');
+    } else {
+      triggerGlobalToast('Demurrage updated', 'info');
+    }
+  };
+
+  const corporateBillTrips = useMemo(() => {
+    if (!selectedCorporateBillContract) return [];
+    const rawCName = (selectedCorporateBillContract.clientName || selectedCorporateBillContract.customerName || '').trim();
+    const normCName = normalizeClientName(rawCName);
+    let assignedTrucks: string[] = [];
+    if (Array.isArray(selectedCorporateBillContract.assignedTrucks)) assignedTrucks = selectedCorporateBillContract.assignedTrucks;
+    else if (selectedCorporateBillContract.assignedTrucksJson) {
+      try { assignedTrucks = JSON.parse(selectedCorporateBillContract.assignedTrucksJson); } catch {}
+    } else if (selectedCorporateBillContract.route && selectedCorporateBillContract.route.includes(',')) {
+      assignedTrucks = selectedCorporateBillContract.route.split(',').map((s) => s.trim());
+    } else if (selectedCorporateBillContract.registrationNumber) {
+      assignedTrucks = [selectedCorporateBillContract.registrationNumber];
+    }
+
+    return allTrips.filter((t) => {
+      const rawTCustomer = (t.customerName || t.clientName || '').trim();
+      const normTCustomer = normalizeClientName(rawTCustomer);
+      const matchesName = normCName && normTCustomer && (normTCustomer.includes(normCName) || normCName.includes(normTCustomer));
+      const matchesTruck = assignedTrucks.some((tr) => normalizeReg(tr) === normalizeReg(t.registrationNumber));
+      return matchesName || matchesTruck;
+    });
+  }, [selectedCorporateBillContract, allTrips, normalizeClientName, normalizeReg]);
 
   // ── Receive Garments Payment / Monthly Rent Handlers ───────────────
   const openCollectClientBillModal = (clientItem: any) => {
@@ -4702,6 +4929,16 @@ export default function TransportManagementModule({
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               type="button"
+                              onClick={() => openCorporateTransportBill(contract)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                              title="View & Print Official Corporate Transport Bill (Rent + Demurrage Invoice)"
+                            >
+                              <FileText className="h-3 w-3" />
+                              <span>Bill</span>
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => openCollectClientBillModal(item)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
                               title={isMonthly ? 'Receive Monthly Fixed Rent' : 'Receive Trip Payment / Settle Due'}
@@ -4947,8 +5184,18 @@ export default function TransportManagementModule({
                         </button>
                       </div>
 
-                      {/* Collect Monthly Bill & Dispatch Trip Buttons */}
-                      <div className="flex items-center gap-1.5">
+                      {/* Collect Monthly Bill, Transport Bill & Dispatch Trip Buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => openCorporateTransportBill(contract)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                          title="View & Print Official Corporate Transport Bill (Rent + Demurrage Invoice)"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>Transport Bill</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => openCollectClientBillModal(item)}
@@ -8586,7 +8833,21 @@ export default function TransportManagementModule({
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const contract = selectedGarmentsForDetails.contract;
+                    setSelectedGarmentsForDetails(null);
+                    openCorporateTransportBill(contract);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                  title="View & Print Official Corporate Transport Bill (Rent + Demurrage Invoice)"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>📄 Transport Bill (Invoice)</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -8866,7 +9127,7 @@ export default function TransportManagementModule({
               </div>
 
               {/* 4. Fare, Date & Advances */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                 <div>
                   <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
                     Dispatch Date *
@@ -8882,7 +9143,7 @@ export default function TransportManagementModule({
 
                 <div>
                   <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
-                    Trip Fare (BDT) *
+                    Trip Rent (BDT) *
                   </label>
                   <input
                     type="number"
@@ -8891,6 +9152,20 @@ export default function TransportManagementModule({
                     value={quickDispatchFare}
                     onChange={(e) => setQuickDispatchFare(Number(e.target.value))}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-purple-700 dark:text-purple-300 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-700 dark:text-slate-300">
+                    Demurrage (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={quickDispatchDemurrage}
+                    onChange={(e) => setQuickDispatchDemurrage(Number(e.target.value))}
+                    placeholder="0"
+                    className="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 font-mono font-bold text-xs text-amber-700 dark:text-amber-300 focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
@@ -9892,6 +10167,29 @@ export default function TransportManagementModule({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── MODAL 14: REAL-WORLD CORPORATE TRANSPORT BILL (A4 Printable Monthly Invoice) ── */}
+      {showCorporateBillModal && selectedCorporateBillContract && (
+        <CorporateTransportBillModal
+          isOpen={showCorporateBillModal}
+          onClose={() => {
+            setShowCorporateBillModal(false);
+            setSelectedCorporateBillContract(null);
+          }}
+          contract={selectedCorporateBillContract}
+          clientTrips={corporateBillTrips}
+          businessName="M/S IQRA ENTERPRISE"
+          businessAddress="JL Menson 2nd Floor, 7/1 BRDC Road, Tejgaon, Dhaka-1208"
+          businessPhone="01719714211, 017787779, 01707300599"
+          businessEmail="iqraenterprise747@gmail.com"
+          onUpdateTripDemurrage={handleUpdateTripDemurrage}
+          onReceivePayment={(clientItem) => {
+            setShowCorporateBillModal(false);
+            openCollectClientBillModal(clientItem);
+          }}
+          lang="en"
+        />
       )}
     </div>
   );

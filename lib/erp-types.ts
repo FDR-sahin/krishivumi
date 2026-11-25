@@ -347,6 +347,8 @@ export interface ErpTransportOp {
   warrantyExpiryDate?: string;
   commission?: number;
   driverCommission?: number;
+  demurrageAmount?: number;
+  demurrageDays?: number;
   tripExpense?: number;
   estimatedTripFare?: number;
   advancePaid?: number;
